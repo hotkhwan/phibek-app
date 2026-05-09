@@ -237,10 +237,12 @@
       search: search.trim() || undefined,
       ...(useMembers ? { sortField: 'orgRole', sortOrder: 'desc' as const } : {})
     }
+    console.debug('[users] load → token=%d scope=%s orgId=%s', myToken, useMembers ? 'members' : 'system', orgId)
     try {
       const { data, error } = useMembers
         ? await listOrgMembers(params)
         : await listUsers(params)
+      console.debug('[users] load ← token=%d items=%d error=%o', myToken, (data?.details?.items ?? []).length, error)
       // Drop result if a newer call has fired since this one started.
       if (myToken !== searchToken) return
       if (error) {
@@ -251,12 +253,11 @@
       }
       pageIndex = 1
     } catch (err) {
+      console.error('[users] load threw', err)
       if (myToken !== searchToken) return
       errorMsg = (err as Error)?.message ?? 'Failed to load users'
       rows = []
     } finally {
-      // Always clear the spinner for this call. If a newer call is in flight,
-      // it will set loading back to true on its way in.
       loading = false
     }
   }
