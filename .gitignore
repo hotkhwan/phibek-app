@@ -1,0 +1,41 @@
+node_modules
+
+# Output
+.output
+.vercel
+.netlify
+.wrangler
+/.svelte-kit
+/build
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
+!.env.example
+!.env.test
+
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+#clause coding
+.claude/agents/
+.claude/aisomPlan/
+.claude/commands/
+.claude/templates/
+.claude/worktrees/
+.claude/settings.json
+.claude/settings.local.json
+.claude/skills/klynx-*
+api.json
+
+# i18n generated files
+src/lib/i18n/messages/
+messages/
+
+# Vendored 3rd-party reference template (cyber_admin v2.0) — not redistributed
+cyber_admin_v2.0/

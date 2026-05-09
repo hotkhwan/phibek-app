@@ -1,0 +1,75 @@
+.app {
+  .slider {
+    &.slider-horizontal {
+      height: rem(20px);
+      width: 100%;
+    
+      & .slider-track {
+        height: rem(4px);
+        margin-top: rem(-2px);
+      }
+      & .slider-handle {
+      	margin-inline-start: rem(-2px);
+      	margin-top: rem(2px);
+      }
+    }
+    &.slider-vertical {
+      margin: 0 auto;
+      display: block;
+      
+      & .slider-track {
+        width: rem(4px);
+        margin-inline-start: rem(4px);
+      }
+      & .slider-handle {
+      	margin-inline-start: rem(3px);
+      }
+    }
+    &.slider-disabled {
+      & .slider-track {
+        opacity: 0.5;
+      	background: var(--#{$prefix}tertiary-bg);
+      }
+      & .slider-handle {
+      	background: var(--#{$prefix}component-bg);
+        cursor: not-allowed;
+      }
+    }
+    & .slider-track {
+      box-shadow: none;
+      background: var(--#{$prefix}tertiary-bg);
+      border-radius: $component-border-radius;
+      
+      & .slider-selection {
+        background: rgba(var(--#{$prefix}body-color-rgb), .35);
+        box-shadow: none;
+      	border-radius: $component-border-radius;
+      }
+    }
+    & .slider-handle {
+    	width: rem(16px);
+    	height: rem(16px);
+      background: var(--#{$prefix}body-color);
+      box-shadow: 0 rem(1px) rem(6px) rgba($black, .25);
+    }
+    & .tooltip {
+    	position: absolute;
+    	
+      &.in {
+        opacity: 1;
+      }
+      &.top {
+        margin-top: rem(-30px);
+      }
+      &.bottom {
+        margin-top: rem(25px);
+      }
+      &.left {
+				margin-inline-start: rem(-20px);
+      }
+      &.right {
+      	margin-inline-end: rem(5px);
+      }
+    }
+  }
+}

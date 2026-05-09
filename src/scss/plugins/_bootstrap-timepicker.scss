@@ -1,0 +1,97 @@
+.bootstrap-timepicker-widget {
+  &.dropdown-menu {
+    &.open {
+      width: rem(160px);
+      padding: $spacer * .75;
+      margin: rem(2px) 0;
+      
+      
+			.modal-open & {
+				z-index: $zindex-modal + 10;
+			}
+			
+      &:before,
+      &:after {
+        display: none;
+      }
+      & table {
+        & tbody {
+          & tr {
+            & td {
+              padding: 0;
+              height: auto;
+              
+              &.separator {
+                padding: 0 $spacer * .25;
+              }
+              &:not(.separator) {
+                min-width: rem(40px);
+              }
+              & input {
+                border-radius: $component-border-radius;
+                border: 1px solid $input-border-color;
+                height: $input-height;
+                padding: rem(5px);
+                line-height: $input-line-height;
+                background: none;
+                color: $input-color;
+                display: block;
+                width: 100%;
+                margin: $spacer * .335 0;
+                transition: all .15s ease-in-out;
+                
+                &:focus {
+                  border-color: $input-focus-border-color;
+                  outline: none;
+                  box-shadow: $input-btn-focus-box-shadow;
+                }
+              }
+              & a {
+                padding: $spacer * .25 0;
+                outline: 0;
+                color: var(--#{$prefix}body-color);
+                display: block;
+                line-height: 1;
+                height: auto;
+                width: auto;
+                margin: 0 auto;
+                border: none;
+                text-decoration: none;
+                border-radius: $component-border-radius;
+                border: var(--#{$prefix}border-width) solid var(--#{$prefix}border-color);
+                
+                &:hover {
+                  background: var(--#{$prefix}tertiary-bg);
+                  color: var(--#{$prefix}body-color);
+                }
+                & .glyphicon {
+                	position: relative;
+                	display: block;
+                	width: rem(8px);
+                	height: rem(8px);
+                	margin: 0 auto;
+                	
+                  &.glyphicon-chevron-up {
+                  	border: rem(4px) solid transparent;
+                  	border-bottom-color: rgba(var(--#{$prefix}body-color-rgb), .5);
+                  	top: rem(-2px);
+                  }
+                  &.glyphicon-chevron-down {
+                  	border: rem(4px) solid transparent;
+                  	border-top-color: rgba(var(--#{$prefix}body-color-rgb), .5);
+                  	bottom: rem(-2px);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+body .bootstrap-timepicker .input-group-addon i {
+	display: block;
+	width: auto;
+	height: auto;
+}

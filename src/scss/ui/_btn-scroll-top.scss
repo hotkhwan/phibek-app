@@ -1,0 +1,43 @@
+.btn-scroll-top {
+	position: fixed;
+	bottom: $spacer * 1.5;
+	font-size: $font-size-base * 2;
+	width: rem(30px);
+	height: rem(30px);
+	background: rgba(var(--#{$prefix}body-color-rgb), .15);
+	backdrop-filter: blur(6px);
+	color: var(--#{$prefix}body-color);
+	text-align: center;
+	text-decoration: none;
+	z-index: $app-header-zindex;
+	border-radius: $component-border-radius * 10;
+	transition: $btn-transition;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	
+	:dir(ltr) & {
+		right: $spacer * 1.5;
+	}
+	:dir(rtl) & {
+		left: $spacer * 1.5;
+	}
+	
+	@include media-breakpoint-down($desktop-breakpoint) {
+		bottom: $spacer;
+		z-index: $app-header-zindex;
+		
+		:dir(ltr) & {
+			right: $spacer;
+		}
+		:dir(rtl) & {
+			left: $spacer;
+		}
+	}
+	
+	&:hover {
+		background: rgba(var(--#{$prefix}body-color-rgb), .25);
+		color: var(--#{$prefix}body-color);
+		text-decoration: none;
+	}
+}

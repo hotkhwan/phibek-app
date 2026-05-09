@@ -1,0 +1,21 @@
+{
+  "_comments_error": "Error code labels",
+  "authErrorTitle": "Authentication Error",
+  "authErrorDesc": "An error occurred during the authentication process. Please try again.",
+  "authErrorRetry": "Retry Login",
+  "authErrorContactSupport": "Contact Support",
+  "authTryAgaiLater": "Try Again Later",
+  "error404Title": "404 - Page Not Found",
+  "error404Desc": "The page you are looking for does not exist or has been",
+  "errorPageTitle"  : "Error Page",
+  "errorOops": "Oops!",
+  "errorNotFoundDesc": "We can't seem to find the page you're looking for.",
+  "errorHelpfulLinks": "Here are some helpful links instead:",
+  "authApiErrorTitle": "Cannot Connect to API Gateway",
+  "authApiErrorDesc": "The backend API service is not available or not started. Please ensure the API Gateway is running and try again.",
+  "authApiErrorDetails": "Error details: {details}",
+  "authApiErrorSolution": "Possible solutions:",
+  "authApiErrorSolution1": "Start the backend API service",
+  "authApiErrorSolution2": "Check API_BASE environment variable",
+  "authApiErrorSolution3": "Verify network connectivity"
+}

@@ -1,0 +1,16 @@
+.caret {
+	width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 4px solid currentColor;
+}
+.dropup {
+	&.caret,
+	& .caret {
+		content: '';
+		border-top: 0;
+		border-bottom: 4px dashed;
+		border-bottom: 4px solid\9;
+  }
+}

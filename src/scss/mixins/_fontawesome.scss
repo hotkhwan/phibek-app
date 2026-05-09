@@ -1,0 +1,7 @@
+@mixin fontawesome() {
+	font-family: var(--fa-style-family, "Font Awesome 7 Free") !important;
+	font-weight: var(--fa-style, 900);
+	font-style: normal;
+	font-variant: normal;
+	text-rendering: auto;
+}

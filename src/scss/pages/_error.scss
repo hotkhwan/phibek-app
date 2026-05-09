@@ -1,0 +1,29 @@
+.error-page {
+	min-height: 100vh;
+	min-height: 100dvh;
+	padding: $spacer * 4 0;
+	display: flex;
+	align-items: center;
+	
+	& .error-page-content {
+		margin: 0 auto;
+		position: relative;
+		padding: 0 $spacer;
+		text-align: center;
+		
+		& .error-code {
+			color: var(--#{$prefix}heading-color);
+			left: 0;
+			right: 0;
+			font-size: $font-size-base * 10;
+			font-weight: $font-weight-bold;
+			line-height: 1;
+			letter-spacing: rem(10px);
+			text-align: center;
+			
+			@include media-breakpoint-down(sm) {
+				font-size: $font-size-base * 6;
+			}
+		}
+	}
+}

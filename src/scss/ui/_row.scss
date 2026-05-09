@@ -1,0 +1,10 @@
+.row.row-grid {
+	& > [class*="col-"] {
+		& + [class*="col-"] {
+			border-left: 1px solid var(--#{$prefix}border-color);
+		}
+	}
+	& + .row-grid {
+		border-top: 1px solid var(--#{$prefix}border-color);
+	}
+}

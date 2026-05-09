@@ -1,0 +1,45 @@
+{
+  "_comments_footer": "Footer section",
+  "footerBrandTitle": "Gateway",
+  "footerBrandDescription": "Gateway helps teams ship secure APIs and reliable event delivery with unified routing, policy, and observability.",
+  "footerFollowUs": "Follow Us",
+
+  "footerQuickLinks": "Quick Links",
+  "footerLinkNewsroom": "Newsroom",
+  "footerLinkCompanyInfo": "Company Info",
+  "footerLinkCareers": "Careers",
+  "footerLinkInvestors": "For Investors",
+  "footerLinkBrandResources": "Brand Resources",
+
+  "footerServices": "Services",
+  "footerServiceApiGateway": "API Gateway",
+  "footerServiceEventRouting": "Event Routing",
+  "footerServiceAuthnAuthz": "AuthN / AuthZ",
+  "footerServiceObservability": "Observability",
+
+  "footerResources": "Resources",
+  "footerResourceDocs": "Documentation",
+  "footerResourceSupport": "Support",
+  "footerResourceFaqs": "FAQs",
+  "footerResourceCommunity": "Community",
+  "footerResourceTutorials": "Tutorials",
+
+  "footerLegal": "Legal",
+  "footerLegalPrivacy": "Privacy Policy",
+  "footerLegalTerms": "Terms of Service",
+  "footerLegalCookies": "Cookie Policy",
+  "footerLegalCompliance": "Compliance",
+
+  "footerHelpCenter": "Help Center",
+  "footerHelpContactForm": "Contact Form",
+  "footerHelpLiveChat": "Live Chat Support",
+  "footerHelpPortal": "Portal Help Center",
+  "footerHelpEmailSupport": "Email Support",
+  "footerHelpTechnicalDocs": "Technical Documentation",
+  "footerHelpServiceUpdates": "Service Updates",
+  "footerHelpDeveloperApi": "Developer API",
+  "footerHelpKnowledgeBase": "Knowledge Base",
+
+  "footerSitemap": "Sitemap",
+  "footerCopyright": "© 2026 Gateway Platform. All Rights Reserved"
+}

@@ -1,0 +1,10 @@
+.app {
+	position: relative;
+	height: 100vh;
+	height: 100dvh;
+	padding-top: $app-header-height;
+	
+	@include media-breakpoint-down(xl) {
+		flex-direction: column;
+	}
+}

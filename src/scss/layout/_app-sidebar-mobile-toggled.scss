@@ -1,0 +1,34 @@
+@keyframes appSidebarMobileSlideInLTR {
+	from { left: -$app-sidebar-width; } 
+	to { left: 0; }
+}
+@keyframes appSidebarMobileSlideInRTL {
+	from { right: -$app-sidebar-width; } 
+	to { right: 0; }
+}
+
+@keyframes appSidebarMobileBackdrop { 
+	from { background: transparent; } 
+	to { background: $app-sidebar-mobile-backdrop-bg; } 
+}
+
+.app-sidebar-mobile-toggled {
+	@include media-breakpoint-down($desktop-breakpoint) {
+		& .app-sidebar {
+			:dir(ltr) & {
+				left: 0;
+				animation: appSidebarMobileSlideInLTR .2s ease-out forwards;
+			}
+			:dir(rtl) & {
+				right: 0;
+				animation: appSidebarMobileSlideInRTL .2s ease-out forwards;
+			}
+		}
+		& .app-sidebar-mobile-backdrop:not(.app-sidebar-end) {
+			display: block;
+			background: $app-sidebar-mobile-backdrop-bg;
+			animation: appSidebarMobileBackdrop .2s ease-out forwards;
+			backdrop-filter: $app-sidebar-mobile-backdrop-bg-filter;
+		}
+	}
+}

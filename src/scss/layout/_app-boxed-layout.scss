@@ -1,0 +1,44 @@
+.app-boxed-layout {
+	@include media-breakpoint-up(lg) {
+		min-height: 100vh;
+		background: rgba(var(--#{$prefix}body-bg-rgb), .5);
+		border-left: var(--#{$prefix}border-width) solid var(--#{$prefix}border-color);
+		border-right: var(--#{$prefix}border-width) solid var(--#{$prefix}border-color);
+	
+		&,
+		& .app-header,
+		& .app-top-nav {
+			max-width: rem(1280px);
+			margin-left: auto;
+			margin-right: auto;
+		}
+		& .app-top-nav {
+			overflow: hidden;
+			
+			& .menu {
+				& > .menu-item {
+					&.menu-control {
+						border-left: var(--#{$prefix}border-width) solid var(--#{$prefix}border-color);
+						border-right: var(--#{$prefix}border-width) solid var(--#{$prefix}border-color);
+					}
+					& > .menu-submenu {
+						position: fixed;
+						top: auto;
+						left: auto;
+						right: auto;
+					}
+				}
+			}
+		}
+		& .app-sidebar {
+			:dir(ltr) & {
+				left: auto;
+				margin-left: $border-width * -1;
+			}
+			:dir(rtl) & {
+				right: auto;
+				margin-right: $border-width * -1;
+			}
+		}
+	}
+}

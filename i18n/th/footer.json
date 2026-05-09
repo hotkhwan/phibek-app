@@ -1,0 +1,45 @@
+{
+  "_comments_footer": "Footer section",
+  "footerBrandTitle": "Gateway",
+  "footerBrandDescription": "Gateway ช่วยทีมส่งมอบ API ที่ปลอดภัย และส่งอีเวนต์ได้อย่างเชื่อถือได้ ด้วย routing, policy และ observability ที่รวมศูนย์",
+  "footerFollowUs": "ติดตามเรา",
+
+  "footerQuickLinks": "ลิงก์ด่วน",
+  "footerLinkNewsroom": "ข่าวสาร",
+  "footerLinkCompanyInfo": "ข้อมูลบริษัท",
+  "footerLinkCareers": "ร่วมงานกับเรา",
+  "footerLinkInvestors": "สำหรับนักลงทุน",
+  "footerLinkBrandResources": "ทรัพยากรแบรนด์",
+
+  "footerServices": "บริการ",
+  "footerServiceApiGateway": "API Gateway",
+  "footerServiceEventRouting": "การส่งต่ออีเวนต์",
+  "footerServiceAuthnAuthz": "ยืนยันตัวตน / กำหนดสิทธิ์",
+  "footerServiceObservability": "การสังเกตการณ์ระบบ",
+
+  "footerResources": "แหล่งข้อมูล",
+  "footerResourceDocs": "เอกสาร",
+  "footerResourceSupport": "ซัพพอร์ต",
+  "footerResourceFaqs": "คำถามที่พบบ่อย",
+  "footerResourceCommunity": "ชุมชน",
+  "footerResourceTutorials": "บทเรียน",
+
+  "footerLegal": "กฎหมาย",
+  "footerLegalPrivacy": "นโยบายความเป็นส่วนตัว",
+  "footerLegalTerms": "ข้อตกลงการใช้งาน",
+  "footerLegalCookies": "นโยบายคุกกี้",
+  "footerLegalCompliance": "การปฏิบัติตามข้อกำหนด",
+
+  "footerHelpCenter": "ศูนย์ช่วยเหลือ",
+  "footerHelpContactForm": "แบบฟอร์มติดต่อ",
+  "footerHelpLiveChat": "ซัพพอร์ตแชตสด",
+  "footerHelpPortal": "พอร์ทัลศูนย์ช่วยเหลือ",
+  "footerHelpEmailSupport": "ซัพพอร์ตอีเมล",
+  "footerHelpTechnicalDocs": "เอกสารเทคนิค",
+  "footerHelpServiceUpdates": "อัปเดตบริการ",
+  "footerHelpDeveloperApi": "Developer API",
+  "footerHelpKnowledgeBase": "คลังความรู้",
+
+  "footerSitemap": "แผนผังเว็บไซต์",
+  "footerCopyright": "© 2026 Gateway Platform. สงวนลิขสิทธิ์"
+}

@@ -1,0 +1,48 @@
+.navbar {
+	&.navbar-sticky {
+		top: $app-content-padding-y;
+		position: sticky;
+		padding: 0;
+		
+		& .nav {
+			width: 100%;
+			flex-direction: column;
+			
+			& .nav-header {
+				padding: 0 0 $spacer * .35 0;
+				margin: 0 $spacer * 1.5 $spacer * .75;
+				font-size: $font-size-sm;
+				font-weight: $font-weight-bold;
+				color: var(--#{$prefix}secondary-color);
+				border-bottom: var(--#{$prefix}border-width) solid var(--#{$prefix}border-color);
+			}
+			& .nav-link {
+				color: var(--#{$prefix}tertiary-color);
+				padding: $spacer * .25 $spacer * 1.5;
+				position: relative;
+				
+				&:before {
+					content: '';
+					position: absolute;
+					top: 0;
+					left: 0;
+					right: 0;
+					bottom: 0;
+					border-inline-start: $border-width * 2 solid transparent;
+				}
+				
+				&:hover {
+					color: var(--#{$prefix}secondary-color);
+				}
+				&.active {
+					color: var(--#{$prefix}body-color);
+					font-weight: $font-weight-semibold;
+					
+					&:before {
+						border-color: var(--#{$prefix}body-color);
+					}
+				}
+			}
+		}
+	}
+}

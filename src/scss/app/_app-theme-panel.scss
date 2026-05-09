@@ -1,0 +1,253 @@
+$app-theme-panel-width: $spacer * 17;
+
+.app-theme-panel {
+	position: fixed;
+	top: 0;
+	bottom: 0;
+	z-index: $app-header-zindex + 10;
+	width: 0;
+	display: flex;
+	align-items: center;
+	
+	:dir(ltr) & {
+		right: -$app-theme-panel-width;
+		transition: right .2s ease-in-out;
+	}
+	:dir(rtl) & {
+		left: -$app-theme-panel-width;
+		transition: left .2s ease-in-out;
+	}
+	
+	& .app-theme-panel-container {
+		width: $app-theme-panel-width;
+		position: absolute;
+		
+		:dir(ltr) & {
+			right: 0;
+		}
+		:dir(rtl) & {
+			left: 0;
+		}
+	}
+	& .app-theme-panel-content {
+		width: $app-theme-panel-width;
+		background: rgba(var(--#{$prefix}component-bg-rgb), .94);
+		padding: $spacer * .85;
+		z-index: 10;
+		border: var(--#{$prefix}border-width) solid var(--#{$prefix}border-color);
+		transition: box-shadow .2s ease-in-out;
+		backdrop-filter: blur(10px);
+		color: var(--#{$prefix}body-color);
+
+		& .app-theme-panel-section {
+			padding: $spacer * .55;
+			background: rgba(var(--#{$prefix}body-bg-rgb), .35);
+			border: 1px solid rgba(var(--#{$prefix}body-color-rgb), .16);
+		}
+		
+		& .app-theme-list {
+			margin: $spacer * -.25;
+			display: flex;
+			flex-wrap: wrap;
+	
+			& .app-theme-list-item {
+				padding: $spacer * .25;
+				width: 25%;
+		
+				& .app-theme-list-link {
+					height: rem(32px);
+					display: block;
+					text-decoration: none;
+					position: relative;
+					transition: all .2s linear;
+			
+					&:hover {
+						opacity: .6;
+					}
+				}
+				&.active {
+					& .app-theme-list-link {
+						&:before {
+							content: '\f00c';
+							position: absolute;
+							left: 0;
+							right: 0;
+							top: 0;
+							bottom: 0;
+							font-size: rem(14px);
+							color: $white;
+							display: flex;
+							align-items: center;
+							justify-content: center;
+					
+							@include fontawesome();
+						}
+					}
+				}
+			}
+		}
+		& .app-theme-mode-link {
+			color: $white;
+			text-decoration: none;
+			text-align: center;
+			position: relative;
+			display: block;
+			transition: all .2s linear;
+
+			& .img {
+				position: relative;
+				background: $black;
+
+				& img {
+					width: 100%;
+					height: rem(76px);
+					object-fit: cover;
+					display: block;
+				}
+				&:before {
+					content: '\f00c';
+					position: absolute;
+					inset-inline-start: 0;
+					inset-inline-end: 0;
+					top: 0;
+					bottom: 0;
+					font-size: rem(18px);
+					color: transparent;
+					display: flex;
+					align-items: center;
+					justify-content: center;
+					z-index: 10;
+
+					@include fontawesome();
+				}
+			}
+			& .text {
+				font-size: $font-size-base * .8;
+				font-weight: $font-weight-semibold;
+				position: absolute;
+				inset-inline-start: 0;
+				inset-inline-end: 0;
+				bottom: 0;
+				background: rgba($black, .82);
+				display: flex;
+				align-items: flex-end;
+				justify-content: center;
+				min-height: rem(20px);
+			}
+			&:hover {
+				opacity: .72;
+			}
+			&.active {
+				opacity: 1;
+
+				& .img {
+					outline: 2px solid var(--#{$prefix}theme);
+					outline-offset: -2px;
+
+					&:before {
+						color: $white;
+					}
+					&:after {
+						content: '';
+						position: absolute;
+						inset: 0;
+						background: rgba($black, .28);
+					}
+				}
+			}
+		}
+		& .app-theme-cover {
+			margin: $spacer * -.25;
+			display: flex;
+			flex-wrap: wrap;
+
+			& .app-theme-cover-item {
+				padding: $spacer * .25;
+				width: 33.333333%;
+
+				& .app-theme-cover-link {
+					display: block;
+					text-decoration: none;
+					position: relative;
+					padding-top: 56%;
+					background-size: cover;
+					background-position: center;
+					transition: all .2s linear;
+
+					&:hover {
+						opacity: .72;
+					}
+					&:before {
+						content: '';
+						position: absolute;
+						inset: 0;
+						background: $black;
+						opacity: .22;
+					}
+				}
+				&.active {
+					& .app-theme-cover-link {
+						outline: 2px solid var(--#{$prefix}theme);
+						outline-offset: -2px;
+
+						&:after {
+							content: '\f00c';
+							position: absolute;
+							inset-inline-start: 0;
+							inset-inline-end: 0;
+							top: 0;
+							bottom: 0;
+							font-size: rem(15px);
+							color: $white;
+							display: flex;
+							align-items: center;
+							justify-content: center;
+
+							@include fontawesome();
+						}
+					}
+				}
+			}
+		}
+	}
+	& .app-theme-toggle-btn {
+		position: absolute;
+		top: 50%;
+		margin-top: $spacer * -1;
+		width: $spacer * 2.25;
+		height: $spacer * 2.25;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: $font-size-base * 1.45;
+		color: var(--#{$prefix}body-color);
+		background: rgba(var(--#{$prefix}component-bg-rgb), .94);
+		backdrop-filter: blur(10px);
+		text-align: center;
+		border: 1px solid var(--#{$prefix}border-color-translucent);
+		z-index: 10;
+		
+		:dir(ltr) & {
+			left: $spacer * -2.25;
+			border-radius: $component-border-radius-lg 0 0 $component-border-radius-lg;
+			border-right: none;
+		}
+		:dir(rtl) & {
+			right: $spacer * -2.25;
+			border-radius: 0 $component-border-radius-lg $component-border-radius-lg 0;
+			border-left: none;
+		}
+	}
+	&.active {
+		:dir(ltr) & {
+			right: 0;
+		}
+		:dir(rtl) & {
+			left: 0;
+		}
+		
+		& .app-theme-panel-content {
+			box-shadow: $box-shadow-lg;
+		}
+	}
+}

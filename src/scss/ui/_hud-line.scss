@@ -1,0 +1,13 @@
+.hud-line,
+.hud-line-lg {
+	background-image: linear-gradient(-45deg, rgba(var(--#{$prefix}body-color-rgb), .25) 25%, transparent 25%, transparent 50%, rgba(var(--#{$prefix}body-color-rgb), .25) 50%, rgba(var(--#{$prefix}body-color-rgb), .25) 75%, transparent 75%, transparent);
+	background-size: rem(6px) rem(6px);
+	height: rem(4px);
+	width: 100%;
+}
+.hud-line-lg {
+	background-image: linear-gradient(-45deg, rgba(var(--#{$prefix}body-color-rgb), .125) 25%, transparent 25%, transparent 50%, rgba(var(--#{$prefix}body-color-rgb), .125) 50%, rgba(var(--#{$prefix}body-color-rgb), .125) 75%, transparent 75%, transparent);
+	background-size: rem(8px) rem(8px);
+	height: rem(8px);
+	width: 100%;
+}

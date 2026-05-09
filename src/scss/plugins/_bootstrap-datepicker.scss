@@ -1,0 +1,212 @@
+.datepicker {
+	&.datepicker-dropdown {
+		width: rem(240px);
+		padding: $spacer * .5;
+		margin: rem(2px) 0;
+		z-index: $app-header-zindex + 10 !important;
+		border-radius: $component-border-radius;
+		box-shadow: $box-shadow;
+		
+		.modal-open & {
+			z-index: $zindex-modal + 10;
+		}
+		&:before,
+		&:after {
+			display: none;
+		}
+	}
+	& .datepicker-switch,
+	& .prev,
+	& .next {
+		padding: $spacer * .35 0;
+		font-weight: $font-weight-bold;
+		border-radius: $component-border-radius;
+		
+		&:hover {
+			background: var(--#{$prefix}tertiary-bg) !important;
+			color: var(--#{$prefix}body-color);
+		}
+	}
+	& .next,
+	& .prev {
+		overflow: hidden;
+		padding: 0;
+  	text-align: center;
+  	color: transparent !important;
+  	position: relative;
+  	display: flex;
+  	align-items: center;
+  	justify-content: center;
+  	width: auto;
+  	min-width: rem(31px);
+  	height: $font-size-base * $line-height-base + $spacer * .5;
+		
+		&:before {
+			content: '';
+			border: 4px solid transparent;
+			position: absolute;
+			margin: $spacer * .35 0;
+		}
+	}
+	& .next {
+		&:before {
+			:dir(ltr) & {
+				border-left-color: rgba(var(--#{$prefix}body-color-rgb), .75);
+			}
+			:dir(rtl) & {
+				border-right-color: rgba(var(--#{$prefix}body-color-rgb), .75);
+			}
+    }
+  }
+  & .prev {
+		&:before {
+			:dir(ltr) & {
+				border-right-color: rgba(var(--#{$prefix}body-color-rgb), .75);
+			}
+			:dir(rtl) & {
+				border-left-color: rgba(var(--#{$prefix}body-color-rgb), .75);
+			}
+    }
+	}
+	& .datepicker-switch {
+		color: var(--#{$prefix}body-color);
+		width: rem(220px) !important;
+		padding: 0;
+		font-size: $font-size-base;
+		height: $font-size-base * $line-height-base + $spacer * .5;
+	}
+	& .datepicker-days,
+	& .datepicker-months,
+	& .datepicker-years {
+		position: relative;
+	}
+	& .datepicker-days {
+		& table {
+			width: 100%;
+			
+			& thead {
+				& tr {
+					& th {
+						&.dow {
+							border-radius: $component-border-radius;
+							border: none;
+							padding: $spacer * .125 0;
+							font-size: $font-size-sm;
+							font-weight: $font-weight-bold;
+							width: 14.29%;
+							color: rgba($body-color, .75);
+							text-transform: uppercase;
+						}
+					}
+				}
+			}
+			& tbody {
+				& tr {
+					& td {
+						padding: $spacer * .35 rem(0);
+						border-radius: $component-border-radius;
+						color: var(--#{$prefix}body-color);
+						border: var(--#{$prefix}border-width) solid var(--#{$prefix}border-color);
+						width: 14.29%;
+						
+						&.old,
+						&.new {
+							color: rgba(var(--#{$prefix}body-color-rgb), .25);
+						}
+						&:hover,
+						&.focused,
+						&.range {
+							background: var(--#{$prefix}tertiary-bg);
+						}
+						&.active,
+						&.selected,
+						&.today,
+						&.today:hover,
+						&.today:focus {
+							background: $body-color;
+							border-color: $component-active-border-color;
+							color: $body-bg;
+							text-shadow: none;
+							position: relative;
+						}
+					}
+				}
+			}
+		}
+	}
+	& .datepicker-months,
+	& .datepicker-years,
+	& .datepicker-decades,
+	& .datepicker-centuries {
+		& table {
+			& tbody {
+				& tr {
+					& td {
+						padding: $spacer * .5 0 0;
+						
+						& span {
+							width: calc(25%);
+							margin: 0;
+							border-radius: $component-border-radius;
+							font-weight: $font-weight-bold;
+							color: var(--#{$prefix}body-color);
+							height: auto;
+							line-height: $line-height-base * 3;
+							border: var(--#{$prefix}border-width) solid var(--#{$prefix}border-color);
+							border-inline-end: none;
+							border-bottom: none;
+							
+							&:hover,
+							&.focused {
+								color: var(--#{$prefix}body-color) !important;
+								background: var(--#{$prefix}tertiary-bg) !important;
+							}
+							&.focused {
+								color: var(--#{$prefix}body-color);
+							}
+							&.active {
+								border-color: var(--#{$prefix}border-color);
+								position: relative;
+								background: var(--#{$prefix}body-color) !important;
+								color: var(--#{$prefix}body-bg) !important;
+								text-shadow: none;
+							}
+							&:nth-child(4),
+							&:nth-child(8),
+							&:nth-child(12) {
+								border-inline-end: var(--#{$prefix}border-width) solid var(--#{$prefix}border-color);
+							}
+							&:nth-child(9),
+							&:nth-child(10),
+							&:nth-child(11),
+							&:nth-child(12) {
+								border-bottom: var(--#{$prefix}border-width) solid var(--#{$prefix}border-color);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+.input-daterange {
+	& input.form-control {
+		&:first-child {
+			:dir(ltr) & {
+				border-radius: $component-border-radius 0 0 $component-border-radius;
+			}
+			:dir(rtl) & {
+				border-radius: 0 $component-border-radius $component-border-radius 0;
+			}
+		}
+		&:last-child {
+			:dir(ltr) & {
+				border-radius: 0 $component-border-radius $component-border-radius 0;
+			}
+			:dir(rtl) & {
+				border-radius: $component-border-radius 0 0 $component-border-radius;
+			}
+		}
+	}
+}

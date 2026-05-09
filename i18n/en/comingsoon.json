@@ -1,0 +1,15 @@
+{
+  "_comments_comingsoon": "Coming soon labels",
+  "comingsoonPageTitle": "Coming Soon",
+  "comingsoonTitle": "We're coming soon!",
+  "comingsoonDescriptionLine1": "We are working very hard on the new version of our site.",
+  "comingsoonDescriptionLine2": "It will bring a lot of new features. Stay tuned!",
+
+  "timeDays": "Days",
+  "timeHours": "Hours",
+  "timeMinutes": "Minutes",
+  "timeSeconds": "Seconds",
+
+  "formEmailPlaceholder": "Email Address",
+  "subscribeHint": "* Subscribe and get notified for latest news"
+}

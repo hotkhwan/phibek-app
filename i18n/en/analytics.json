@@ -1,0 +1,15 @@
+{
+  "analyticsKpiPlays": "Total Views",
+  "analyticsKpiSessions": "Sessions",
+  "analyticsKpiSessionsUnique": "Unique Sessions",
+  "analyticsKpiViewers": "Unique Viewers",
+  "analyticsKpiStreams": "Active Streams",
+  "analyticsScopeLabel": "Camera Scope",
+  "analyticsScopeAll": "All",
+  "analyticsScopePublic": "Public",
+  "analyticsScopeOwner": "Managed",
+  "analyticsRefresh": "Refresh",
+  "analyticsLoadFailed": "Unable to load data",
+  "analyticsNoData": "No data",
+  "analyticsLastUpdated": "Last updated"
+}

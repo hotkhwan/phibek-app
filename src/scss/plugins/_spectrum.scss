@@ -1,0 +1,126 @@
+.sp-original-input-container {
+	& .sp-add-on {
+		min-width: rem(35px);
+		background-image: none;
+		border: none !important;
+				
+		& .sp-colorize {
+			position: relative;
+			overflow: hidden;
+			
+			&:before {
+				content: '';
+				position: absolute;
+				top: 0;
+				left: 0;
+				right: 0;
+				bottom: 0;
+				border: 5px solid transparent;
+			}
+		}
+	}
+}
+.sp-container {
+	body & {
+		background: $dropdown-bg;
+		border: $dropdown-border-width solid $dropdown-border-color;
+		border-radius: $dropdown-border-radius;
+		box-shadow: $dropdown-box-shadow;
+		backdrop-filter: $dropdown-backdrop-filter;
+		
+		& .sp-palette-container {
+			padding: 0;
+			border: 0;
+			border-inline-end: $dropdown-border-width solid $dropdown-border-color;
+			
+			& .sp-palette {
+				display: flex;
+				flex-direction: column;
+				gap: $spacer * .5;
+				
+				& .sp-palette-row {
+					display: flex;
+					flex-wrap: wrap;
+					gap: $spacer * .5;
+					
+					& .sp-thumb-el {
+						border-radius: $component-border-radius;
+						margin: 0;
+						
+						& .sp-thumb-inner {
+							border-radius: $component-border-radius;
+						}
+					}
+				}
+			}
+		}
+		& .sp-picker-container {
+			padding: $spacer * .5;
+			
+			& .sp-input-container {
+				& .sp-input {
+					color: $input-color !important;
+					border-color: $input-border-color !important;
+				}
+			}
+			& button {
+				font-weight: $btn-font-weight;
+				border-radius: $component-border-radius;
+				font-size: $btn-font-size;
+				text-transform: uppercase;
+				transition: $btn-transition;
+				opacity: 1 !important;
+			}
+			& .sp-cancel {
+				background: none;
+				border: var(--#{$prefix}border-width) solid var(--#{$prefix}border-color);
+				color: var(--#{$prefix}body-color);
+				
+				&:hover,
+				&:focus {
+					background: var(--#{$prefix}border-color);
+					color: var(--#{$prefix}body-color);
+				}	
+			}
+			& .sp-choose {
+				background: var(--#{$prefix}body-color);
+				border: var(--#{$prefix}border-width) solid transparent;
+				color: var(--#{$prefix}body-bg);
+				
+				&:hover,
+				&:focus {
+					background: rgba(var(--#{$prefix}body-color-rgb), .5);
+					border-color: transparent;
+					color: var(--#{$prefix}body-color);
+				}
+			}
+		}
+		& .sp-clear, 
+		& .sp-color,
+		& .sp-hue,
+		& .sp-sat,
+		& .sp-val,
+		& .sp-dragger {
+			border-radius: $component-border-radius;
+		}
+		& .sp-clear {
+			filter: invert(1);
+		}
+		& .sp-input {
+			border-radius: $input-border-radius !important;
+			color: $input-color !important;
+			border: $input-border-width solid $input-border-color !important;
+			transition: $input-transition !important;
+			outline: none !important;
+			font-size: $input-font-size !important;
+			height: auto !important;
+			padding: $input-padding-y-sm $input-padding-x-sm !important;
+			line-height: $input-line-height !important;
+			
+			&:focus {
+				box-shadow: $input-focus-box-shadow !important;
+				border-color: $input-focus-border-color !important;
+			}
+		}
+	}
+}

@@ -1,0 +1,15 @@
+{
+  "analyticsKpiPlays": "จำนวนการเข้าชมทั้งหมด",
+  "analyticsKpiSessions": "เซสชัน",
+  "analyticsKpiSessionsUnique": "เซสชันแบบไม่ซ้ำ",
+  "analyticsKpiViewers": "ผู้ชมแบบไม่ซ้ำ",
+  "analyticsKpiStreams": "สตรีมที่ใช้งานอยู่",
+  "analyticsScopeLabel": "ขอบเขตกล้อง",
+  "analyticsScopeAll": "ทั้งหมด",
+  "analyticsScopePublic": "สาธารณะ",
+  "analyticsScopeOwner": "ที่จัดการ",
+  "analyticsRefresh": "รีเฟรช",
+  "analyticsLoadFailed": "โหลดข้อมูลไม่สำเร็จ",
+  "analyticsNoData": "ไม่มีข้อมูล",
+  "analyticsLastUpdated": "อัปเดตล่าสุด"
+}

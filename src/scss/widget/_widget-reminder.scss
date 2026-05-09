@@ -1,0 +1,38 @@
+.widget-reminder {
+	& .widget-reminder-item {
+		position: relative;
+		display: flex;
+	}
+	& .widget-reminder-header + .widget-reminder-item,
+	& .widget-reminder-item + .widget-reminder-header,
+	& .widget-reminder-item + .widget-reminder-item {
+		border-top: var(--#{$prefix}border-width) solid var(--#{$prefix}border-color);
+	}
+	& .widget-reminder-time,
+	& .widget-reminder-content {
+		padding: $spacer * .5 $spacer * .75;
+	}
+	& .widget-reminder-content {
+		flex: 1;
+	}
+	& .widget-reminder-time {
+		width: rem(80px);
+		font-size: $font-size-base;
+		
+		:dir(ltr) & {
+			text-align: right;
+		}
+		:dir(rtl) & {
+			text-align: left;
+		}
+	}
+	& .widget-reminder-divider {
+		width: rem(3px);
+		background: var(--#{$prefix}border-color);
+	}
+	& + .card-header,
+	& + .card-footer,
+	& + .card-body {
+		border-top: var(--#{$prefix}border-width) solid var(--#{$prefix}border-color);
+	}
+}

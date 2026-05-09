@@ -1,0 +1,68 @@
+.table {
+	&.table-card {
+		& thead,
+		& tbody {
+			& > tr {
+				& td,
+				& th {
+					&:first-child {
+						padding-inline-start: $card-spacer-x;
+					}
+					&:last-child {
+						padding-inline-end: $card-spacer-x;
+					}
+				}
+			}
+		}
+	}
+	&.table-thead-sticky {
+		& thead {
+			position: sticky;
+			top: 0;
+			background: rgba(var(--#{$prefix}body-bg-rgb), .25);
+			backdrop-filter: blur(6px);
+			box-shadow: 0 0 0 1px var(--#{$prefix}border-color);
+		}
+	}
+	&.table-tfoot-sticky {
+		& tfoot {
+			position: sticky;
+			bottom: 0;
+			background: rgba(var(--#{$prefix}body-bg-rgb), .25);
+			backdrop-filter: blur(6px);
+			box-shadow: 0 0 0 1px var(--#{$prefix}border-color);
+		}
+	}
+	&.table-xs {
+		font-size: $font-size-sm;
+		
+		& thead,
+		& tbody,
+		& tfoot {
+			& th {
+				padding: $table-cell-padding-y * .75 $table-cell-padding-x;
+			}
+			& td {
+				padding: $table-cell-padding-y * .75 $table-cell-padding-x;
+			}
+		}
+	}
+	@for $i from 1 through 20 {
+		&.table-px-#{$i}px {
+			& td,
+			& th {
+				padding-left: #{$i}px !important;
+				padding-right: #{$i}px !important;
+			}
+		}
+	}
+	@for $i from 1 through 20 {
+		&.table-py-#{$i}px {
+			& td,
+			& th {
+				padding-top: #{$i}px !important;
+				padding-bottom: #{$i}px !important;
+			}
+		}
+	}
+}

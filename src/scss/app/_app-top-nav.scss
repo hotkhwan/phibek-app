@@ -1,0 +1,214 @@
+@use 'sass:math';
+@keyframes topMenuControlSlideInLeft {
+	from { left: rem(-50px); }
+	to { left: 0; }
+}
+@keyframes topMenuControlSlideInRight {
+	from { right: rem(-50px); }
+	to { right: 0; }
+}
+.app-top-nav {
+	background: $app-top-nav-bg;
+	left: 0;
+	right: 0;
+	z-index: $app-top-nav-zindex;
+	border-bottom: $app-top-nav-border-width solid $app-top-nav-border-color;
+	display: flex;
+	
+	@include media-breakpoint-up($desktop-breakpoint) {
+		top: $app-header-height;
+		position: fixed;
+		height: $app-top-nav-height;
+	}
+	@include media-breakpoint-down($desktop-breakpoint) {
+		display: none;
+	}
+	
+	& .menu {
+		@include media-breakpoint-up($desktop-breakpoint) {
+			display: flex;
+			flex-wrap: nowrap;
+			align-items: center;
+		}
+		@include media-breakpoint-down($desktop-breakpoint) {
+			display: block;
+			margin: 0 !important;
+			padding: $spacer * .5 0;
+		}
+		
+		& .menu-item {
+			position: relative;
+			
+			@include media-breakpoint-up($desktop-breakpoint) {
+				height: 100%;
+			}
+			
+			& .menu-link {
+				height: 100%;
+				text-decoration: none;
+				position: relative;
+				padding: $app-top-nav-menu-link-padding-y $app-top-nav-menu-link-padding-x;
+				color: $app-top-nav-menu-link-color;
+				font-weight: $app-top-nav-menu-link-font-weight;
+				display: flex;
+				align-items: center;
+				justify-content: flex-end;
+				white-space: nowrap;
+				gap: $app-top-nav-menu-link-gap;
+				
+				@include media-breakpoint-down($desktop-breakpoint) {
+					padding-top: $spacer * .5;
+					padding-bottom: $spacer * .5;
+				}
+				
+				& .menu-icon {
+					font-size: $font-size-base * 1.2;
+					position: relative;
+					display: flex;
+					align-items: center;
+					justify-content: center;
+					font-size: $font-size-base * 1.2;
+					height: $font-size-base * $line-height-base;
+					opacity: .75;
+					width: $font-size-base * 1.2;
+				}
+				& .menu-caret {
+					display: flex;
+				}
+				& .menu-text {
+					flex: 1;
+				}
+				&:hover,
+				&:focus {
+					color: $app-top-nav-menu-link-hover-color;
+					background: $app-top-nav-menu-link-hover-bg;
+				}
+			}
+			& .menu-submenu {
+				background: $app-top-nav-submenu-bg;
+				backdrop-filter: $app-top-nav-submenu-bg-backdrop-filter;
+				display: none;
+				padding: $spacer * .5 0;
+				min-width: rem(200px);
+				
+				@include media-breakpoint-up($desktop-breakpoint) {
+					position: absolute;
+					border: $app-top-nav-submenu-border-width solid $app-top-nav-submenu-border-color;
+					max-height: calc(100vh - #{$app-top-nav-height + $app-header-height});
+					max-height: calc(100dvh - #{$app-top-nav-height + $app-header-height});
+					
+					:dir(ltr) & {
+						left: 0;
+					}
+					:dir(rtl) & {
+						right: 0;
+					}
+				}
+				@include media-breakpoint-down($desktop-breakpoint) {
+					padding-inline-start: $font-size-base * 1.2 + $app-top-nav-menu-link-gap;
+				}
+				
+				& .menu-item {
+					position: relative;
+					border: none !important;
+					
+					& .menu-link {
+						padding: $spacer * .25 $spacer;
+					}
+					& + .menu-item {
+						margin-top: $spacer * .25;
+					}
+				}
+			}
+			@include media-breakpoint-up($desktop-breakpoint) {
+				& + .menu-item:not(.menu-control) {
+					border-inline-start: $app-top-nav-border-width solid $app-top-nav-border-color;
+				}
+			}
+			&.active {
+				& > .menu-link {
+					color: $app-top-nav-menu-link-active-color;
+					background: $app-top-nav-menu-link-active-bg;
+				}
+			}
+			&.menu-control {
+				position: absolute;
+				top: 0;
+				bottom: $app-top-nav-border-width;
+				margin: 0;
+				z-index: 10;
+				
+				@include media-breakpoint-down($desktop-breakpoint) {
+					display: none !important;
+				}
+				
+				& > .menu-link {
+					padding: 0;
+					text-align: center;
+					width: $app-top-nav-height;
+					height: 100%;
+					backdrop-filter: $app-top-nav-submenu-bg-backdrop-filter;
+					display: flex;
+					justify-content: center;
+					align-items: center;
+					
+					& i {
+						font-size: $font-size-base * 1.2;
+					}
+				}
+				&.menu-control-start {
+					border-inline-end: $app-top-nav-border-width solid $app-top-nav-border-color;
+					
+					:dir(ltr) & {
+						left: -$app-header-height;
+					}
+					:dir(rtl) & {
+						right: -$app-header-height;
+					}
+					&.show {
+						:dir(ltr) & {
+							left: 0;
+							animation: topMenuControlSlideInLeft .2s;
+						}
+						:dir(rtl) & {
+							right: 0;
+							animation: topMenuControlSlideInRight .2s;
+						}
+					}
+				}
+				&.menu-control-end {
+					border-inline-start: $app-top-nav-border-width solid $app-top-nav-border-color;
+					
+					:dir(ltr) & {
+						right: -$app-header-height;
+					}
+					:dir(rtl) & {
+						left: -$app-header-height;
+					}
+				
+					&.show {
+						:dir(ltr) & {
+							right: 0;
+							animation: topMenuControlSlideInRight .2s;
+						}
+						:dir(rtl) & {
+							left: 0;
+							animation: topMenuControlSlideInLeft .2s;
+						}
+					}
+				}
+			}
+		}
+		& > .menu-item {
+			&.has-sub {
+				&:hover {
+					& > .menu-submenu {
+						@include media-breakpoint-up($desktop-breakpoint) {
+							display: block;
+						}
+					}
+				}
+			}
+		}
+	}
+}

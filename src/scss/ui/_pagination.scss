@@ -1,0 +1,10 @@
+.pagination {
+	gap: $spacer * .5;
+	flex-wrap: wrap;
+	
+	& .page-item {
+		& .page-link {
+			border-radius: $pagination-border-radius;
+		}
+	}
+}

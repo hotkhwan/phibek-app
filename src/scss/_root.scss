@@ -1,0 +1,28 @@
+:root {
+	--#{$prefix}body-bg: #{$body-bg};
+	--#{$prefix}border-hover-color: #{$border-hover-color};
+  --#{$prefix}component-bg: #{$component-bg};
+  --#{$prefix}component-bg-rgb: #{to-rgb($component-bg)};
+  --#{$prefix}component-color: #{$component-color};
+  --#{$prefix}component-color-rgb: #{to-rgb($component-color)};
+  --#{$prefix}app-header-bg: #{$app-header-bg};
+  --#{$prefix}app-header-scroll-box-shadow: #{$app-header-scroll-box-shadow};
+  --#{$prefix}app-sidebar-link-color: #{$app-sidebar-link-color};
+  --#{$prefix}app-sidebar-link-hover-color: #{$app-sidebar-link-hover-color};
+  --#{$prefix}app-sidebar-link-hover-bg: #{$app-sidebar-link-hover-bg};
+  --#{$prefix}app-sidebar-link-active-color: #{$app-sidebar-link-active-color};
+  --#{$prefix}app-sidebar-link-active-bg: #{$app-sidebar-link-active-bg};
+  --#{$prefix}app-sidebar-mobile-bg: #{$app-sidebar-mobile-bg};
+  --#{$prefix}theme-bg-subtle: #{tint-color($theme, 80%)};
+
+  // PHIBEK Corporate Identity tokens
+  --phibek-navy: #{$phibek-navy};
+  --phibek-navy-rgb: #{to-rgb($phibek-navy)};
+  --phibek-oracle-gold: #{$phibek-oracle-gold};
+  --phibek-oracle-gold-rgb: #{to-rgb($phibek-oracle-gold)};
+  --phibek-foresight-gold: #{$phibek-foresight-gold};
+  --phibek-foresight-gold-rgb: #{to-rgb($phibek-foresight-gold)};
+  --phibek-wisdom-cream: #{$phibek-wisdom-cream};
+  --phibek-wisdom-cream-rgb: #{to-rgb($phibek-wisdom-cream)};
+  --color-brand-primary: #{$phibek-oracle-gold};
+}

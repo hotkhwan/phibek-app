@@ -1,0 +1,43 @@
+{
+  "_comments_subscription_pages": "Subscription pages labels",
+
+  "subscriptionPackagesTitle": "Packages",
+  "subscriptionPackagesSubtitle": "Choose a plan that fits your needs",
+  "subscriptionPackagesNoRecords": "No packages available",
+  "subscriptionPackagesCurrent": "Current Plan",
+  "subscriptionPackagesUpgrade": "Upgrade",
+  "subscriptionPackagesDowngrade": "Downgrade",
+  "subscriptionPackagesFeatures": "Features",
+  "subscriptionPackagesLimits": "Limits",
+  "subscriptionPackagesHighlighted": "Recommended",
+  "subscriptionPackagesContactSales": "Contact Sales",
+  "subscriptionPackagesCustomPricing": "Custom Pricing",
+
+  "subscriptionCurrentTitle": "Current Plan",
+  "subscriptionCurrentSubtitle": "Your subscription details and usage overview",
+  "subscriptionCurrentPlanName": "Plan",
+  "subscriptionCurrentStatus": "Status",
+  "subscriptionCurrentBillingCycle": "Billing Cycle",
+  "subscriptionCurrentPeriodStart": "Period Start",
+  "subscriptionCurrentPeriodEnd": "Period End",
+  "subscriptionCurrentUsage": "Usage",
+  "subscriptionCurrentResource": "Resource",
+  "subscriptionCurrentUsed": "Used",
+  "subscriptionCurrentLimit": "Limit",
+  "subscriptionCurrentUnlimited": "Unlimited",
+  "subscriptionCurrentUpgradeLink": "Upgrade your plan",
+
+  "subscriptionLimitOrgs": "Organizations",
+  "subscriptionLimitMembers": "Team Members",
+  "subscriptionLimitEvents": "Events / Month",
+  "subscriptionLimitWebhooks": "Webhooks / Org",
+  "subscriptionLimitLine": "LINE / Org",
+  "subscriptionLimitDiscord": "Discord / Org",
+  "subscriptionLimitTelegram": "Telegram / Org",
+  "subscriptionLimitMsgChannels": "Message Channels / Org",
+
+  "subscriptionStatusActive": "Active",
+  "subscriptionStatusInactive": "Inactive",
+  "subscriptionStatusPending": "Pending",
+  "subscriptionStatusCancelled": "Cancelled"
+}

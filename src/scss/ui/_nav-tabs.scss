@@ -1,0 +1,27 @@
+.nav {
+	&.nav-tabs {
+		&.nav-tabs-v2 {
+			& > .nav-item {
+				& > .nav-link {
+					border: none;
+					border-bottom: 3px solid transparent;
+					padding: $nav-link-padding-y 0;
+					color: var(--#{$prefix}body-color);
+					background: none;
+					
+					&:hover,
+					&.active {
+						color: var(--#{$prefix}body-color);
+						border-bottom-color: var(--#{$prefix}body-color);
+					}
+				}
+				&.show {
+					& > .nav-link {
+						color: var(--#{$prefix}body-color);
+						border-bottom-color: var(--#{$prefix}body-color);
+					}
+				}
+			}
+		}
+	}
+}

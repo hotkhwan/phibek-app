@@ -1,0 +1,17 @@
+.toasts-container {
+	position: fixed;
+	top: $app-header-height;
+	padding-top: $app-content-padding-y * 0.5;
+	width: rem(350px);
+	backdrop-filter: $toast-bg-backdrop-filter;
+	inset-inline-end: 0;
+	padding-inline-end: $app-content-padding-y * 0.5;
+	
+	@include media-breakpoint-down($desktop-breakpoint) {
+		width: rem(300px);
+	}
+	
+	& .toast {
+		width: 100%;
+	}
+}

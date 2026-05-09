@@ -1,0 +1,52 @@
+.btn-theme {
+	background-color: var(--#{$prefix}theme);
+	border-color: var(--#{$prefix}theme);
+	position: relative;
+	
+	&.disabled,
+	&:disabled {
+		background-color: var(--#{$prefix}theme);
+		border-color: var(--#{$prefix}theme);
+	}
+	&:hover,
+	&:focus,
+	&:active,
+	&.active {
+		background-color: rgba(var(--#{$prefix}theme-rgb), .75);
+		border-color: transparent;
+		
+		&:before {
+			background: rgba($white, .2);
+		}
+	}
+	&:focus,
+	&:active,
+	&.active:focus, 
+	&:active:focus {
+		@include box-shadow(0 0 0 0.25rem rgba(#{var(--#{$prefix}theme-rgb)}, .5));
+	}
+}
+.btn-outline-theme {
+	color: var(--#{$prefix}theme);
+	border-color: var(--#{$prefix}theme);
+	
+	&:hover,
+	&.active {
+		background-color: var(--#{$prefix}theme);
+		border-color: var(--#{$prefix}theme);
+	}
+	&.disabled,
+	&:disabled {
+		color: var(--#{$prefix}theme);
+	}
+	&:focus,
+	&:active,
+	&.active:focus, 
+	&:active:focus {
+		@include box-shadow(0 0 0 0.25rem rgba(#{var(--#{$prefix}theme-rgb)}, .5));
+	}
+}
+.btn-group>.btn-group:not(:first-child), .btn-group>:not(.btn-check:first-child)+.btn {
+	margin-left: initial;
+	margin-inline-start: calc(-1 * var(--#{$prefix}border-width));
+}

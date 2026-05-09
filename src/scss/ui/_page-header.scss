@@ -1,0 +1,14 @@
+.page-header {
+	color: var(--#{$prefix}heading-color);
+	font-weight: $font-weight-semibold;
+	font-size: $font-size-base * 1.75;
+	
+	@include media-breakpoint-down($desktop-breakpoint) {
+		font-size: $font-size-base * 1.45;
+	}
+	
+	& small {
+		font-size: $font-size-base;
+		color: var(--#{$prefix}tertiary-color);
+	}
+}

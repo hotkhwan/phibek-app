@@ -1,0 +1,27 @@
+.app-with-top-nav {
+	@include media-breakpoint-up($desktop-breakpoint) {
+		padding-top: $app-top-nav-height + $app-header-height;
+		
+		& .app-sidebar {
+			top: $app-top-nav-height + $app-header-height;
+		}
+		& .app-content {
+			height: calc(100vh - #{$app-top-nav-height + $app-header-height});
+			height: calc(100dvh - #{$app-top-nav-height + $app-header-height});
+		}
+	}
+	
+	&.app-without-header {
+		@include media-breakpoint-up($desktop-breakpoint) {
+			padding-top: $app-top-nav-height;
+		
+			& .app-sidebar {
+				top: $app-top-nav-height;
+			}
+			& .app-content {
+				height: calc(100vh - #{$app-top-nav-height});
+				height: calc(100dvh - #{$app-top-nav-height});
+			}
+		}
+	}
+}

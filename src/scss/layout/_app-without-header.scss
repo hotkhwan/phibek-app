@@ -1,0 +1,9 @@
+.app-without-header {
+	padding-top: 0;
+	
+	& .app-sidebar,
+	& .app-content {
+		height: calc(100vh);
+		height: calc(100dvh);	
+	}
+}

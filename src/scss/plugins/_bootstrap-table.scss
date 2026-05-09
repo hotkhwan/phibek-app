@@ -1,0 +1,103 @@
+.bootstrap-table {
+	& .dropdown-toggle {
+		& .caret {
+			display: none;
+		}
+	}
+	& .fixed-table-container {
+		&.fixed-height {
+			&:not(.has-footer) {
+				border-color: var(--#{$prefix}border-color) !important;
+			}
+			& .fixed-table-header {
+				& .table {
+					border-bottom: none;
+					
+					& thead {
+						& th {
+							border-bottom-color: var(--#{$prefix}table-border-color) !important;
+							
+							& .th-inner {
+								padding: $table-cell-padding-y $table-cell-padding-x;
+							}
+						}
+					}
+				}
+			}
+			& .fixed-table-body {
+				& .table {
+					& thead {
+						& tr {
+							& th {
+								border-top: none;
+								border-bottom: none;
+							}
+						}	
+					}
+				}
+			}
+		}
+		& .table {
+			& thead {
+				& tr {
+					border-bottom-width: 0 !important;
+					
+					& th {
+						border-bottom-color: initial !important;
+						
+						& .sortable {
+							position: relative;
+							background-image: none !important;
+						
+							&:after {
+								content: '';
+								position: absolute;
+								
+								@include fontawesome();
+								:dir(ltr) & {
+									right: rem(10px);
+								}
+								:dir(rtl) & {
+									left: rem(10px);
+								}
+							}
+							&.both {
+								&:after {
+									content: '\f0dc';
+									color: rgba(var(--#{$prefix}body-color-rgb), .25);
+								}
+							}
+							&.asc {
+								&:after {
+									content: '\f0de';
+									color: var(--#{$prefix}body-color);
+								}
+							}
+							&.desc {
+								&:after {
+									content: '\f0dd';
+									color: var(--#{$prefix}body-color);
+								}
+							}
+						}
+					}
+				}
+			}
+			& tbody {
+				& tr {
+					&:first-child {
+						border-top: none;
+						
+						& td {
+							border-top: none;
+						}	
+					}
+				}
+			}
+		}
+	}
+	&.fullscreen {
+		background: rgba($body-bg, .75) !important;
+		backdrop-filter: blur(6px) !important;
+	}
+}

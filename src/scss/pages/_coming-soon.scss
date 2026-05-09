@@ -1,0 +1,128 @@
+.coming-soon {
+	min-height: 100vh;
+	min-height: 100dvh;
+	display: flex;
+	
+	& .coming-soon-img {
+		& img {
+			max-width: 100%;
+		}
+	}
+	& .coming-soon-timer {
+		padding: $spacer;
+		display: flex;
+		align-items: flex-end;
+		justify-content: center;
+		
+		@include media-breakpoint-down($desktop-breakpoint) {
+			padding: $spacer;
+		}
+	}
+	& .coming-soon-content {
+		position: relative;
+		text-align: center;
+		margin: 0 auto;
+		padding: $spacer;
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		align-items: center;
+		
+		@include media-breakpoint-down($desktop-breakpoint) {
+			padding: $spacer;
+		}
+		
+		& > * {
+			max-width: rem(520px);
+			margin-left: auto;
+			margin-right: auto;
+		}
+		& .input-group-lg {
+			margin-left: auto;
+			margin-right: auto;
+			
+			@include media-breakpoint-down($desktop-breakpoint) {
+				max-width: rem(420px);
+			}
+			@include media-breakpoint-down($mobile-breakpoint) {
+				max-width: rem(360px);
+			}
+			
+			& .form-control,
+			& .btn {
+				@include media-breakpoint-down($desktop-breakpoint) {
+					font-size: $font-size-base;
+				}
+				@include media-breakpoint-down($mobile-breakpoint) {
+					font-size: $font-size-sm;
+				}
+			}
+		}
+	}
+	& .is-countdown {
+		background: none;
+		border: none;
+		margin: 0;
+		padding: 0;
+		width: 100%;
+		
+		& .countdown-row {
+			padding: 0;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			gap: $spacer;
+		}
+		& .countdown-show4 .countdown-section {
+			width: rem(100px);
+			height: rem(80px);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			flex-direction: column;
+			padding: $spacer;
+			border: var(--#{$prefix}border-width) solid var(--#{$prefix}border-color);
+			margin: 0;
+			color: var(--#{$prefix}body-color);
+			border-radius: $component-border-radius * 1.5;
+			
+			@include media-breakpoint-down($mobile-breakpoint) {
+				width: rem(60px);
+				height: rem(60px);
+			}
+		}
+		& .countdown-amount {
+			font-size: $font-size-base * 2;
+			font-weight: $font-weight-bold;
+			line-height: $line-height-base;
+			
+			@include media-breakpoint-down($desktop-breakpoint) {
+				font-size: rem(36px);
+			}
+			@include media-breakpoint-down($tablet-breakpoint) {
+				font-size: rem(30px);
+			}
+			@include media-breakpoint-down($mobile-breakpoint) {
+				font-size: rem(24px);
+			}
+		}
+		& .countdown-period {
+			font-size: $font-size-base;
+			color: rgba(var(--#{$prefix}body-color-rgb), .75);
+			line-height: 1.5;
+			text-transform: uppercase;
+			font-weight: $font-weight-semibold;
+			
+			@include media-breakpoint-down($desktop-breakpoint) {
+				font-size: $font-size-base;
+			}
+			@include media-breakpoint-down($tablet-breakpoint) {
+				font-size: $font-size-base * .9;
+			}
+			@include media-breakpoint-down($mobile-breakpoint) {
+				font-size: $font-size-base * .8;
+			}
+		}
+	}
+}

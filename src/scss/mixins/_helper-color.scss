@@ -1,0 +1,94 @@
+@mixin helper-color($color, $value) {
+	.bg-gradient-#{$color} {
+		background-color: $value !important;
+		background-image: -moz-linear-gradient(top, lighten($value, 10%), darken($value, 5%)) !important;
+	}
+  .bg-gradient-from-#{$color} {
+		--#{$prefix}bg-gradient-from: #{$value};
+	}
+	.bg-gradient-to-#{$color} {
+		--#{$prefix}bg-gradient-to: #{$value};
+	}
+	.hover-bg-#{$color}:hover {
+		background-color: rgba(var(--#{$prefix}#{$color}-rgb), var(--#{$prefix}bg-opacity)) !important;
+		
+		&:not([class*="bg-opacity-"]) {
+			--#{$prefix}bg-opacity: 1.0;
+		}
+	}
+  .border-#{$color} {
+  	@if ($color == 'theme') {
+			border-color: var(--#{$prefix}theme) !important;
+  	}
+  }
+  @if ($color == 'theme') {
+  	.border-#{$color} {
+  		border-color: var(--bs-theme) !important;
+  	}
+  }
+	.theme-#{$color} {
+		--#{$prefix}body-bg: #{mix($black, $value, 90%)} !important;
+		--#{$prefix}body-bg-rgb: #{to-rgb(mix($black, $value, 90%))} !important;
+		--#{$prefix}theme: #{$value} !important;
+		--#{$prefix}theme-rgb: #{to-rgb($value)} !important;
+		--#{$prefix}theme-color: #{color-contrast($value)} !important;
+		--#{$prefix}theme-color-rgb: #{to-rgb(color-contrast($value))} !important;
+		--#{$prefix}app-sidebar-link-active-color: #{shade-color($value, 80%)};
+		--#{$prefix}link-color: #{$value} !important;
+		
+		@if ($color == 'yellow' or $color == 'lime' or $color == 'teal') {
+			--#{$prefix}theme-bg-subtle: #{tint-color($value, 50%)};
+			--#{$prefix}app-sidebar-link-active-bg: #{rgba(var(--#{$prefix}theme-rgb), .5)};
+		} @else if ($color == 'warning' or $color == 'orange' or $color == 'cyan' or $color == 'info') {
+			--#{$prefix}theme-bg-subtle: #{tint-color($value, 70%)};
+			--#{$prefix}app-sidebar-link-active-bg: #{rgba(var(--#{$prefix}theme-rgb), .3)};
+		} @else {
+			--#{$prefix}theme-bg-subtle: #{tint-color($value, 80%)};
+			--#{$prefix}app-sidebar-link-active-bg: #{$app-sidebar-link-active-bg};
+		}
+	}
+	@if ($color == 'yellow' or $color == 'lime' or $color == 'teal' or $color == 'warning' or $color == 'orange' or $color == 'cyan' or $color == 'info') {
+		.theme-#{$color} .bg-theme-subtle {
+			color: color-contrast($value) !important;
+		}
+	}
+	.theme-#{$color} .text-bg-theme {
+		color: color-contrast($value) !important;
+		background-color: rgba($value, var(--#{$prefix}bg-opacity,1)) !important;
+	}
+	.theme-#{$color}.btn-theme,
+	.theme-#{$color} .btn-theme {
+		@include button-variant(
+			$value, 
+			$value,
+			$color: color-contrast($value),
+			$hover-background: if($color == $color-contrast-light, shade-color($value, $btn-hover-bg-shade-amount), tint-color($value, $btn-hover-bg-tint-amount)),
+			$hover-border: if($color == $color-contrast-light, shade-color($value, $btn-hover-border-shade-amount), tint-color($value, $btn-hover-border-tint-amount)),
+			$hover-color: color-contrast($value),
+			$active-background: if($color == $color-contrast-light, shade-color($value, $btn-active-bg-shade-amount), tint-color($value, $btn-active-bg-tint-amount)),
+			$active-border: if($color == $color-contrast-light, shade-color($value, $btn-active-border-shade-amount), tint-color($value, $btn-active-border-tint-amount)),
+			$active-color: color-contrast($value),
+			$disabled-background: $value,
+			$disabled-border: $value,
+			$disabled-color: color-contrast($value)
+		);
+	}
+  @for $i from 1 through 4 {
+  	.text-#{$color}-#{$i * 100} {
+  		--bs-text-opacity: 1;
+  		color: rgba(tint-color($value, (100 - ($i * 20)) * 1%), var(--bs-text-opacity)) !important;
+  	}
+  	.bg-#{$color}-#{$i * 100} {
+  		--bs-bg-opacity: 1;
+  		background-color: rgba(tint-color($value, (100 - ($i * 20)) * 1%), var(--bs-bg-opacity)) !important;
+  	}
+  	.text-#{$color}-#{($i + 5) * 100} {
+  		--bs-text-opacity: 1;
+  		color: rgba(shade-color($value, ($i * 20) * 1%), var(--bs-text-opacity))  !important;
+  	}
+  	.bg-#{$color}-#{($i + 5) * 100} {
+  		--bs-bg-opacity: 1;
+  		background-color: rgba(shade-color($value, ($i * 20) * 1%), var(--bs-bg-opacity)) !important;
+  	}
+  }
+}

@@ -1,0 +1,657 @@
+/*!
+ * PHIBEK · พิเภท — overrides on top of cyber_admin v2.0
+ * Mirror the cyber demo's menu typography (uppercase, slightly larger,
+ * letter-spaced) since our i18n strings are normal-case.
+ */
+
+:root,
+[data-bs-theme="dark"] {
+  --phibek-font-sans: Arial, 'Helvetica Neue', 'Sarabun', 'TH SarabunPSK', system-ui, -apple-system, sans-serif;
+  --phibek-footer-height: 44px;
+  // Cyber Admin style translucent chrome over the PHIBEK cover.
+  --phibek-chrome-bg: transparent;
+  --phibek-chrome-border: rgba(var(--bs-theme-rgb), .34);
+  --phibek-app-overlay-start: .58;
+  --phibek-app-overlay-end: .78;
+  --phibek-content-overlay-start: 0;
+  --phibek-content-overlay-end: 0;
+  --phibek-surface-bg: rgba(0, 10, 9, .34);
+  --phibek-surface-nested-bg: rgba(0, 10, 9, .22);
+  --phibek-explorer-bg: rgba(0, 10, 9, .16);
+  --phibek-explorer-sidebar-bg: rgba(0, 10, 9, .2);
+  // Brand-default cover (PHIBEK Brand Guideline → Navy backdrop)
+  --app-cover-image: url('/img/logo/PhibekBG_dark.webp');
+}
+
+[data-bs-theme="light"] {
+  --bs-body-bg: #f7f8fb;
+  --bs-body-bg-rgb: 247, 248, 251;
+  --bs-body-color: #171b22;
+  --bs-body-color-rgb: 23, 27, 34;
+  --bs-heading-color: #10141b;
+  --bs-component-bg: #ffffff;
+  --bs-component-bg-rgb: 255, 255, 255;
+  --bs-component-color: #171b22;
+  --bs-component-color-rgb: 23, 27, 34;
+  --bs-border-color: rgba(23, 27, 34, .16);
+  --bs-border-color-translucent: rgba(23, 27, 34, .18);
+  --bs-app-header-bg: rgba(247, 248, 251, .78);
+  --bs-app-sidebar-mobile-bg: rgba(247, 248, 251, .82);
+  --bs-app-sidebar-link-color: rgba(23, 27, 34, .58);
+  --bs-app-sidebar-link-hover-color: #10141b;
+  --bs-app-sidebar-link-hover-bg: rgba(var(--bs-theme-rgb), .11);
+  --bs-app-sidebar-link-active-color: var(--bs-theme);
+  --bs-app-sidebar-link-active-bg: rgba(var(--bs-theme-rgb), .12);
+  --phibek-chrome-bg: transparent;
+  --phibek-chrome-border: rgba(23, 27, 34, .18);
+  --phibek-app-overlay-start: .22;
+  --phibek-app-overlay-end: .38;
+  --phibek-content-overlay-start: 0;
+  --phibek-content-overlay-end: 0;
+  --phibek-content-bg-opacity: 0;
+  --phibek-surface-bg: rgba(248, 247, 242, .84);
+  --phibek-surface-nested-bg: rgba(255, 255, 255, .7);
+  --phibek-explorer-bg: rgba(248, 247, 242, .78);
+  --phibek-explorer-sidebar-bg: rgba(248, 247, 242, .84);
+  --app-cover-image: url('/img/logo/PhibekBG_light.webp');
+}
+
+html,
+body,
+button,
+input,
+select,
+textarea {
+  font-family: var(--phibek-font-sans);
+}
+
+.menu .menu-item .menu-link .menu-text {
+  text-transform: uppercase;
+  font-size: 0.8125rem;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+// submenu items are slightly smaller per cyber_admin behaviour
+.menu .menu-submenu .menu-item .menu-link .menu-text {
+  font-size: 0.75rem;
+  letter-spacing: 0.03em;
+  font-weight: 500;
+}
+
+// menu-header title — match cyber_admin spacing & weight
+.menu .menu-header .menu-title {
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+// menu-profile (top of sidebar) — slight tightening
+.menu-profile .menu-profile-info {
+  font-size: 0.8125rem;
+  letter-spacing: 0.04em;
+}
+.menu-profile .menu-profile-info small {
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  opacity: 0.7;
+}
+.menu-profile .menu-profile-image {
+  font-size: 1.5rem;
+}
+
+// PHIBEK brand mark in header — keep gold accent crisp on dark bg
+.phibek-brand-name {
+  letter-spacing: 0.18em !important;
+}
+
+.app-sidebar,
+.app-header,
+.card,
+.dropdown-menu,
+.app-content {
+  font-size: 0.9375rem;
+}
+
+.app-header,
+.app-sidebar,
+.app-top-nav {
+  // Match Cyber Admin's glassy shell while keeping foreground text readable.
+  background: var(--phibek-chrome-bg) !important;
+  background-image: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-color: var(--phibek-chrome-border, rgba(var(--bs-theme-rgb), .28)) !important;
+  z-index: 1020;
+}
+
+.app-header {
+  position: fixed;
+}
+
+.app-sidebar {
+  position: fixed;
+}
+
+.app-top-nav .menu-submenu {
+  background: var(--phibek-chrome-bg) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.app-sidebar {
+  font-size: 0.8125rem;
+}
+
+.app-sidebar .app-sidebar-content {
+  padding: .75rem .875rem;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) minmax(8rem, auto) auto;
+  gap: .3rem;
+  overflow: hidden;
+}
+
+.app-sidebar .sidebar-menu-section {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: .2rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--bs-theme-rgb), .5) transparent;
+}
+
+.app-sidebar .sidebar-menu-section .menu-header {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  margin-right: -.2rem;
+  padding-top: .25rem;
+  padding-bottom: .22rem;
+  background: linear-gradient(
+    180deg,
+    rgba(var(--bs-body-bg-rgb), .54),
+    rgba(var(--bs-body-bg-rgb), .28)
+  );
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.app-sidebar .sidebar-menu-section::-webkit-scrollbar {
+  width: 4px;
+}
+
+.app-sidebar .sidebar-menu-section::-webkit-scrollbar-thumb {
+  background: rgba(var(--bs-theme-rgb), .48);
+}
+
+.app-sidebar .sidebar-menu-user-portal {
+  max-height: 12.5rem;
+}
+
+.app-sidebar .mt-auto {
+  margin-top: 0 !important;
+  overflow: hidden;
+}
+
+.app-sidebar .menu .menu-profile {
+  padding-bottom: .65rem;
+}
+
+.app-sidebar .menu .menu-header + .menu-item,
+.app-sidebar .menu .menu-item {
+  margin-top: .18rem;
+  margin-bottom: .18rem;
+}
+
+.app-sidebar .menu .menu-item .menu-link {
+  min-height: 1.6rem;
+  padding-top: .08rem;
+  padding-bottom: .08rem;
+  line-height: 1.25;
+}
+
+.app-sidebar .menu .menu-item .menu-link .menu-icon {
+  font-size: 0.95rem;
+  height: 1.15rem;
+  width: 1.05rem;
+}
+
+.app-sidebar .menu .menu-submenu {
+  padding-bottom: .12rem;
+}
+
+.app-sidebar .menu .menu-submenu .menu-item .menu-link {
+  min-height: 1.45rem;
+  padding-top: .05rem;
+  padding-bottom: .05rem;
+  padding-left: 2.25rem;
+}
+
+.app-sidebar .mt-auto .row {
+  row-gap: .45rem !important;
+  padding-top: .55rem !important;
+  margin-bottom: .45rem !important;
+}
+
+.app-sidebar .mt-auto .small {
+  font-size: .68rem;
+}
+
+.app-sidebar .mt-auto .fw-bold {
+  font-size: .8rem;
+  line-height: 1.2;
+}
+
+.app-sidebar .fs-8px {
+  font-size: .625rem !important;
+}
+
+// ── Unified PHIBEK type scale ─────────────────────────────────────────
+// Single source of truth — all content-side text aligns to this ladder.
+//   xs   = 11px  (uppercase labels / badges / breadcrumb)
+//   sm   = 13px  (table cells, captions, helper text)
+//   base = 14px  (default body)
+//   lg   = 16px  (section heading)
+//   xl   = 22px  (page header)
+//   2xl  = 32px  (KPI display number)
+
+.app-content {
+  font-size: 0.875rem; // base
+}
+
+.app-content .page-header {
+  font-size: 1.375rem;          // xl — was 1.8rem
+  line-height: 1.2;
+  letter-spacing: 0;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.app-content .page-header small {
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  margin-left: .5rem;
+}
+
+.app-content h1 { font-size: 1.5rem;  letter-spacing: 0; }
+.app-content h2 { font-size: 1.25rem; letter-spacing: 0; }
+.app-content h3 { font-size: 1.1rem;  letter-spacing: 0; }
+.app-content h4 { font-size: 1rem;    letter-spacing: 0; }
+.app-content h5 { font-size: 0.9375rem; letter-spacing: 0; }
+.app-content h6 { font-size: 0.8125rem; letter-spacing: 0; }
+
+.app-content .display-1,
+.app-content .display-2,
+.app-content .display-3,
+.app-content .display-4,
+.app-content .display-5,
+.app-content .display-6 {
+  font-size: 2rem;              // 2xl — KPI numbers
+  line-height: 1.1;
+  font-weight: 700;
+}
+
+.app-content .small,
+.app-content small,
+.app-content .badge,
+.app-content code {
+  font-size: 0.75rem;           // xs — labels / badges
+}
+
+// Card headers — uniform across the app
+.app-content .card-header {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+  padding-top: .65rem;
+  padding-bottom: .65rem;
+}
+
+// Tables — single readable size
+.app-content .table {
+  font-size: 0.8125rem;
+}
+.app-content .table thead th {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(var(--bs-body-color-rgb), .6);
+}
+
+// Breadcrumb — uppercase compact
+.app-content .breadcrumb,
+.breadcrumb {
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.app {
+  height: 100dvh;
+  overflow: hidden;
+  background-color: var(--bs-body-bg);
+  background-image:
+    linear-gradient(rgba(var(--bs-body-bg-rgb), var(--phibek-app-overlay-start, .58)), rgba(var(--bs-body-bg-rgb), var(--phibek-app-overlay-end, .78))),
+    radial-gradient(circle at top right, rgba(var(--bs-theme-rgb), .16), transparent 30%),
+    var(--app-cover-image, url('/img/logo/PhibekBG_dark.webp'));
+  background-size: cover, auto, cover;
+  background-position: center, top right, center;
+  background-attachment: fixed;
+}
+
+.app-content {
+  position: relative;
+  overflow-x: hidden;
+  overflow-y: auto;
+  height: calc(100dvh - var(--app-header-height, 35px) - var(--phibek-footer-height, 44px));
+  padding-bottom: 1rem;
+  background: transparent !important;
+  background-image: none !important;
+}
+
+.app-content::before {
+  content: none;
+}
+
+[data-bs-theme="light"] .app-content {
+  background: transparent !important;
+  background-image: none !important;
+}
+
+[data-bs-theme="light"] .app-content::before {
+  content: none;
+}
+
+@media (max-width: 991.98px) {
+  .app-content::before {
+    inset-inline-start: 0;
+  }
+}
+
+.app-content > :not(.modal) {
+  position: relative;
+  z-index: 1;
+}
+
+.app-content > .modal {
+  z-index: 1055;
+}
+
+.modal-backdrop {
+  z-index: 1050;
+}
+
+.btn {
+  font-weight: 600;
+}
+
+.app-header .menu-search-mobile {
+  z-index: 2;
+  background:
+    linear-gradient(rgba(var(--bs-body-bg-rgb), .94), rgba(var(--bs-body-bg-rgb), .94)),
+    linear-gradient(90deg, rgba(var(--bs-theme-rgb), .18), rgba(var(--bs-theme-rgb), .04));
+  backdrop-filter: blur(10px);
+}
+
+.app-header .menu .menu-item .menu-link .header-user-email {
+  width: 6.75rem !important;
+  font-size: 0.625rem !important;
+  line-height: 1;
+  letter-spacing: 0.05em !important;
+  opacity: .62;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-header-menu-search-toggled .app-header .menu {
+  pointer-events: none;
+}
+
+.app-header .desktop-toggler,
+.app-header .mobile-toggler {
+  width: 42px;
+  justify-content: center;
+}
+
+.app-header .brand {
+  padding-left: .55rem;
+}
+
+.app-header .menu-toggler {
+  width: 100%;
+}
+
+.phibek-brand-name {
+  font-size: 1.28rem !important;
+}
+
+.phibek-brand-subtitle {
+  font-size: .86rem !important;
+  letter-spacing: .12em !important;
+}
+
+.app-footer {
+  position: fixed;
+  bottom: 0;
+  z-index: 1020;
+  min-height: var(--phibek-footer-height, 44px);
+  padding-top: .55rem;
+  padding-bottom: .55rem;
+  background: var(--phibek-chrome-bg) !important;
+  background-image: none !important;
+  border-top: 1px solid var(--phibek-chrome-border, rgba(var(--bs-theme-rgb), .28));
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+[data-bs-theme="light"] .app-footer,
+[data-bs-theme="light"] .app-footer * {
+  color: rgba(23, 27, 34, .82) !important;
+}
+
+[data-bs-theme="light"] .app-footer .text-body,
+[data-bs-theme="light"] .app-footer .text-inverse {
+  color: #171b22 !important;
+}
+
+[data-bs-theme="light"] .card,
+[data-bs-theme="light"] .modal-content,
+[data-bs-theme="light"] .dropdown-menu,
+[data-bs-theme="light"] .table-card,
+[data-bs-theme="light"] .file-manager,
+[data-bs-theme="light"] .file-manager-toolbar,
+[data-bs-theme="light"] .file-manager-sidebar,
+[data-bs-theme="light"] .file-manager-container {
+  color: #10141b;
+  background-color: var(--phibek-surface-bg) !important;
+  box-shadow: 0 0 0 1px rgba(23, 27, 34, .08);
+}
+
+[data-bs-theme="light"] .table,
+[data-bs-theme="light"] .table > :not(caption) > * > * {
+  --bs-table-color: #10141b;
+  --bs-table-bg: rgba(245, 243, 238, .82);
+  --bs-table-striped-bg: rgba(15, 28, 63, .06);
+  --bs-table-border-color: rgba(201, 149, 42, .42);
+}
+
+[data-bs-theme="light"] .form-control,
+[data-bs-theme="light"] .form-select,
+[data-bs-theme="light"] .input-group-text {
+  color: #10141b;
+  background-color: rgba(255, 255, 255, .86);
+  border-color: rgba(15, 28, 63, .42);
+}
+
+[data-bs-theme="light"] .app-sidebar {
+  background: linear-gradient(90deg, rgba(248, 247, 242, .7), rgba(248, 247, 242, .5)) !important;
+}
+
+[data-bs-theme="light"] .app-header,
+[data-bs-theme="light"] .app-footer {
+  background: rgba(248, 247, 242, .5) !important;
+}
+
+[data-bs-theme="light"] .app-sidebar .sidebar-menu-section .menu-header {
+  background: linear-gradient(180deg, rgba(248, 247, 242, .9), rgba(248, 247, 242, .68));
+}
+
+[data-bs-theme="light"] .app-sidebar .menu .menu-header,
+[data-bs-theme="light"] .app-sidebar .menu .menu-header .menu-title {
+  color: rgba(15, 28, 63, .78) !important;
+  text-shadow: 0 1px 2px rgba(245, 243, 238, .72);
+}
+
+[data-bs-theme="light"] .app-sidebar .menu .menu-item .menu-link,
+[data-bs-theme="light"] .app-sidebar .menu .menu-item .menu-link .menu-text,
+[data-bs-theme="light"] .app-sidebar .menu .menu-profile-link,
+[data-bs-theme="light"] .app-sidebar .mt-auto {
+  color: rgba(15, 28, 63, .82) !important;
+  text-shadow: 0 1px 2px rgba(245, 243, 238, .65);
+}
+
+[data-bs-theme="light"] .app-sidebar .menu .menu-item.active > .menu-link,
+[data-bs-theme="light"] .app-sidebar .menu .menu-item.active > .menu-link .menu-text {
+  color: var(--bs-theme) !important;
+}
+
+@media (min-width: 992px) {
+  .app-footer {
+    margin-left: 250px;
+  }
+}
+
+.table th,
+.table td {
+  font-size: .9rem;
+}
+
+.btn,
+.form-control,
+.form-select,
+.input-group-text,
+.nav-tabs .nav-link {
+  font-size: 0.875rem;
+}
+
+.input-group-sm > .form-control,
+.input-group-sm > .form-select,
+.input-group-sm > .input-group-text,
+.form-control-sm,
+.form-select-sm {
+  font-size: 0.875rem;
+}
+
+.form-control::placeholder,
+.form-select::placeholder,
+input::placeholder,
+textarea::placeholder {
+  font-size: 0.875rem;
+  opacity: .78;
+}
+
+.card,
+.modal-content,
+.dropdown-menu,
+.table-card,
+.file-manager,
+.file-manager-toolbar,
+.file-manager-sidebar,
+.file-manager-container {
+  background-color: var(--phibek-surface-bg, rgba(var(--bs-body-bg-rgb), .24)) !important;
+  backdrop-filter: blur(12px);
+}
+
+.card-header,
+.card-body,
+.table-card thead th,
+.table-card td,
+.file-manager-toolbar,
+.file-manager-sidebar,
+.file-manager-container {
+  border-color: rgba(var(--bs-theme-rgb), .28);
+}
+
+.table,
+.table > :not(caption) > * > * {
+  --bs-table-bg: transparent;
+  --bs-table-border-color: rgba(var(--bs-theme-rgb), .2);
+}
+
+.card .card,
+.card .table-card {
+  background-color: var(--phibek-surface-nested-bg, rgba(var(--bs-body-bg-rgb), .16)) !important;
+}
+
+.admin-explorer {
+  min-height: calc(100dvh - 7.5rem);
+  background-color: var(--phibek-explorer-bg) !important;
+}
+
+.admin-explorer .file-manager-container {
+  min-height: 0;
+  background-color: var(--phibek-explorer-bg) !important;
+}
+
+.admin-explorer .file-manager-toolbar {
+  background-color: var(--phibek-explorer-bg) !important;
+}
+
+.admin-explorer .file-manager-sidebar {
+  background-color: var(--phibek-explorer-sidebar-bg) !important;
+}
+
+.admin-explorer .card {
+  background-color: var(--phibek-surface-nested-bg) !important;
+}
+
+.admin-explorer-list {
+  display: grid;
+  gap: .35rem;
+}
+
+.admin-explorer-item {
+  width: 100%;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--bs-body-color);
+  text-align: left;
+  padding: .65rem .75rem;
+}
+
+.admin-explorer-item:hover,
+.admin-explorer-item.active {
+  border-color: rgba(var(--bs-theme-rgb), .38);
+  background: rgba(var(--bs-theme-rgb), .12);
+}
+
+.admin-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(9rem, .3fr) 1fr;
+  gap: .75rem 1rem;
+}
+
+.admin-theme-card {
+  background: var(--phibek-surface-bg, rgba(var(--bs-body-bg-rgb), .24));
+  border: 1px solid rgba(var(--bs-theme-rgb), .24);
+  padding: 1rem;
+}
+
+.theme-cover-thumb,
+.theme-mode-thumb,
+.theme-swatch {
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.theme-cover-thumb.active,
+.theme-mode-thumb.active,
+.theme-swatch.active {
+  border-color: var(--bs-theme);
+  box-shadow: 0 0 0 .18rem rgba(var(--bs-theme-rgb), .18);
+}

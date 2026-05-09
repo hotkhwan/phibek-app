@@ -1,0 +1,43 @@
+{
+  "_comments_subscription_pages": "ป้ายกำกับหน้าการสมัครสมาชิก",
+
+  "subscriptionPackagesTitle": "แพ็กเกจ",
+  "subscriptionPackagesSubtitle": "เลือกแผนที่เหมาะกับความต้องการของคุณ",
+  "subscriptionPackagesNoRecords": "ไม่มีแพ็กเกจที่ใช้ได้",
+  "subscriptionPackagesCurrent": "แผนปัจจุบัน",
+  "subscriptionPackagesUpgrade": "อัปเกรด",
+  "subscriptionPackagesDowngrade": "ดาวน์เกรด",
+  "subscriptionPackagesFeatures": "คุณสมบัติ",
+  "subscriptionPackagesLimits": "ขีดจำกัด",
+  "subscriptionPackagesHighlighted": "แนะนำ",
+  "subscriptionPackagesContactSales": "ติดต่อฝ่ายขาย",
+  "subscriptionPackagesCustomPricing": "ราคาพิเศษ",
+
+  "subscriptionCurrentTitle": "แผนปัจจุบัน",
+  "subscriptionCurrentSubtitle": "รายละเอียดการสมัครสมาชิกและภาพรวมการใช้งาน",
+  "subscriptionCurrentPlanName": "แผน",
+  "subscriptionCurrentStatus": "สถานะ",
+  "subscriptionCurrentBillingCycle": "รอบการเรียกเก็บเงิน",
+  "subscriptionCurrentPeriodStart": "เริ่มต้นรอบ",
+  "subscriptionCurrentPeriodEnd": "สิ้นสุดรอบ",
+  "subscriptionCurrentUsage": "การใช้งาน",
+  "subscriptionCurrentResource": "ทรัพยากร",
+  "subscriptionCurrentUsed": "ใช้แล้ว",
+  "subscriptionCurrentLimit": "ขีดจำกัด",
+  "subscriptionCurrentUnlimited": "ไม่จำกัด",
+  "subscriptionCurrentUpgradeLink": "อัปเกรดแผนของคุณ",
+
+  "subscriptionLimitOrgs": "องค์กร",
+  "subscriptionLimitMembers": "สมาชิกทีม",
+  "subscriptionLimitEvents": "Event / เดือน",
+  "subscriptionLimitWebhooks": "Webhook / องค์กร",
+  "subscriptionLimitLine": "LINE / องค์กร",
+  "subscriptionLimitDiscord": "Discord / องค์กร",
+  "subscriptionLimitTelegram": "Telegram / องค์กร",
+  "subscriptionLimitMsgChannels": "ช่องทางข้อความ / องค์กร",
+
+  "subscriptionStatusActive": "ใช้งานอยู่",
+  "subscriptionStatusInactive": "ไม่ใช้งาน",
+  "subscriptionStatusPending": "รอดำเนินการ",
+  "subscriptionStatusCancelled": "ยกเลิกแล้ว"
+}

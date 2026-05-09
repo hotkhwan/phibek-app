@@ -1,0 +1,33 @@
+.app-cover {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100vh;
+	height: 100dvh;
+	
+	&:after {
+		content: '';
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		background: $app-cover-bg;
+	}
+	&:before {
+		content: '';
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		background: $app-cover-bg-img;
+		background-size: cover;
+		background-position: fixed;
+		
+		@if $app-cover-bg-grayscale-enabled {
+			filter: grayscale(100%);
+		}
+	}
+}

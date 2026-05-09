@@ -1,0 +1,51 @@
+.hljs {
+  display: block;
+  overflow-x: auto;
+  color: rgba(var(--#{$prefix}body-color-rgb), .5);
+  font-size: $font-size-base;
+}
+.hljs-code,
+.hljs-emphasis {
+  font-style: italic;
+}
+.hljs-tag {
+	color: rgba(var(--#{$prefix}body-color-rgb), .5);
+	
+	& .hljs-name {
+		color: var(--#{$prefix}blue);
+	}
+}
+.hljs-comment {
+	color: rgba(var(--#{$prefix}body-color-rgb), .35);
+}
+.hljs-string,
+.hljs-bullet {
+  color: var(--#{$prefix}green);
+}
+.hljs-attr {
+	color: var(--#{$prefix}indigo);
+}
+.hljs a {
+  color: inherit;
+  
+	&:focus,
+	&:hover {
+		color: inherit;
+		text-decoration: underline;
+	}
+}
+.hljs-container {
+  padding: $card-spacer-y $card-spacer-x;
+  border: var(--#{$prefix}border-width) solid var(--#{$prefix}border-color);
+  position: relative;
+  z-index: 1;
+  background: rgba(var(--#{$prefix}body-bg-rgb), .75);
+	
+	& pre {
+		border: none;
+		padding: 0;
+		margin: 0;
+		background: none;
+		border-radius: 0;
+	}
+}

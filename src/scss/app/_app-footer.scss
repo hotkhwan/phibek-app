@@ -1,0 +1,13 @@
+.app-footer {
+	left: 0;
+	right: 0;
+	bottom: 0;
+	padding: $spacer $app-content-padding-x;
+	border-top: var(--#{$prefix}border-width) solid var(--#{$prefix}border-color);
+	font-weight: $font-weight-semibold;
+	color: var(--#{$prefix}secondary-color);
+	
+	@include media-breakpoint-down($desktop-breakpoint) {
+		padding: $spacer * .75 $app-content-sm-padding-x;
+	}
+}

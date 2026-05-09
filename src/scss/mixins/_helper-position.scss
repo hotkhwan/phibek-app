@@ -1,0 +1,41 @@
+@mixin helper-generate-responsive-position() {
+	$positions: (static, relative, absolute, fixed, sticky);
+	$transform-values: (none, initial);
+	$visibility-values: (none, initial);
+	@each $breakpoint, $size in $grid-breakpoints {
+		@each $position in $positions {
+			@if $breakpoint == xs {
+				.position-#{$position} { position: $position !important; }
+			} @else {
+				@media (min-width: $size) {
+					.position-#{$breakpoint}-#{$position} { position: $position !important; }
+				}
+			}
+		}
+		@each $value in $transform-values {
+			@if $breakpoint == xs {
+				.transform-#{$value} { transform: #{$value} !important; }
+			} @else {
+				@media (min-width: $size) {
+					.transform-#{$breakpoint}-#{$value} { transform: #{$value} !important; }
+				}
+			}
+		}
+		@each $value in $visibility-values {
+			@if $breakpoint == xs {
+				.visibility-#{$value} { visibility: #{$value} !important; }
+			} @else {
+				@media (min-width: $size) {
+					.visibility-#{$breakpoint}-#{$value} { visibility: #{$value} !important; }
+				}
+			}
+		}
+		@each $name, $value in $zindex-levels {
+			.z-#{$breakpoint}-#{$name} {
+				@include media-breakpoint-up($breakpoint) {
+					z-index: $value !important;
+				}
+			}
+		}
+	}
+}

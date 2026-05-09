@@ -1,0 +1,70 @@
+.ps {
+	position: relative;
+	
+	& .ps__rail-x,
+	& .ps__rail-y {
+		z-index: 10;
+		
+		&.ps--clicking,
+		&:hover,
+		&:focus {
+			background: none;
+		}
+	}
+	& .ps__rail-y {
+		width: rem(12px);
+		
+		& .ps__thumb-y {
+			width: rem(4px);
+			border-radius: 0;
+			background: none !important;
+			
+			&:before {
+				content: '';
+				background: rgba(var(--#{$prefix}body-color-rgb), .5);
+				position: absolute;
+				top: rem(2px);
+				bottom: rem(2px);
+				right: 0;
+				left: 0;
+				border-radius: $component-border-radius;
+			}
+		}
+		&:hover {
+			& .ps__thumb-y {
+				width: rem(6px);
+			}
+		}
+	}
+	& .ps__rail-x {
+		height: rem(4px);
+		
+		& .ps__thumb-x {
+			width: rem(12px);
+			border-radius: 0;
+			background: none !important;
+			
+			&:before {
+				content: '';
+				background: rgba(var(--#{$prefix}body-color-rgb), .5);
+				position: absolute;
+				top: rem(1px);
+				bottom: rem(1px);
+				right: rem(2px);
+				left: rem(2px);
+				border-radius: $component-border-radius;
+			}
+		}
+		&:hover {
+			& .ps__thumb-x {
+				width: rem(6px);
+			}
+		}
+	}
+}
+.hide-rail .ps__rail-x,
+.hide-rail .ps__rail-y,
+.hide-rail-x .ps__rail-x,
+.hide-rail-y .ps__rail-y {
+	display: none;
+}

@@ -1,0 +1,16 @@
+body {
+	letter-spacing: $font-letter-spacing;
+	-webkit-font-smoothing: $font-smoothing;
+	
+	&:not(.app-init) * {
+		transition: none !important;
+		animation: none !important;
+	}
+}
+
+p {
+	color: $paragraph-color;
+}
+button, input, optgroup, select, textarea {
+	letter-spacing: inherit;
+} 

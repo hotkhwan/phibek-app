@@ -1,0 +1,21 @@
+{
+  "_comments_error": "ข้อความป้ายรหัสข้อผิดพลาด",
+  "authErrorTitle": "ข้อผิดพลาดการยืนยันตัวตน",
+  "authErrorDesc": "เกิดข้อผิดพลาดระหว่างกระบวนการยืนยันตัวตน กรุณาลองใหม่อีกครั้ง",
+  "authErrorRetry": "ลองใหม่",
+  "authErrorContactSupport": "ติดต่อฝ่ายสนับสนุน",
+  "authTryAgaiLater": "ลองอีกครั้งภายหลัง",
+  "error404Title": "404 - ไม่พบหน้าที่ต้องการ",
+  "error404Desc": "หน้าที่คุณกำลังมองหาไม่มีอยู่หรือถูกลบไปแล้ว",
+  "errorPageTitle"  : "หน้าข้อผิดพลาด",
+  "errorOops": "อุ๊ปส์!",
+  "errorNotFoundDesc": "เราไม่สามารถค้นหาหน้าที่คุณกำลังมองหาได้",
+  "errorHelpfulLinks": "นี่คือลิงก์ที่เป็นประโยชน์แทน:",
+  "authApiErrorTitle": "ไม่สามารถเชื่อมต่อกับ API Gateway",
+  "authApiErrorDesc": "บริการ Backend API ไม่พร้อมใช้งานหรือยังไม่ได้เริ่มทำงาน กรุณาตรวจสอบว่า API Gateway ทำงานอยู่แล้วลองใหม่อีกครั้ง",
+  "authApiErrorDetails": "รายละเอียดข้อผิดพลาด: {details}",
+  "authApiErrorSolution": "วิธีแก้ไขที่เป็นไปได้:",
+  "authApiErrorSolution1": "เริ่มบริการ Backend API",
+  "authApiErrorSolution2": "ตรวจสอบตัวแปรสภาพแวดล้อม API_BASE",
+  "authApiErrorSolution3": "ตรวจสอบการเชื่อมต่อเครือข่าย"
+}

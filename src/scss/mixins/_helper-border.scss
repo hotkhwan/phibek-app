@@ -1,0 +1,35 @@
+@mixin helper-generate-responsive-border(
+  $breakpoints: (sm, md, lg, xl, xxl),
+  $directions: (start, end, top, bottom),
+  $prefix: border
+) {
+  @each $breakpoint in $breakpoints {
+    @each $dir in $directions {
+      .#{$prefix}-#{$breakpoint}-#{$dir} {
+        @include media-breakpoint-up($breakpoint) {
+          @include _border-dir($dir, true);
+        }
+      }
+      
+      .#{$prefix}-#{$breakpoint}-#{$dir}-0 {
+        @include media-breakpoint-up($breakpoint) {
+          @include _border-dir($dir, false);
+        }
+      }
+    }
+  }
+}
+
+@mixin _border-dir($dir, $enable: true) {
+  $val: if($enable, 1px solid var(--bs-border-color), 0);
+
+  @if $dir == top {
+    border-block-start: $val !important;
+  } @else if $dir == bottom {
+    border-block-end: $val !important;
+  } @else if $dir == start {
+    border-inline-start: $val !important;
+  } @else if $dir == end {
+    border-inline-end: $val !important;
+  }
+}

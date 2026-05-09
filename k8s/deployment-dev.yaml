@@ -1,0 +1,129 @@
+# PHIBEK · winn — DEV pod (mount source from host01 + run `bun dev` manually)
+#
+# Pattern: hostPath volume → /app inside the pod, container is `oven/bun:1.2-debian`,
+# entrypoint is `sleep infinity` so the user can `kubectl exec` and run `bun run dev`
+# on demand. Vite serves the SvelteKit app at port 3001 on 0.0.0.0 with
+# `allowedHosts: true` (vite.config.ts) so the istio host header passes.
+#
+# PUBLIC_APP_BASE_PATH=/phibek → SvelteKit kit.paths.base="/phibek". Istio must
+# pass the prefix through unchanged (no rewrite). See the HTTPRoute snippet at
+# the bottom of this file for what to add to `klynx-route` in istio-system.
+#
+# Apply:
+#   kubectl apply -n istio -f k8s/deployment-dev.yaml
+#
+# Run dev server inside the pod:
+#   kubectl exec -n istio -it deploy/phibek-app -- bash
+#   # inside container:
+#   bun install   # first time only
+#   bun run dev
+#
+# Tail logs / restart dev:
+#   kubectl logs -n istio deploy/phibek-app -f
+#   # to restart bun dev: kill + rerun, or:
+#   kubectl rollout restart -n istio deploy/phibek-app
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: phibek-app
+  namespace: istio
+  labels:
+    app: phibek-app
+    mode: dev
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: phibek-app
+  template:
+    metadata:
+      labels:
+        app: phibek-app
+        mode: dev
+    spec:
+      # Pin the dev pod to the node that hosts /home/phibek/app.
+      # Adjust hostname if you have multiple nodes.
+      nodeSelector:
+        kubernetes.io/hostname: host01
+      containers:
+      - name: phibek-app
+        image: docker.io/oven/bun:1.2-debian
+        imagePullPolicy: IfNotPresent
+        workingDir: /app
+        # Sleep so the user runs `bun run dev` manually via kubectl exec.
+        # If you want auto-start instead, replace command with:
+        #   ["bash", "-lc", "bun install && exec bun run dev"]
+        command: ["sh", "-c", "sleep infinity"]
+        env:
+        - name: HOME
+          value: /root
+        - name: NODE_ENV
+          value: development
+        - name: PORT
+          value: "3001"
+        # All PUBLIC_* values come from /app/.env (already mounted via hostPath).
+        # `bun run dev` sources .env automatically (see package.json scripts).
+        ports:
+        - name: http
+          containerPort: 3001
+        volumeMounts:
+        - name: source
+          mountPath: /app
+        resources:
+          limits:
+            cpu: "2"
+            memory: "2Gi"
+          requests:
+            cpu: "200m"
+            memory: "512Mi"
+        # No probes in dev mode — `bun dev` is started manually and may not be
+        # listening when the pod first comes up. Re-enable when switching to
+        # the prod adapter-node Deployment in deployment.yaml.
+      volumes:
+      - name: source
+        hostPath:
+          path: /home/phibek/app
+          type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: phibek-app
+  namespace: istio
+  labels:
+    app: phibek-app
+spec:
+  selector:
+    app: phibek-app
+  ports:
+  - name: http
+    port: 3001
+    targetPort: 3001
+  type: ClusterIP
+---
+# ── HTTPRoute snippet ────────────────────────────────────────────────────────
+# Add a rule to the existing `klynx-route` in `istio-system` so that requests
+# under `/phibek*` are routed to the phibek-app service in `istio` namespace.
+# Run:  kubectl edit -n istio-system httproutes.gateway.networking.k8s.io klynx-route
+# Insert this rule (KEEP the existing rules — add this BEFORE the catch-all `/`
+# rule so the path-prefix match wins).
+#
+# spec:
+#   rules:
+#   - matches:
+#     - path:
+#         type: PathPrefix
+#         value: /phibek
+#     backendRefs:
+#     - name: phibek-app
+#       namespace: istio
+#       port: 3001
+#   # ... existing klynx rules below ...
+#
+# Because the service is in a different namespace than the HTTPRoute, the
+# istio gateway needs a ReferenceGrant. Apply k8s/referencegrant.yaml AFTER
+# changing the namespace from `gw` to `istio`:
+#   sed -e 's/namespace: gw/namespace: istio/' k8s/referencegrant.yaml | kubectl apply -f -

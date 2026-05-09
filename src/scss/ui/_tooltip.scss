@@ -1,0 +1,15 @@
+.tooltip .tooltip-inner {
+	border: $tooltip-border-width solid $tooltip-border-color;
+}
+.bs-tooltip-top .tooltip-arrow::before {
+  border-top-color: $tooltip-border-color;
+}
+.bs-tooltip-bottom .tooltip-arrow::before {
+  border-bottom-color: $tooltip-border-color;
+}
+.bs-tooltip-start .tooltip-arrow::before {
+  border-left-color: $tooltip-border-color;
+}
+.bs-tooltip-end .tooltip-arrow::before {
+  border-right-color:$tooltip-border-color;
+}

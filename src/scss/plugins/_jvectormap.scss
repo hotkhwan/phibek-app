@@ -1,0 +1,113 @@
+.jvectormap-container {
+	position: relative;
+	
+	& .jvectormap-zoomin, 
+	& .jvectormap-zoomout, 
+	& .jvectormap-goback {
+		width: rem(16px);
+		height: rem(16px);
+		padding: 0;
+		box-sizing: border-box;
+		font-size: $font-size-base;
+		background: var(--#{$prefix}component-bg);
+		color: var(--#{$prefix}component-color);
+		border: 1px solid var(--#{$prefix}border-color);
+		box-shadow: none;
+		border-radius: $component-border-radius;;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 10;
+		
+		:dir(ltr) & {
+			left: $card-spacer-x;
+		}
+		:dir(rtl) & {
+			right: $card-spacer-x;
+			left: auto;
+		}
+		
+		.jvectormap-without-padding & {
+			:dir(ltr) & {
+				left: 0;
+			}
+			:dir(rtl) & {
+				right: 0;
+				left: auto;
+			}
+		}
+		
+		&:hover {
+			color: var(--#{$prefix}component-color);
+			background: var(--#{$prefix}tertiary-bg);
+		}
+	}
+	& .jvectormap-zoomin {
+		top: $card-spacer-x;
+		
+		.jvectormap-without-padding & {
+			top: 0;
+		}
+	}
+	& .jvectormap-zoomout {
+		top: $card-spacer-x + rem(20px);
+		
+		.jvectormap-without-padding & {
+			top: rem(20px);
+		}
+	}
+	& .jvectormap-legend {
+		background: rgba($body-bg, .25);
+		backdrop-filter: blur(6px);
+		color: var(--#{$prefix}component-color);
+		box-shadow: $dropdown-box-shadow;
+		border-radius: $component-border-radius;
+	}
+	& .jvectormap-legend-title {
+		font-size: $font-size-sm;
+		font-weight: $font-weight-bold;
+		padding: $spacer * .5 $spacer * .75;
+		border-bottom: var(--#{$prefix}border-width) solid var(--#{$prefix}border-color);
+	}
+	& .jvectormap-legend-cnt-v {
+		& .jvectormap-legend {
+			padding: 0;
+			margin: $card-spacer-x $card-spacer-x 0 0;
+			font-size: $font-size-base;
+			
+			& .jvectormap-legend-inner {
+				padding: $spacer * .5 $spacer * .75;
+			}
+			& .jvectormap-legend-tick {
+				display: flex;
+				align-items: center;
+				
+				& + .jvectormap-legend-tick {
+					margin-top: $spacer * .25;
+				}
+			}
+			& .jvectormap-legend-tick-sample {
+				width: rem(12px);
+				height: rem(12px);
+				border-radius: $component-border-radius;
+			}
+			& .jvectormap-legend-tick-text {
+				padding-left: 0;
+				padding-inline-start: $spacer * .5;
+				line-height: initial;
+				font-size: $font-size-base;
+			}
+		}
+	}
+}
+.jvectormap-tip {
+	background: rgba($white, .9) !important;
+	color: $black !important;
+	font-weight: $font-weight-semibold !important;
+	padding: $spacer * .25 $spacer * .5 !important;
+	border: none !important;
+	font-family: inherit !important;
+	font-size: $font-size-base !important;
+	z-index: 1000;
+	border-radius: $component-border-radius !important;
+}
