@@ -13,7 +13,6 @@
   import ConfirmDialog from '$lib/components/shared/ConfirmDialog.svelte'
   import {
     getUser,
-    listOrgMembers,
     listOrgs,
     listUsers,
     provisionUser,
@@ -35,7 +34,6 @@
   type StatusFilter = 'all' | 'enabled' | 'disabled'
   type PlatformRole = 'administrator' | 'user'
   type OrgRole = 'admin' | 'member'
-  type ScopeMode = 'members' | 'system'
   type EditableMembership = UserOrganizationMembership & {
     draftRole: OrgRole
     originalRole: OrgRole
@@ -48,14 +46,13 @@
   let exporting = $state(false)
   let errorMsg = $state('')
 
+  // Mirror activeWorkspaceId so the template can react. New users are added
+  // to whichever org is selected here (X-Active-Org auto-injected by fetch).
+  let activeOrgId = $state('')
+
   // ─────────── filters ───────────
   let search = $state('')
   let statusFilter = $state<StatusFilter>('all')
-  // Default scope = members of the active org. After `removeUserFromOrg` the
-  // user vanishes from this list (they still exist as a system user — switch
-  // scope to 'system' to confirm). klynx admin pages with no active org fall
-  // back to the system list automatically.
-  let scopeMode = $state<ScopeMode>('members')
   let perPage = $state(10)
   const PER_PAGE_OPTIONS = [10, 25, 50, 100]
   let pageIndex = $state(1)
@@ -130,6 +127,10 @@
     const id = orgIdOf(org)
     return id && !memberships.some((m) => orgIdOf(m) === id)
   }))
+
+  // Active org metadata for the page header banner.
+  const activeOrg = $derived(orgOptions.find((o) => orgIdOf(o) === activeOrgId))
+  const hasActiveOrg = $derived(!!activeOrgId)
 
   function orgIdOf(org: Pick<Organization, 'id' | 'orgId'> | null | undefined): string {
     return org?.orgId || org?.id || ''
@@ -224,26 +225,20 @@
     return 'STATUS: ALL'
   }
 
-  // ─────────── load (server-side search + scope-aware) ───────────
+  // ─────────── load (always /users — adminPlatform sees the platform-wide
+  //                  registry; new users are added to the active org via
+  //                  X-Active-Org on the create call) ───────────
   let searchToken = 0
   async function load() {
     loading = true
     errorMsg = ''
     const myToken = ++searchToken
-    const orgId = get(activeWorkspaceId) ?? ''
-    const useMembers = scopeMode === 'members' && !!orgId
     const params = {
       perPage: 250,
-      search: search.trim() || undefined,
-      ...(useMembers ? { sortField: 'orgRole', sortOrder: 'desc' as const } : {})
+      search: search.trim() || undefined
     }
-    console.debug('[users] load → token=%d scope=%s orgId=%s', myToken, useMembers ? 'members' : 'system', orgId)
     try {
-      const { data, error } = useMembers
-        ? await listOrgMembers(params)
-        : await listUsers(params)
-      console.debug('[users] load ← token=%d items=%d error=%o', myToken, (data?.details?.items ?? []).length, error)
-      // Drop result if a newer call has fired since this one started.
+      const { data, error } = await listUsers(params)
       if (myToken !== searchToken) return
       if (error) {
         errorMsg = error.message
@@ -253,20 +248,12 @@
       }
       pageIndex = 1
     } catch (err) {
-      console.error('[users] load threw', err)
       if (myToken !== searchToken) return
       errorMsg = (err as Error)?.message ?? 'Failed to load users'
       rows = []
     } finally {
       loading = false
     }
-  }
-
-  function switchScope(next: ScopeMode) {
-    if (scopeMode === next) return
-    scopeMode = next
-    pageIndex = 1
-    load()
   }
 
   // ─────────── debounced search → server fetch ───────────
@@ -280,7 +267,14 @@
   }
 
   // ─────────── create ───────────
+  // adminPlatform creates users into the active org (X-Active-Org auto-injected
+  // by `lib/utils/fetch`). On a fresh install with no org selected, block the
+  // action and prompt the user to create one in `Organizations` first.
   function openCreate() {
+    if (!activeOrgId) {
+      notify.warning('Select an organization', 'New users are added to the active organization. Create one in Organizations or switch to an existing one before adding users.')
+      return
+    }
     formMode = 'create'
     editingId = null
     originalEnabled = true
@@ -501,7 +495,16 @@
 
   onMount(() => {
     setPageTitle(`${m.navSystemUsers()} · ${m.navSystemUsersUsers()}`)
+    // Mirror activeWorkspaceId so the template can react when the user
+    // switches org from the header dropdown — without re-mounting the page.
+    const unsub = activeWorkspaceId.subscribe((id) => {
+      activeOrgId = id ?? ''
+    })
+    // Load orgs eagerly so the banner can name the active org and so the
+    // edit-modal membership list has options without an extra await.
+    void loadOrgOptions()
     load()
+    return () => unsub()
   })
 </script>
 
@@ -519,7 +522,13 @@
       <small>{rows.length} user{rows.length === 1 ? '' : 's'} in system</small>
     </div>
     <div class="ms-auto">
-      <button type="button" class="btn btn-outline-theme text-uppercase" onclick={openCreate}>
+      <button
+        type="button"
+        class="btn btn-outline-theme text-uppercase"
+        onclick={openCreate}
+        disabled={!hasActiveOrg}
+        title={hasActiveOrg ? '' : 'Select an active organization first'}
+      >
         <i class="bi bi-plus-lg me-1"></i> Add user
       </button>
     </div>
@@ -575,27 +584,19 @@
 
   <!-- Toolbar (cyber_admin pattern) -->
   <div class="p-3 border-bottom">
-    <!-- Scope toggle: Members of active org vs whole system registry -->
-    <div class="btn-group btn-group-sm mb-2" role="group" aria-label="Scope">
-      <button
-        type="button"
-        class="btn text-uppercase"
-        class:btn-theme={scopeMode === 'members'}
-        class:btn-outline-theme={scopeMode !== 'members'}
-        onclick={() => switchScope('members')}
-      >
-        <i class="bi bi-building me-1"></i> Org members
-      </button>
-      <button
-        type="button"
-        class="btn text-uppercase"
-        class:btn-theme={scopeMode === 'system'}
-        class:btn-outline-theme={scopeMode !== 'system'}
-        onclick={() => switchScope('system')}
-      >
-        <i class="bi bi-globe me-1"></i> System users
-      </button>
-    </div>
+    <!-- Active-org context: new users are created into this org -->
+    {#if hasActiveOrg}
+      <div class="small text-body text-opacity-50 text-uppercase mb-2">
+        <i class="bi bi-building me-1"></i>
+        New users are added to:
+        <span class="text-theme fw-semibold">{activeOrg?.name ?? activeOrgId}</span>
+      </div>
+    {:else}
+      <div class="alert alert-warning d-flex align-items-center py-2 mb-2 small text-uppercase" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        <span>No active organization. Create one in <a href="organizations" class="alert-link">Organizations</a> and select it before adding users.</span>
+      </div>
+    {/if}
 
     <div class="input-group mb-3">
       <button class="btn btn-outline-secondary dropdown-toggle text-uppercase" type="button" data-bs-toggle="dropdown" aria-expanded="false">

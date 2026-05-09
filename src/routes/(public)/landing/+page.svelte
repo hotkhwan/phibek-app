@@ -23,14 +23,14 @@
 </script>
 
 <div class="landing-page">
-  <header class="app-header navbar navbar-expand-lg p-0 h-auto d-block position-fixed top-0 start-0 end-0 z-1030">
+  <header class="app-header navbar navbar-expand-lg p-0 h-auto d-block">
     <div class="w-100 bg-body bg-opacity-90">
       <div class="container-lg container-fluid text-center text-body text-opacity-50 py-10px">
         PHIBEK พิเภท PLATFORM SHELL IS LIVE. CYBER ADMIN STYLE, SVELTEKIT POWERED.
       </div>
     </div>
     <div class="container-lg container-fluid py-3">
-      <a class="navbar-brand d-flex align-items-center position-relative mx-auto mx-lg-0 me-lg-auto brand px-0 w-auto fs-5" href={resolve('/landing')}>
+      <a class="navbar-brand d-flex align-items-center position-relative mx-auto mx-lg-0 me-lg-auto brand px-0 w-auto fs-5" href={resolve('/')}>
         <img src={asset('/img/logo/phibek-mark.svg')} alt="PHIBEK" class="landing-brand-mark" />
         <span>PHIBEK <span class="opacity-5">พิเภท</span></span>
       </a>
@@ -47,77 +47,108 @@
     </div>
   </header>
 
-  <main id="home" class="landing-hero">
-    <div class="container-lg container-fluid text-center">
-      <h6 class="text-uppercase text-theme fw-semibold mb-3">Built for PHIBEK operations</h6>
-      <h1 class="display-6 fw-bold mb-4">A Cyber Command Portal for AI, IoT, and Live Monitoring</h1>
-      <p class="lead mb-4">
-        A SvelteKit operator surface based on the Cyber Admin template, keeping the original HUD rhythm while connecting to PHIBEK workflows.
-      </p>
-      <div class="d-flex justify-content-center gap-2 mb-5">
-        <a href={resolve('/auth/login')} class="btn btn-theme btn-lg w-150px">SIGN IN</a>
-        <a href={resolve('/dashboard')} class="btn btn-outline-secondary btn-lg w-150px">OPEN APP</a>
+  <main class="landing-scroll">
+    <section id="home" class="landing-hero">
+      <div class="container-lg container-fluid text-center">
+        <h6 class="text-uppercase text-theme fw-semibold mb-3">Built for PHIBEK operations</h6>
+        <h1 class="display-6 fw-bold mb-4">A Cyber Command Portal for AI, IoT, and Live Monitoring</h1>
+        <p class="lead mb-4">
+          A SvelteKit operator surface based on the Cyber Admin template, keeping the original HUD rhythm while connecting to PHIBEK workflows.
+        </p>
+        <div class="d-flex justify-content-center gap-2 mb-5">
+          <a href={resolve('/auth/login')} class="btn btn-theme btn-lg w-150px">SIGN IN</a>
+          <a href={resolve('/dashboard')} class="btn btn-outline-secondary btn-lg w-150px">OPEN APP</a>
+        </div>
+        <div class="landing-cover-wrap">
+          <img src={asset('/img/landing/cover.jpg')} alt="PHIBEK dashboard preview" class="landing-cover shadow-lg" />
+        </div>
       </div>
-      <div class="landing-cover-wrap">
-        <img src={asset('/img/landing/cover.jpg')} alt="PHIBEK dashboard preview" class="landing-cover shadow-lg" />
+    </section>
+
+    <hr class="opacity-1 my-0" />
+
+    <section id="about" class="py-5 bg-body bg-opacity-75">
+      <div class="container-lg container-fluid my-5">
+        <div class="text-center mb-lg-5 mb-4">
+          <h1 class="mb-3">About PHIBEK Winn</h1>
+          <p class="fs-5 text-body text-opacity-50 mb-0">
+            The portal brings navigation, user portal pages, and live operations into one Cyber-styled interface.
+          </p>
+        </div>
+        <div class="row text-start g-3 gx-lg-5 gy-lg-4">
+          {#each features as feature}
+            <div class="col-md-3 col-6 d-flex gap-3">
+              <div class="landing-feature-icon"><i class="bi {feature[0]}"></i></div>
+              <div class="flex-1">
+                <h4>{feature[1]}</h4>
+                <p class="text-body text-opacity-50">{feature[2]}</p>
+              </div>
+            </div>
+          {/each}
+        </div>
       </div>
-    </div>
+    </section>
+
+    <hr class="opacity-1 my-0" />
+
+    <section id="features" class="py-5 bg-body bg-opacity-75">
+      <div class="container-lg container-fluid my-5">
+        <div class="text-center mb-lg-5 mb-4">
+          <h1 class="mb-3">Portal Surfaces</h1>
+          <p class="fs-5 text-body text-opacity-50 mb-0">Initial screens are aligned to the Cyber Admin source so the product can be tuned with real data next.</p>
+        </div>
+        <div class="row g-3 g-lg-5 text-uppercase">
+          {#each mockups as mockup}
+            <div class="col-sm-3 col-6">
+              <a href={resolve('/dashboard')} class="shadow d-block">
+                <img src={asset(mockup[1])} alt={mockup[0]} class="mw-100" />
+              </a>
+              <div class="text-center my-3 text-body fw-semibold">{mockup[0]}</div>
+            </div>
+          {/each}
+        </div>
+      </div>
+    </section>
   </main>
 
-  <hr class="opacity-1 my-0" />
-
-  <section id="about" class="py-5 bg-body bg-opacity-75">
-    <div class="container-lg container-fluid my-5">
-      <div class="text-center mb-lg-5 mb-4">
-        <h1 class="mb-3">About PHIBEK Winn</h1>
-        <p class="fs-5 text-body text-opacity-50 mb-0">
-          The portal brings navigation, user portal pages, and live operations into one Cyber-styled interface.
-        </p>
-      </div>
-      <div class="row text-start g-3 gx-lg-5 gy-lg-4">
-        {#each features as feature}
-          <div class="col-md-3 col-6 d-flex gap-3">
-            <div class="landing-feature-icon"><i class="bi {feature[0]}"></i></div>
-            <div class="flex-1">
-              <h4>{feature[1]}</h4>
-              <p class="text-body text-opacity-50">{feature[2]}</p>
-            </div>
-          </div>
-        {/each}
-      </div>
-    </div>
-  </section>
-
-  <hr class="opacity-1 my-0" />
-
-  <section id="features" class="py-5 bg-body bg-opacity-75">
-    <div class="container-lg container-fluid my-5">
-      <div class="text-center mb-lg-5 mb-4">
-        <h1 class="mb-3">Portal Surfaces</h1>
-        <p class="fs-5 text-body text-opacity-50 mb-0">Initial screens are aligned to the Cyber Admin source so the product can be tuned with real data next.</p>
-      </div>
-      <div class="row g-3 g-lg-5 text-uppercase">
-        {#each mockups as mockup}
-          <div class="col-sm-3 col-6">
-            <a href={resolve('/dashboard')} class="shadow d-block">
-              <img src={asset(mockup[1])} alt={mockup[0]} class="mw-100" />
-            </a>
-            <div class="text-center my-3 text-body fw-semibold">{mockup[0]}</div>
-          </div>
-        {/each}
-      </div>
-    </div>
-  </section>
-
-  <footer id="contact" class="py-4 border-top text-center text-body text-opacity-50">
+  <footer id="contact" class="landing-footer py-4 border-top text-center text-body text-opacity-50">
     PHIBEK พิเภท · CYBER ADMIN SVELTEKIT
   </footer>
 </div>
 
 <style>
   .landing-page {
-    min-height: 100dvh;
+    height: 100dvh;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    overflow: hidden;
     text-transform: uppercase;
+  }
+  :global(#content.app-content:has(.landing-page)) {
+    height: 100dvh !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+  }
+  .landing-page :global(.app-header) {
+    position: relative !important;
+    inset: auto !important;
+    width: 100%;
+    flex: 0 0 auto;
+    z-index: 3;
+  }
+  .landing-scroll {
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scroll-behavior: smooth;
+  }
+  .landing-footer {
+    flex: 0 0 auto;
+    background: rgba(var(--bs-body-bg-rgb), .72);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
   }
   .landing-brand-mark {
     width: 34px;
@@ -126,7 +157,7 @@
     filter: drop-shadow(0 0 8px rgba(232, 184, 75, .4));
   }
   .landing-hero {
-    padding-top: 145px;
+    padding-top: clamp(2rem, 6vw, 5rem);
     padding-bottom: 60px;
     position: relative;
   }
@@ -156,7 +187,7 @@
   }
   @media (max-width: 991.98px) {
     .landing-hero {
-      padding-top: 125px;
+      padding-top: 2rem;
     }
   }
   @media (max-width: 575.98px) {
