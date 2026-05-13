@@ -63,6 +63,8 @@ export type Organization = {
   name: string
   description?: string
   status?: string
+  ingestEndpoint?: string
+  provisionStatus?: 'pending' | 'provisioning' | 'active' | 'provisionFailed' | string
   createAt?: string
   updateAt?: string
 }
@@ -93,8 +95,24 @@ export type ResourcePermission = {
   name?: string
   description?: string
   resourceId: string
+  resourceGroupIds?: string[]
+  cameraIds?: string[]
+  kcontrolIds?: string[]
+  edgeIds?: string[]
+  orgUnitIds?: string[]
+  memberIds?: string[]
+  relations?: string[]
+  status?: boolean
+  resourceDeviceScope?: 'all' | 'selected' | string
+  includeOrgUnitChildren?: boolean
+  includeResourceGroupChildren?: boolean
   role?: string
   allow?: 'r' | 'rw' | 'none'
+}
+
+export type PhibekWorkspaceResult = {
+  ingestEndpoint?: string
+  provisionStatus: 'pending' | 'provisioning' | 'active' | 'provisionFailed' | string
 }
 
 export type ListParams = {
@@ -212,6 +230,29 @@ export async function deleteOrg(id: string) {
   })
 }
 
+export async function getOrgIngestStatus(orgId: string) {
+  return apiSafe<ApiEnvelope<{
+    ingestEndpoint?: string
+    eventIngestUri?: string
+    provisionStatus?: PhibekWorkspaceResult['provisionStatus']
+  }>>('/ingest/', {
+    headers: orgId ? { 'X-Active-Org': orgId } : undefined
+  })
+}
+
+export async function enableOrgIngest(orgId: string) {
+  return api<ApiEnvelope<{
+    orgId?: string
+    workspaceId?: string
+    eventIngestUri?: string
+    provisionStatus: PhibekWorkspaceResult['provisionStatus']
+    idempotent?: boolean
+  }>>('/ingest/enableWebhook', {
+    method: 'POST',
+    headers: orgId ? { 'X-Active-Org': orgId } : undefined
+  })
+}
+
 export async function listOrgUnits(params: ListParams = {}) {
   return apiSafe<
     ApiEnvelope<{ items: OrgUnit[] }> & { pagination?: Pagination }
@@ -273,7 +314,9 @@ export async function createMenuPermission(body: {
   name: string
   description?: string
   menus?: string[]
-  allow?: 'r' | 'rw' | 'none'
+  relations?: string[]
+  status?: boolean
+  scopeType?: 'organization' | 'orgUnit'
 }) {
   return api<ApiEnvelope<MenuPermission>>('/orgs/menu/permissions', { method: 'POST', body })
 }
@@ -282,7 +325,12 @@ export async function updateMenuPermission(id: string, body: {
   name?: string
   description?: string
   menus?: string[]
-  allow?: 'r' | 'rw' | 'none'
+  relations?: string[]
+  status?: boolean
+  scopeType?: 'organization' | 'orgUnit'
+  orgUnits?: string[]
+  userIds?: string[]
+  includeOrgUnitChildren?: boolean
 }) {
   return api<ApiEnvelope<MenuPermission>>(`/orgs/menu/permissions/${encodeURIComponent(id)}`, {
     method: 'PATCH',
@@ -302,6 +350,8 @@ export async function getMenuPermissionDetail(id: string) {
     relations?: string[]
     scopeType?: string
     orgUnitIds?: string[]
+    userIds?: string[]
+    includeOrgUnitChildren?: boolean
   }>>(`/orgs/menu/permissions/${encodeURIComponent(id)}`)
 }
 
@@ -315,8 +365,8 @@ export async function setMenuPermissionStatus(id: string, status: boolean) {
 export async function createResourcePermission(body: {
   name: string
   description?: string
-  resources?: string[]
-  allow?: 'r' | 'rw' | 'none'
+  relations: string[]
+  status?: boolean
 }) {
   return api<ApiEnvelope<ResourcePermission>>('/orgs/resource/permissions', { method: 'POST', body })
 }
@@ -324,13 +374,26 @@ export async function createResourcePermission(body: {
 export async function updateResourcePermission(id: string, body: {
   name?: string
   description?: string
-  resources?: string[]
-  allow?: 'r' | 'rw' | 'none'
+  relations?: string[]
+  status?: boolean
+  orgUnits?: string[]
+  resourceGroups?: string[]
+  cameras?: string[]
+  kControls?: string[]
+  edges?: string[]
+  memberIds?: string[]
+  resourceDeviceScope?: 'all' | 'selected' | string
+  includeOrgUnitChildren?: boolean
+  includeResourceGroupChildren?: boolean
 }) {
   return api<ApiEnvelope<ResourcePermission>>(`/orgs/resource/permissions/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     body
   })
+}
+
+export async function getResourcePermissionDetail(id: string) {
+  return apiSafe<ApiEnvelope<ResourcePermission>>(`/orgs/resource/permissions/${encodeURIComponent(id)}`)
 }
 
 export async function deleteResourcePermission(id: string) {
