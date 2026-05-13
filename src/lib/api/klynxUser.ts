@@ -103,6 +103,7 @@ export type ListParams = {
   search?: string
   sortField?: string
   sortOrder?: 'asc' | 'desc'
+  mode?: 'members'
 }
 
 export async function listUsers(params: ListParams = {}) {
@@ -345,9 +346,31 @@ export async function inviteOrgMember(body: { email: string; role: string }) {
   })
 }
 
+export async function inviteOrgUsers(users: Array<{ userId: string; role?: 'admin' | 'member' }>, orgId?: string) {
+  return api<ApiEnvelope<unknown>>('/orgs/users/invite', {
+    method: 'POST',
+    body: { users },
+    headers: orgId ? { 'X-Active-Org': orgId } : undefined
+  })
+}
+
 export async function removeOrgMember(userId: string) {
   await api('/orgs/users/remove', {
     method: 'POST',
     body: { userId }
+  })
+}
+
+export async function addOrgUnitMembers(unitId: string, users: Array<{ userId: string; role?: 'admin' | 'member' }>) {
+  return api<ApiEnvelope<unknown>>(`/orgs/units/${encodeURIComponent(unitId)}/members`, {
+    method: 'POST',
+    body: { users }
+  })
+}
+
+export async function removeOrgUnitMembers(unitId: string, userIds: string[]) {
+  return api<ApiEnvelope<unknown>>(`/orgs/units/${encodeURIComponent(unitId)}/members`, {
+    method: 'PATCH',
+    body: { users: userIds.map((userId) => ({ userId })) }
   })
 }

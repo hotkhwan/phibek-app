@@ -2,5 +2,5 @@ import { redirect } from '@sveltejs/kit'
 import { resolve } from '$app/paths'
 
 export const load = () => {
-  throw redirect(307, resolve('/systemUsers/permissions'))
+  throw redirect(307, `${resolve('/systemUsers/permissions')}?tab=menu`)
 }

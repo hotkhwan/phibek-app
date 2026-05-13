@@ -1,6 +1,7 @@
 <!-- src/routes/(app)/systemUsers/permissions/+page.svelte -->
 <script lang="ts">
   import { onMount } from 'svelte'
+  import { page } from '$app/state'
   import { setPageTitle } from '$lib/utils/title'
   import AdminExplorer from '$lib/components/shared/AdminExplorer.svelte'
   import {
@@ -146,6 +147,8 @@
   }
 
   onMount(() => {
+    const tab = page.url.searchParams.get('tab')
+    if (tab === 'resource' || tab === 'api' || tab === 'menu') activeTab = tab
     setPageTitle(`${m.navSystemUsers()} · ${m.navSystemUsersPermissions()}`)
     load()
   })
@@ -178,7 +181,7 @@
     </div>
 
     {#if activeTab === 'api'}
-      <div class="card"><div class="card-body">API permission editor lands in the next permission batch.</div></div>
+      <div class="card"><div class="card-body"><div class="d-flex align-items-center gap-2 mb-2"><i class="bi bi-shield-check text-theme"></i><strong>API Permissions</strong><span class="badge bg-secondary-subtle text-body">read-only</span></div><p class="text-muted mb-0">API permission management is exposed by the backend contract as a separate surface. This panel keeps route parity with klynx and prevents accidental menu/resource schema mixing.</p></div></div>
     {:else if mode === 'create' || mode === 'edit'}
       <div class="card">
         <div class="card-header fw-bold">{mode === 'create' ? m.adminExplorerCreate() : m.adminExplorerEdit()}</div>
