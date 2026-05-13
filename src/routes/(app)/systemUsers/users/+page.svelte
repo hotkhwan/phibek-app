@@ -11,6 +11,7 @@
   import { setPageTitle } from '$lib/utils/title'
   import Modal from '$lib/components/shared/Modal.svelte'
   import ConfirmDialog from '$lib/components/shared/ConfirmDialog.svelte'
+  import ProtectedImage from '$lib/components/shared/ProtectedImage.svelte'
   import {
     getUser,
     listOrgs,
@@ -66,6 +67,7 @@
   let originalEnabled = $state(true)
   let avatarFile = $state<File | null>(null)
   let avatarPreview = $state('')
+  let currentAvatar = $state('')
   let memberships = $state<EditableMembership[]>([])
   let orgOptions = $state<Organization[]>([])
   let orgLoading = $state(false)
@@ -152,6 +154,18 @@
     if (avatarPreview) URL.revokeObjectURL(avatarPreview)
     avatarPreview = ''
     avatarFile = null
+  }
+
+  function avatarKapiPath(value?: string | null): string {
+    const src = (value ?? '').trim()
+    if (!src) return ''
+    if (/^(blob|data|https?):/i.test(src)) return src
+    if (src.startsWith('/files/')) return src
+    if (src.startsWith('files/')) return `/${src}`
+    if (src.startsWith('/api/v1/files/')) return src.replace(/^\/api\/v1/, '')
+    if (src.startsWith('api/v1/files/')) return `/${src}`.replace(/^\/api\/v1/, '')
+    if (src.startsWith('/')) return src
+    return `/files/${src.replace(/^canonical\//, 'canonical/')}`
   }
 
   function onAvatarChange(event: Event) {
@@ -279,6 +293,7 @@
     editingId = null
     originalEnabled = true
     resetAvatarPreview()
+    currentAvatar = ''
     memberships = []
     addOrgId = ''
     addOrgRole = 'member'
@@ -290,6 +305,7 @@
     editingId = u.id
     originalEnabled = u.enabled !== false
     resetAvatarPreview()
+    currentAvatar = avatarKapiPath(u.avatar)
     memberships = []
     addOrgId = ''
     addOrgRole = 'member'
@@ -313,6 +329,7 @@
         const details = data?.details
         if (!isUserDetail(details)) return
         const user = details.user
+        currentAvatar = avatarKapiPath(user.avatar ?? u.avatar)
         originalEnabled = user.enabled !== false
         form = {
           ...form,
@@ -338,7 +355,7 @@
     formBusy = true
     try {
       if (formMode === 'create') {
-        await provisionUser({
+        const created = await provisionUser({
           username: form.username.trim(),
           password: form.password,
           firstName: form.firstName.trim() || undefined,
@@ -347,6 +364,15 @@
           enabled: form.enabled,
           role: 'member'
         })
+        const createdId = created.details?.id
+        if (createdId && avatarFile) {
+          const avatar = await convertImageToWebp(avatarFile)
+          const body = new FormData()
+          body.set('firstName', form.firstName.trim())
+          body.set('lastName', form.lastName.trim())
+          body.set('avatar', avatar)
+          await updateUserProfileMultipart(createdId, body)
+        }
         notify.success('User created', form.username)
       } else if (editingId) {
         await updateUser(editingId, {
@@ -691,7 +717,7 @@
                 <td>
                   <div class="d-flex align-items-center">
                     {#if u.avatar}
-                      <img alt={u.username} width="30" height="30" class="object-fit-cover rounded-circle" src={u.avatar} />
+                      <ProtectedImage alt={u.username} class="user-avatar-inline object-fit-cover rounded-circle" src={avatarKapiPath(u.avatar)} />
                     {:else}
                       <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-body-secondary" style="width: 30px; height: 30px;">
                         <i class="bi bi-person"></i>
@@ -775,12 +801,14 @@
             <label class="user-avatar-drop" for="user-avatar">
               {#if avatarPreview}
                 <img src={avatarPreview} alt="Avatar preview" />
+              {:else if currentAvatar}
+                <ProtectedImage src={currentAvatar} alt="Current avatar" />
               {:else}
                 <i class="bi bi-image"></i>
                 <span>Choose</span>
               {/if}
             </label>
-            {#if avatarPreview}
+            {#if avatarPreview || currentAvatar}
               <button
                 type="button"
                 class="user-avatar-zoom"
@@ -903,7 +931,37 @@
         </div>
       </div>
     {:else}
-      <div class="user-form-grid">
+      <div class="user-create-shell">
+        <div class="user-avatar-panel user-avatar-panel-compact">
+          <div class="text-uppercase fw-semibold text-body text-opacity-75 mb-3">Profile image</div>
+          <div class="user-avatar-thumb-wrap">
+            <label class="user-avatar-drop" for="user-avatar-create">
+              {#if avatarPreview}
+                <img src={avatarPreview} alt="Avatar preview" />
+              {:else}
+                <i class="bi bi-image"></i>
+                <span>Choose</span>
+              {/if}
+            </label>
+            {#if avatarPreview}
+              <button type="button" class="user-avatar-zoom" aria-label="View full image" title="View full image" onclick={() => (lightboxOpen = true)}>
+                <i class="bi bi-zoom-in"></i>
+              </button>
+            {/if}
+          </div>
+          <input id="user-avatar-create" class="visually-hidden" type="file" accept="image/jpeg,image/png,image/gif,image/webp" onchange={onAvatarChange} />
+          <div class="d-flex justify-content-center gap-2 mt-3">
+            <label class="btn btn-outline-theme btn-sm" for="user-avatar-create">
+              <i class="bi bi-upload me-1"></i> Upload
+            </label>
+            {#if avatarPreview}
+              <button type="button" class="btn btn-outline-secondary btn-sm" onclick={resetAvatarPreview}>
+                <i class="bi bi-x-lg me-1"></i> Remove
+              </button>
+            {/if}
+          </div>
+        </div>
+        <div class="user-form-grid flex-grow-1">
         <div class="col-md-6">
           <label class="form-label" for="user-username">Username</label>
           <input id="user-username" class="form-control form-control-sm" bind:value={form.username} autocomplete="username" />
@@ -929,6 +987,7 @@
             <input id="user-enabled" type="checkbox" class="form-check-input" bind:checked={form.enabled} />
             <label class="form-check-label" for="user-enabled">Enabled</label>
           </div>
+        </div>
         </div>
       </div>
     {/if}
@@ -962,6 +1021,10 @@
     {#if avatarPreview}
       <div class="d-flex justify-content-center" style="background: rgba(0,0,0,.35); border-radius: .25rem;">
         <img src={avatarPreview} alt="Avatar full preview" style="max-width: 100%; max-height: 70vh; object-fit: contain; display: block;" />
+      </div>
+    {:else if currentAvatar}
+      <div class="d-flex justify-content-center" style="background: rgba(0,0,0,.35); border-radius: .25rem;">
+        <ProtectedImage src={currentAvatar} alt="Avatar full preview" class="user-avatar-lightbox-img" />
       </div>
     {:else}
       <div class="text-body text-opacity-50 text-center py-5">No image selected.</div>
@@ -1009,6 +1072,18 @@
   .user-row-actions :global(.btn) {
     width: 2rem;
     padding-inline: 0;
+  }
+
+  .user-avatar-inline {
+    width: 30px;
+    height: 30px;
+    background: rgba(var(--bs-body-color-rgb), 0.08);
+  }
+
+  .user-create-shell {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
   }
 
   .user-form-grid {
@@ -1070,6 +1145,13 @@
     object-fit: cover;
   }
 
+  .user-avatar-drop :global(img),
+  .user-avatar-drop :global(div) {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
   .user-avatar-drop i {
     font-size: 1.5rem;
     opacity: .64;
@@ -1110,6 +1192,13 @@
 
   .user-avatar-zoom i {
     font-size: 1rem;
+  }
+
+  .user-avatar-lightbox-img {
+    max-width: 100%;
+    max-height: 70vh;
+    object-fit: contain;
+    display: block;
   }
 
   .user-edit-fields :global(.form-label) {
@@ -1154,6 +1243,10 @@
 
     .user-edit-shell {
       grid-template-columns: 1fr;
+    }
+
+    .user-create-shell {
+      flex-direction: column;
     }
 
     .user-avatar-panel {

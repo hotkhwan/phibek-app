@@ -16,8 +16,10 @@
     type KlynxUser,
     type OrgUnit
   } from '$lib/api/klynxUser'
+  import { activeWorkspaceId } from '$lib/stores/activeWorkspace'
   import { notify } from '$lib/stores/notify'
   import { m } from '$lib/i18n/messages'
+  import { get } from 'svelte/store'
 
   type ViewMode = 'members' | 'add'
   type MemberRow = KlynxUser & { userId?: string; orgRole?: 'admin' | 'member' | 'owner'; label?: string }
@@ -99,12 +101,21 @@
 
   async function save() {
     if (!form.name.trim()) return
+    const activeOrg = get(activeWorkspaceId)
+    if (!activeOrg) {
+      notify.warning('Select an organization', 'Org units are created inside the active organization.')
+      return
+    }
     const body = { name: form.name.trim(), description: form.description, ...(form.parentId ? { parentId: form.parentId } : {}) }
-    if (editing) await updateOrgUnit(editing.id, body)
-    else await createOrgUnit(body)
-    notify.success('Unit saved')
-    formOpen = false
-    await load()
+    try {
+      if (editing) await updateOrgUnit(editing.id, body)
+      else await createOrgUnit(body)
+      notify.success('Unit saved')
+      formOpen = false
+      await load()
+    } catch (err) {
+      notify.error('Unit save failed', (err as { message?: string })?.message ?? 'Unknown error')
+    }
   }
 
   async function remove() {
