@@ -19,7 +19,7 @@
 </script>
 
 <div
-  class="toast-container position-fixed top-0 end-0 p-3"
+  class="toast-container position-fixed bottom-0 start-50 translate-middle-x p-3 app-toast-bottom-center"
   style="z-index: 1080"
   role="region"
   aria-live="polite"
@@ -30,7 +30,7 @@
       role="alert"
       aria-live="assertive"
       aria-atomic="true"
-      in:fly={{ x: 30, duration: 200 }}
+      in:fly={{ y: 24, duration: 200 }}
       out:fade={{ duration: 150 }}
     >
       <div class="toast-header">
