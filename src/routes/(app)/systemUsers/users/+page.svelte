@@ -162,8 +162,8 @@
     if (/^(blob|data|https?):/i.test(src)) return src
     if (src.startsWith('/files/')) return src
     if (src.startsWith('files/')) return `/${src}`
-    if (src.startsWith('/api/v1/files/')) return src.replace(/^\/api\/v1/, '')
-    if (src.startsWith('api/v1/files/')) return `/${src}`.replace(/^\/api\/v1/, '')
+    if (src.startsWith('/api/v1/files/')) return src
+    if (src.startsWith('api/v1/files/')) return `/${src}`
     if (src.startsWith('/')) return src
     return `/files/${src.replace(/^canonical\//, 'canonical/')}`
   }

@@ -20,6 +20,7 @@
 
   function fullUrl(value: string) {
     if (/^(blob|data|https?):/i.test(value)) return value
+    if (value.startsWith('/api/v1/')) return value
     return `${apiBase}/${value.replace(/^\//, '')}`
   }
 
