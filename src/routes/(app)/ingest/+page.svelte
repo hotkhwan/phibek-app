@@ -38,6 +38,7 @@
   let detailOpen = $state(false)
   let detailLoading = $state(false)
   let detailEvent = $state<Detail | null>(null)
+  let detailIndex = $state(-1)
   let zoomImage = $state<{ src: string; alt: string; bbox?: IngestPictureCoordinate | null; source?: 'list' | 'detail' } | null>(null)
   let zoomOpen = $state(false)
   let zoomIndex = $state(-1)
@@ -84,10 +85,11 @@
     load()
   }
 
-  async function openDetail(event: IngestEvent) {
+  async function openDetail(event: IngestEvent, index = rows.findIndex((item) => (item.eventId ?? item.id) === (event.eventId ?? event.id))) {
     detailOpen = true
     detailLoading = true
     detailEvent = null
+    detailIndex = index
     const id = event.eventId ?? event.id
     if (!id) {
       detailLoading = false
@@ -100,6 +102,24 @@
       return
     }
     detailEvent = (data?.details ?? null) as Detail
+  }
+
+  async function moveDetailEvent(step: number) {
+    const nextIndex = detailIndex + step
+    if (nextIndex >= 0 && nextIndex < rows.length) {
+      await openDetail(rows[nextIndex], nextIndex)
+      return
+    }
+    if (step > 0 && rows.length >= PER_PAGE) {
+      await loadPage(pageNumber + 1)
+      if (rows[0]) await openDetail(rows[0], 0)
+      return
+    }
+    if (step < 0 && pageNumber > 1) {
+      await loadPage(pageNumber - 1)
+      const lastIndex = rows.length - 1
+      if (rows[lastIndex]) await openDetail(rows[lastIndex], lastIndex)
+    }
   }
 
   function refsFor(event: IngestEvent | Detail | null | undefined): IngestBinaryRef[] {
@@ -318,7 +338,7 @@
                   </td>
                   <td class="font-monospace small text-body text-opacity-75">{r.eventId ?? r.id ?? '—'}</td>
                   <td class="text-end">
-                    <button type="button" class="btn btn-sm btn-outline-theme" aria-label="View detail" onclick={() => openDetail(r)}>
+                    <button type="button" class="btn btn-sm btn-outline-theme" aria-label="View detail" onclick={() => openDetail(r, rows.findIndex((item) => (item.eventId ?? item.id) === (r.eventId ?? r.id)))}>
                       <i class="bi bi-zoom-in"></i>
                     </button>
                   </td>
@@ -355,6 +375,31 @@
 
 <!-- Detail modal -->
 <Modal bind:open={detailOpen} title="Event Detail" size="lg">
+  {#snippet header()}
+    <div class="event-detail-header">
+      <span>Event Detail</span>
+      <div class="event-detail-nav">
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-secondary"
+          aria-label="Previous event"
+          disabled={detailLoading || (pageNumber <= 1 && detailIndex <= 0)}
+          onclick={() => moveDetailEvent(-1)}
+        >
+          <i class="bi bi-chevron-left"></i>
+        </button>
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-secondary"
+          aria-label="Next event"
+          disabled={detailLoading || (detailIndex >= rows.length - 1 && rows.length < PER_PAGE)}
+          onclick={() => moveDetailEvent(1)}
+        >
+          <i class="bi bi-chevron-right"></i>
+        </button>
+      </div>
+    </div>
+  {/snippet}
   {#snippet body()}
     {#if detailLoading}
       <div class="text-center py-5 text-body text-opacity-50">
@@ -538,6 +583,7 @@
   :global(.event-zoom-image) {
     width: 100%;
     height: 100%;
+    object-fit: contain;
     background: #050607;
   }
 
@@ -580,5 +626,19 @@
     &.next {
       right: .75rem;
     }
+  }
+
+  .event-detail-header {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+  }
+
+  .event-detail-nav {
+    display: inline-flex;
+    gap: .35rem;
+    margin-right: 2rem;
   }
 </style>
