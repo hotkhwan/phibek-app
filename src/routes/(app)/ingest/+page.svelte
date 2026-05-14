@@ -2,8 +2,9 @@
      Aggregated event feed (klynx ingest/events.vue port). Adds a detail
      modal with payload + delivery targets, plus date-range + source filters. -->
 <script lang="ts">
-  import { onMount } from 'svelte'
+  import { onDestroy, onMount } from 'svelte'
   import { setPageTitle } from '$lib/utils/title'
+  import { appOptions } from '$lib/stores/appOptions'
   import DomainStarter from '$lib/components/shared/DomainStarter.svelte'
   import Modal from '$lib/components/shared/Modal.svelte'
   import ProtectedImage from '$lib/components/shared/ProtectedImage.svelte'
@@ -218,7 +219,12 @@
 
   onMount(() => {
     setPageTitle(`${m.navIngest()} · ${m.navIngestEvents()}`)
+    $appOptions.appContentClass = 'p-0 d-flex flex-column'
     load()
+  })
+
+  onDestroy(() => {
+    $appOptions.appContentClass = ''
   })
 </script>
 
@@ -228,8 +234,9 @@
   icon="bi-collection"
   legacyName="ingest/events"
 >
+  <div class="ingest-page-shell">
   <!-- Filter bar -->
-  <div class="card mb-3">
+  <div class="card ingest-filter-card mb-3">
     <div class="card-body">
       <div class="row g-2 align-items-end">
         <div class="col-md-3">
@@ -293,9 +300,9 @@
     <div class="alert alert-danger small mb-3">{errorMsg}</div>
   {/if}
 
-  <div class="card">
+  <div class="card ingest-table-card">
     <div class="card-body p-0">
-      <div class="table-responsive">
+      <div class="table-responsive ingest-table-scroll">
         <table class="table table-card table-hover mb-0">
           <thead>
             <tr>
@@ -358,7 +365,7 @@
   </div>
 
   <!-- Pagination -->
-  <div class="d-flex justify-content-between align-items-center mt-3">
+  <div class="ingest-pagination d-flex justify-content-between align-items-center mt-3">
     <div class="text-body text-opacity-50 small">
       Page <strong>{pageNumber}</strong> · {rows.length} record{rows.length === 1 ? '' : 's'}
     </div>
@@ -370,6 +377,7 @@
         Next <i class="bi bi-chevron-right"></i>
       </button>
     </div>
+  </div>
   </div>
 </DomainStarter>
 
@@ -531,6 +539,45 @@
 </Modal>
 
 <style lang="scss">
+  .ingest-page-shell {
+    height: calc(100dvh - 8.5rem);
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .ingest-filter-card,
+  .ingest-pagination {
+    flex: 0 0 auto;
+  }
+
+  .ingest-table-card {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .ingest-table-card :global(.card-body) {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+  }
+
+  .ingest-table-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  .ingest-table-scroll :global(thead th) {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: rgba(var(--bs-body-bg-rgb), .96);
+    backdrop-filter: blur(10px);
+  }
+
   .event-thumb-btn {
     display: block;
     width: 72px;

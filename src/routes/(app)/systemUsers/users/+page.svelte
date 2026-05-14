@@ -7,8 +7,9 @@
        Footer: "Showing X to Y of Z entries" + pagination-sm page-link
      Row actions use direct compact icon buttons. -->
 <script lang="ts">
-  import { onMount } from 'svelte'
+  import { onDestroy, onMount } from 'svelte'
   import { setPageTitle } from '$lib/utils/title'
+  import { appOptions } from '$lib/stores/appOptions'
   import Modal from '$lib/components/shared/Modal.svelte'
   import ConfirmDialog from '$lib/components/shared/ConfirmDialog.svelte'
   import ProtectedImage from '$lib/components/shared/ProtectedImage.svelte'
@@ -521,6 +522,7 @@
 
   onMount(() => {
     setPageTitle(`${m.navSystemUsers()} · ${m.navSystemUsersUsers()}`)
+    $appOptions.appContentClass = 'p-0 d-flex flex-column'
     // Mirror activeWorkspaceId so the template can react when the user
     // switches org from the header dropdown — without re-mounting the page.
     const unsub = activeWorkspaceId.subscribe((id) => {
@@ -532,9 +534,13 @@
     load()
     return () => unsub()
   })
+
+  onDestroy(() => {
+    $appOptions.appContentClass = ''
+  })
 </script>
 
-<div class="users-page d-flex flex-column" style="min-height: 100%;">
+<div class="users-page d-flex flex-column">
   <!-- Breadcrumb -->
   <ul class="breadcrumb border-bottom px-3 py-2 m-0">
     <li class="breadcrumb-item"><a href="#/" onclick={(e) => e.preventDefault()}>SYSTEM</a></li>
@@ -609,7 +615,7 @@
   </div>
 
   <!-- Toolbar (cyber_admin pattern) -->
-  <div class="p-3 border-bottom">
+  <div class="users-toolbar p-3 border-bottom">
     <!-- Active-org context: new users are created into this org -->
     {#if hasActiveOrg}
       <div class="small text-body text-opacity-50 text-uppercase mb-2">
@@ -691,8 +697,8 @@
   {/if}
 
   <!-- Table -->
-  <div class="flex-1">
-    <div class="table-responsive">
+  <div class="users-table-region">
+    <div class="table-responsive users-table-scroll">
       <table class="table table-striped table-sm table-card text-nowrap mb-1 align-middle">
         <thead>
           <tr>
@@ -1039,7 +1045,35 @@
 
 <style>
   .users-page {
+    height: 100%;
+    min-height: 0;
     font-size: 0.8125rem;
+  }
+
+  .users-toolbar {
+    flex: 0 0 auto;
+    background: rgba(var(--bs-body-bg-rgb), 0.84);
+    backdrop-filter: blur(10px);
+  }
+
+  .users-table-region {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+  }
+
+  .users-table-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  .users-table-scroll :global(thead th) {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: rgba(var(--bs-body-bg-rgb), 0.96);
+    backdrop-filter: blur(10px);
   }
 
   .users-page :global(.page-header) {
