@@ -9,15 +9,45 @@
     src: string
     alt?: string
     class?: string
+    bbox?: {
+      x1?: number
+      y1?: number
+      x2?: number
+      y2?: number
+    } | null
   }
 
-  let { src, alt = '', class: className = '' }: Props = $props()
+  let { src, alt = '', class: className = '', bbox = null }: Props = $props()
   let objectUrl = $state('')
   let failed = $state(false)
+  let naturalWidth = $state(0)
+  let naturalHeight = $state(0)
   let currentUrl = ''
   let lastRequested = ''
   let abortController: AbortController | null = null
   const failedUrls = new Set<string>()
+
+  const overlayBox = $derived.by(() => {
+    if (!bbox || !naturalWidth || !naturalHeight) return null
+    const values = [bbox.x1, bbox.y1, bbox.x2, bbox.y2].map(Number)
+    if (values.some((value) => !Number.isFinite(value))) return null
+    const [rawX1, rawY1, rawX2, rawY2] = values
+    const normalized = Math.max(Math.abs(rawX1), Math.abs(rawY1), Math.abs(rawX2), Math.abs(rawY2)) <= 1
+    const scaleX = normalized ? naturalWidth : 1
+    const scaleY = normalized ? naturalHeight : 1
+    const x1 = Math.max(0, Math.min(naturalWidth, rawX1 * scaleX))
+    const y1 = Math.max(0, Math.min(naturalHeight, rawY1 * scaleY))
+    const x2 = Math.max(0, Math.min(naturalWidth, rawX2 * scaleX))
+    const y2 = Math.max(0, Math.min(naturalHeight, rawY2 * scaleY))
+    const x = Math.min(x1, x2)
+    const y = Math.min(y1, y2)
+    return {
+      x,
+      y,
+      width: Math.max(2, Math.abs(x2 - x1)),
+      height: Math.max(2, Math.abs(y2 - y1))
+    }
+  })
 
   const apiBase = (env.PUBLIC_API_BASE_URL ?? '').replace(/\/+$/, '')
 
@@ -38,6 +68,8 @@
     abortController = null
     if (objectUrl && objectUrl.startsWith('blob:')) URL.revokeObjectURL(objectUrl)
     objectUrl = ''
+    naturalWidth = 0
+    naturalHeight = 0
     currentUrl = value
     if (!value) return
 
@@ -88,7 +120,73 @@
 </script>
 
 {#if objectUrl && !failed}
-  <img src={objectUrl} {alt} class={className} />
+  {#if bbox}
+    <div class="protected-image-frame {className}">
+      <img
+        src={objectUrl}
+        {alt}
+        class="protected-image-media"
+        onload={(event) => {
+          const image = event.currentTarget as HTMLImageElement
+          naturalWidth = image.naturalWidth
+          naturalHeight = image.naturalHeight
+        }}
+      />
+      {#if overlayBox}
+        <svg
+          class="protected-image-overlay"
+          viewBox="0 0 {naturalWidth} {naturalHeight}"
+          preserveAspectRatio="xMidYMid meet"
+          aria-hidden="true"
+        >
+          <rect class="protected-image-bbox-halo" x={overlayBox.x} y={overlayBox.y} width={overlayBox.width} height={overlayBox.height} />
+          <rect class="protected-image-bbox" x={overlayBox.x} y={overlayBox.y} width={overlayBox.width} height={overlayBox.height} />
+        </svg>
+      {/if}
+    </div>
+  {:else}
+    <img src={objectUrl} {alt} class={className} />
+  {/if}
 {:else}
   <div class={className} aria-label={alt}></div>
 {/if}
+
+<style lang="scss">
+  .protected-image-frame {
+    position: relative;
+    display: block;
+    overflow: hidden;
+  }
+
+  .protected-image-media {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  .protected-image-overlay {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+
+  .protected-image-bbox-halo,
+  .protected-image-bbox {
+    fill: transparent;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .protected-image-bbox-halo {
+    stroke: rgba(0, 0, 0, .82);
+    stroke-width: 7;
+  }
+
+  .protected-image-bbox {
+    stroke: #00ff9d;
+    stroke-width: 3;
+    filter: drop-shadow(0 0 8px rgba(0, 255, 157, .65));
+  }
+</style>

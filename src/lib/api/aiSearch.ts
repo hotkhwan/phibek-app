@@ -70,6 +70,7 @@ export type InvestigationCard = {
   media: {
     previewImagePath?: string
     previewImageUrl?: string
+    bbox?: { x1?: number; y1?: number; x2?: number; y2?: number }
     playbackAvailable?: boolean
     playbackReason?: string
   }

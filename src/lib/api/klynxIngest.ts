@@ -11,15 +11,43 @@ type Pagination = {
   totalPages: number
 }
 
+export type IngestBinaryRef = {
+  objectId: string
+  bucket: string
+  contentType?: string
+  fieldName?: string
+  kind?: string
+  role?: string
+  sourceIndex?: number
+}
+
+export type IngestPictureCoordinate = {
+  width?: number
+  height?: number
+  x1?: number
+  y1?: number
+  x2?: number
+  y2?: number
+}
+
 export type IngestEvent = {
   id: string
   eventId?: string
   type?: string
+  eventType?: string
+  eventCategory?: string
+  eventAction?: string
   source?: string
+  sourceFamily?: string
   deviceId?: string
   deviceName?: string
   occurredAt?: string
-  payload?: Record<string, unknown>
+  payload?: Record<string, unknown> & { pictureCoordinates?: IngestPictureCoordinate[] }
+  binaryRefs?: IngestBinaryRef[]
+  detail?: {
+    payload?: Record<string, unknown> & { pictureCoordinates?: IngestPictureCoordinate[] }
+    binaryRefs?: IngestBinaryRef[]
+  }
 }
 
 export type IngestDashboard = {
@@ -55,7 +83,7 @@ export async function fetchIngestDashboard(params: { from?: string; to?: string 
 
 export async function getIngestEventDetail(eventId: string) {
   return apiSafe<ApiEnvelope<IngestEvent & {
-    payload?: Record<string, unknown>
+    payload?: Record<string, unknown> & { pictureCoordinates?: IngestPictureCoordinate[] }
     rawBody?: string
     sourceIp?: string
     lat?: number
