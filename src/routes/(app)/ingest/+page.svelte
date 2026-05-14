@@ -6,10 +6,13 @@
   import { setPageTitle } from '$lib/utils/title'
   import DomainStarter from '$lib/components/shared/DomainStarter.svelte'
   import Modal from '$lib/components/shared/Modal.svelte'
+  import ProtectedImage from '$lib/components/shared/ProtectedImage.svelte'
   import {
     listIngestEvents,
     getIngestEventDetail,
-    type IngestEvent
+    type IngestBinaryRef,
+    type IngestEvent,
+    type IngestPictureCoordinate
   } from '$lib/api/klynxIngest'
   import { notify } from '$lib/stores/notify'
   import { m } from '$lib/i18n/messages'
@@ -35,6 +38,8 @@
   let detailOpen = $state(false)
   let detailLoading = $state(false)
   let detailEvent = $state<Detail | null>(null)
+  let zoomImage = $state<{ src: string; alt: string; bbox?: IngestPictureCoordinate | null } | null>(null)
+  let zoomOpen = $state(false)
 
   function toIso(input: string): string | undefined {
     if (!input) return undefined
@@ -89,6 +94,47 @@
       return
     }
     detailEvent = (data?.details ?? null) as Detail
+  }
+
+  function refsFor(event: IngestEvent | Detail | null | undefined): IngestBinaryRef[] {
+    if (!event) return []
+    return (event.binaryRefs ?? event.detail?.binaryRefs ?? []).filter((ref) => ref.kind === 'image' || ref.contentType?.startsWith('image/'))
+  }
+
+  function coordinatesFor(event: IngestEvent | Detail | null | undefined): IngestPictureCoordinate[] {
+    if (!event) return []
+    return event.payload?.pictureCoordinates ?? event.detail?.payload?.pictureCoordinates ?? []
+  }
+
+  function imageUrl(ref?: IngestBinaryRef) {
+    if (!ref?.bucket || !ref.objectId) return ''
+    return `/api/v1/files/${encodeURIComponent(ref.bucket)}/${ref.objectId.split('/').map(encodeURIComponent).join('/')}`
+  }
+
+  function firstImage(event: IngestEvent | Detail | null | undefined) {
+    return imageUrl(refsFor(event)[0])
+  }
+
+  function bboxFor(event: IngestEvent | Detail | null | undefined, index = 0) {
+    return coordinatesFor(event)[index] ?? coordinatesFor(event)[0] ?? null
+  }
+
+  function eventTypeLabel(event: IngestEvent) {
+    return event.type ?? event.eventType ?? '—'
+  }
+
+  function eventSourceLabel(event: IngestEvent) {
+    return event.source ?? event.sourceFamily ?? '—'
+  }
+
+  function openZoom(src: string, alt: string, bbox?: IngestPictureCoordinate | null) {
+    zoomImage = { src, alt, bbox }
+    zoomOpen = true
+  }
+
+  function closeZoom() {
+    zoomOpen = false
+    zoomImage = null
   }
 
   function pageNext() {
@@ -189,24 +235,39 @@
               <th>Type</th>
               <th>Source</th>
               <th>Device</th>
+              <th style="width: 120px">Image</th>
               <th style="width: 280px">Event ID</th>
               <th class="text-end" style="width: 90px"></th>
             </tr>
           </thead>
           <tbody>
             {#if loading && rows.length === 0}
-              <tr><td colspan="6" class="text-center py-4">
+              <tr><td colspan="7" class="text-center py-4">
                 <div class="spinner-border spinner-border-sm text-theme me-2"></div>Loading…
               </td></tr>
             {:else if rows.length === 0}
-              <tr><td colspan="6" class="text-center py-4 text-body text-opacity-50">No events</td></tr>
+              <tr><td colspan="7" class="text-center py-4 text-body text-opacity-50">No events</td></tr>
             {:else}
               {#each rows as r (r.eventId ?? r.id)}
                 <tr>
                   <td class="small">{r.occurredAt ? new Date(r.occurredAt).toLocaleString() : '—'}</td>
-                  <td><span class="badge bg-theme bg-opacity-25 text-theme">{r.type ?? '—'}</span></td>
-                  <td class="small">{r.source ?? '—'}</td>
+                  <td><span class="badge bg-theme bg-opacity-25 text-theme">{eventTypeLabel(r)}</span></td>
+                  <td class="small">{eventSourceLabel(r)}</td>
                   <td class="small">{r.deviceName ?? r.deviceId ?? '—'}</td>
+                  <td>
+                    {#if firstImage(r)}
+                      <button
+                        type="button"
+                        class="event-thumb-btn"
+                        aria-label="Open event image"
+                        onclick={() => openZoom(firstImage(r), eventTypeLabel(r), bboxFor(r))}
+                      >
+                        <ProtectedImage src={firstImage(r)} alt={eventTypeLabel(r)} class="event-thumb" bbox={bboxFor(r)} />
+                      </button>
+                    {:else}
+                      <span class="text-body text-opacity-25">—</span>
+                    {/if}
+                  </td>
                   <td class="font-monospace small text-body text-opacity-75">{r.eventId ?? r.id ?? '—'}</td>
                   <td class="text-end">
                     <button type="button" class="btn btn-sm btn-outline-theme" aria-label="View detail" onclick={() => openDetail(r)}>
@@ -281,6 +342,24 @@
         {/if}
       </dl>
 
+      {#if refsFor(detailEvent).length}
+        <div class="fw-bold small mb-2">Captures ({refsFor(detailEvent).length})</div>
+        <div class="event-captures mb-3">
+          {#each refsFor(detailEvent) as ref, index (`${ref.objectId}-${index}`)}
+            {@const src = imageUrl(ref)}
+            <button
+              type="button"
+              class="event-capture"
+              aria-label="Open capture image"
+              onclick={() => openZoom(src, `${detailEvent?.eventType ?? detailEvent?.type ?? 'event'} capture ${index + 1}`, bboxFor(detailEvent, index))}
+            >
+              <ProtectedImage src={src} alt="Event capture" class="event-capture-image" bbox={bboxFor(detailEvent, index)} />
+              <span>{index + 1}</span>
+            </button>
+          {/each}
+        </div>
+      {/if}
+
       {#if detailEvent.payload}
         <div class="fw-bold small mb-1">Payload</div>
         <pre
@@ -326,3 +405,75 @@
     <button type="button" class="btn btn-outline-secondary btn-sm" onclick={() => (detailOpen = false)}>Close</button>
   {/snippet}
 </Modal>
+
+<Modal bind:open={zoomOpen} title="Capture Preview" size="xl" onClose={closeZoom}>
+  {#snippet body()}
+    {#if zoomImage}
+      <ProtectedImage src={zoomImage.src} alt={zoomImage.alt} class="event-zoom-image" bbox={zoomImage.bbox} />
+    {/if}
+  {/snippet}
+  {#snippet footer()}
+    <button type="button" class="btn btn-outline-secondary btn-sm" onclick={closeZoom}>Close</button>
+  {/snippet}
+</Modal>
+
+<style lang="scss">
+  .event-thumb-btn {
+    display: block;
+    width: 72px;
+    height: 46px;
+    border: 1px solid rgba(255, 255, 255, .18);
+    border-radius: 6px;
+    overflow: hidden;
+    padding: 0;
+    background: rgba(0, 0, 0, .28);
+  }
+
+  :global(.event-thumb) {
+    width: 100%;
+    height: 100%;
+    background: #050607;
+  }
+
+  .event-captures {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: .75rem;
+  }
+
+  .event-capture {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    border: 1px solid rgba(255, 255, 255, .14);
+    border-radius: 8px;
+    overflow: hidden;
+    padding: 0;
+    background: rgba(0, 0, 0, .35);
+
+    span {
+      position: absolute;
+      top: .4rem;
+      right: .4rem;
+      min-width: 1.5rem;
+      height: 1.5rem;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      background: rgba(0, 208, 132, .92);
+      color: #001b12;
+      font-size: .75rem;
+      font-weight: 700;
+    }
+  }
+
+  :global(.event-capture-image),
+  :global(.event-zoom-image) {
+    width: 100%;
+    height: 100%;
+    background: #050607;
+  }
+
+  :global(.event-zoom-image) {
+    max-height: 76vh;
+  }
+</style>
