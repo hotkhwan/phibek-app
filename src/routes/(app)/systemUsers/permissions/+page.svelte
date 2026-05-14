@@ -71,6 +71,39 @@
   function relationLabel() { return form.relation === 'creator' ? 'Create / Manage' : form.relation === 'editor' ? 'Read / Write' : 'Read' }
   function menuIds() { return form.menuIdsText.split(',').map((x) => x.trim()).filter(Boolean) }
   function setFrom(values: Array<string | undefined | null>) { return new Set(values.filter(Boolean).map(String)) }
+  function selectedListCount(values?: Array<string | undefined | null>) { return values?.filter(Boolean).length ?? 0 }
+  function rowSelectedCount(row: Row) {
+    const resource = row as ResourcePermission & { memberIds?: string[]; resourceGroupIds?: string[]; cameraIds?: string[] }
+    const menu = row as MenuPermission & { userIds?: string[] }
+    return selectedListCount(resource.orgUnitIds)
+      + selectedListCount(resource.memberIds ?? menu.userIds)
+      + selectedListCount(resource.resourceGroupIds)
+      + selectedListCount(resource.cameraIds)
+      + selectedListCount(menu.menuIds)
+  }
+  function descendantIds<T extends { id: string; parentId?: string }>(items: T[], rootId: string) {
+    const out = new Set<string>([rootId])
+    let changed = true
+    while (changed) {
+      changed = false
+      for (const item of items) {
+        if (item.parentId && out.has(item.parentId) && !out.has(item.id)) {
+          out.add(item.id)
+          changed = true
+        }
+      }
+    }
+    return out
+  }
+  function selectedDescendantCount<T extends { id: string; parentId?: string }>(items: T[], rootId: string, selectedIds: Set<string>) {
+    const ids = descendantIds(items, rootId)
+    let count = 0
+    for (const id of selectedIds) if (ids.has(id)) count += 1
+    return count
+  }
+  function childCount<T extends { parentId?: string }>(items: T[], parentId: string) {
+    return items.filter((item) => item.parentId === parentId).length
+  }
 
   function flattenUnits(items: OrgUnit[]): OrgUnit[] {
     const out: OrgUnit[] = []
@@ -263,14 +296,13 @@
       </div>
       <div class="d-flex gap-2">
         <button class="btn btn-outline-theme btn-sm" onclick={load} disabled={loading}><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button>
-        <button class="btn btn-theme btn-sm" onclick={startCreate} disabled={activeTab === 'api'}><i class="bi bi-plus-lg me-1"></i>Create profile</button>
       </div>
     </div>
 
     <nav class="permission-tabs" aria-label="Permission sections">
-      <button type="button" class:active={activeTab === 'resource'} onclick={() => switchTab('resource')}><i class="bi bi-box me-1"></i>Resource</button>
-      <button type="button" class:active={activeTab === 'menu'} onclick={() => switchTab('menu')}><i class="bi bi-menu-button-wide me-1"></i>Menu</button>
-      <button type="button" class:active={activeTab === 'api'} onclick={() => switchTab('api')}><i class="bi bi-server me-1"></i>API</button>
+      <button type="button" class:active={activeTab === 'menu'} onclick={() => switchTab('menu')}><i class="bi bi-list me-1"></i>กำหนดสิทธิ์เข้าถึงเมนูระบบ</button>
+      <button type="button" class:active={activeTab === 'api'} onclick={() => switchTab('api')}><i class="bi bi-hdd-stack me-1"></i>API Integrations</button>
+      <button type="button" class:active={activeTab === 'resource'} onclick={() => switchTab('resource')}><i class="bi bi-box me-1"></i>กำหนดสิทธิ์เข้าถึงทรัพยากร</button>
     </nav>
   </div>
 
@@ -280,7 +312,10 @@
   <aside class="permission-list">
     <div class="permission-list-title mb-3">
       <span>{activeTab === 'resource' ? 'Resource profiles' : activeTab === 'menu' ? 'Menu profiles' : 'API permissions'}</span>
-      <span class="badge bg-theme text-black">{filteredRows.length}</span>
+      <span class="d-flex align-items-center gap-2">
+        <span class="badge bg-theme text-black">{filteredRows.length}</span>
+        <button class="btn btn-theme btn-sm" onclick={startCreate} disabled={activeTab === 'api'}><i class="bi bi-plus-lg me-1"></i>สร้างใหม่</button>
+      </span>
     </div>
     <input class="form-control form-control-sm mb-3" bind:value={search} placeholder="Search profiles..." />
     {#if activeTab === 'api'}
@@ -291,7 +326,10 @@
           <button type="button" class="permission-row" class:active={selectedId === row.id} onclick={() => { selectedId = row.id; hydrate(row.id) }}>
             <span class="permission-status" class:on={(row as ResourcePermission).status !== false}></span>
             <span class="min-w-0"><b class="d-block text-truncate">{row.name || row.id}</b><small class="d-block text-truncate text-muted">{row.description || row.id}</small></span>
-            <span class="badge bg-secondary-subtle text-body ms-auto">{(row as ResourcePermission).status === false ? 'off' : 'on'}</span>
+            <span class="permission-mini-badges ms-auto">
+              {#if rowSelectedCount(row) > 0}<span class="permission-node-badge">{rowSelectedCount(row)}</span>{/if}
+              <span class="badge bg-secondary-subtle text-body">{(row as ResourcePermission).status === false ? 'off' : 'on'}</span>
+            </span>
           </button>
         {:else}
           <div class="empty-panel">No profiles yet.</div>
@@ -327,26 +365,26 @@
         <section class="permission-card">
           <header><span><i class="bi bi-diagram-3 text-theme me-2"></i>Source org units</span><span class="badge bg-theme text-black">{selectedOrgUnits.size}</span></header>
           <label class="form-check small mb-2"><input class="form-check-input" type="checkbox" bind:checked={includeOrgUnitChildren} /> Include child units</label>
-          <div class="choice-list">{#each filteredUnits as unit (unit.id)}<button type="button" class="choice-row" class:selected={selectedOrgUnits.has(unit.id)} style={`padding-left:${0.75 + unitDepth(unit) * 1.15}rem`} onclick={() => toggle('ou', unit.id)}><i class={selectedOrgUnits.has(unit.id) ? 'bi bi-check-circle-fill text-theme' : 'bi bi-circle'}></i><span class="text-truncate">{unit.name}</span>{#if selectedOrgUnits.has(unit.id)}<span class="badge bg-theme text-black ms-auto">selected</span>{/if}</button>{:else}<div class="empty-panel">No org units</div>{/each}</div>
+          <div class="choice-list">{#each filteredUnits as unit (unit.id)}{@const selectedUnder = selectedDescendantCount(orgUnits, unit.id, selectedOrgUnits)}<button type="button" class="choice-row" class:selected={selectedOrgUnits.has(unit.id)} class:has-child-selection={selectedUnder > 0 && !selectedOrgUnits.has(unit.id)} style={`padding-left:${0.75 + unitDepth(unit) * 1.15}rem`} onclick={() => toggle('ou', unit.id)}><i class={selectedOrgUnits.has(unit.id) ? 'bi bi-check-square-fill text-theme' : 'bi bi-square'}></i><i class="bi bi-folder2-open text-theme"></i><span class="text-truncate">{unit.name}</span><span class="permission-mini-badges ms-auto">{#if childCount(orgUnits, unit.id) > 0}<span class="permission-node-badge muted">{childCount(orgUnits, unit.id)}</span>{/if}{#if selectedUnder > 0}<span class="permission-node-badge"><i class="bi bi-check2"></i>{selectedUnder}</span>{/if}{#if selectedOrgUnits.has(unit.id) && selectedMembers.size > 0}<span class="permission-node-badge warn"><i class="bi bi-person"></i>{selectedMembers.size}</span>{/if}</span></button>{:else}<div class="empty-panel">No org units</div>{/each}</div>
         </section>
 
         <section class="permission-card">
           <header><span><i class="bi bi-people text-theme me-2"></i>Narrow users</span><span class="badge bg-theme text-black">{selectedMembers.size || 'All'}</span></header>
           <div class="text-muted small mb-2">No user selected means all members in selected org units.</div>
-          <div class="choice-list">{#each filteredMembers as member (idOfUser(member))}<button type="button" class="choice-row" class:selected={selectedMembers.has(idOfUser(member))} onclick={() => toggle('member', idOfUser(member))}><i class={selectedMembers.has(idOfUser(member)) ? 'bi bi-check-circle-fill text-theme' : 'bi bi-circle'}></i><span class="text-truncate">{displayName(member)}</span>{#if selectedMembers.has(idOfUser(member))}<span class="badge bg-theme text-black ms-auto">selected</span>{/if}</button>{:else}<div class="empty-panel">No users</div>{/each}</div>
+          <div class="choice-list">{#each filteredMembers as member (idOfUser(member))}<button type="button" class="choice-row" class:selected={selectedMembers.has(idOfUser(member))} onclick={() => toggle('member', idOfUser(member))}><i class={selectedMembers.has(idOfUser(member)) ? 'bi bi-check-square-fill text-theme' : 'bi bi-square'}></i><i class="bi bi-person"></i><span class="text-truncate">{displayName(member)}</span>{#if selectedMembers.has(idOfUser(member))}<span class="permission-node-badge ms-auto">เลือกแล้ว</span>{/if}</button>{:else}<div class="empty-panel">No users</div>{/each}</div>
         </section>
 
         {#if activeTab === 'resource'}
           <section class="permission-card">
             <header><span><i class="bi bi-folder2-open text-theme me-2"></i>Destination groups</span><span class="badge bg-theme text-black">{selectedGroups.size}</span></header>
             <label class="form-check small mb-2"><input class="form-check-input" type="checkbox" bind:checked={includeResourceGroupChildren} /> Include child groups</label>
-            <div class="choice-list">{#each filteredGroups as group (group.id)}<button type="button" class="choice-row" class:selected={selectedGroups.has(group.id)} onclick={() => toggle('group', group.id)}><i class={selectedGroups.has(group.id) ? 'bi bi-check-circle-fill text-theme' : 'bi bi-circle'}></i><span class="text-truncate">{group.name}</span>{#if selectedGroups.has(group.id)}<span class="badge bg-theme text-black ms-auto">selected</span>{/if}</button>{:else}<div class="empty-panel">No resource groups</div>{/each}</div>
+            <div class="choice-list">{#each filteredGroups as group (group.id)}{@const selectedUnder = selectedDescendantCount(groups, group.id, selectedGroups)}<button type="button" class="choice-row" class:selected={selectedGroups.has(group.id)} class:has-child-selection={selectedUnder > 0 && !selectedGroups.has(group.id)} onclick={() => toggle('group', group.id)}><i class={selectedGroups.has(group.id) ? 'bi bi-check-square-fill text-theme' : 'bi bi-square'}></i><i class="bi bi-folder2-open text-theme"></i><span class="text-truncate">{group.name}</span><span class="permission-mini-badges ms-auto">{#if childCount(groups, group.id) > 0}<span class="permission-node-badge muted">{childCount(groups, group.id)}</span>{/if}{#if selectedUnder > 0}<span class="permission-node-badge warn"><i class="bi bi-check2"></i>{selectedUnder}</span>{/if}{#if selectedGroups.has(group.id) && selectedCameras.size > 0}<span class="permission-node-badge"><i class="bi bi-camera"></i>{selectedCameras.size}</span>{/if}</span></button>{:else}<div class="empty-panel">No resource groups</div>{/each}</div>
           </section>
 
           <section class="permission-card">
             <header><span><i class="bi bi-camera-video text-theme me-2"></i>Specific devices</span><span class="badge bg-theme text-black">{selectedCameras.size || 'All'}</span></header>
             <div class="text-muted small mb-2">Leave empty to allow every device in selected resource groups.</div>
-            <div class="choice-list">{#each filteredCameras as camera (cameraId(camera))}<button type="button" class="choice-row" class:selected={selectedCameras.has(cameraId(camera))} onclick={() => toggle('camera', cameraId(camera))}><i class={selectedCameras.has(cameraId(camera)) ? 'bi bi-check-circle-fill text-theme' : 'bi bi-circle'}></i><span class="text-truncate">{camera.name}</span>{#if selectedCameras.has(cameraId(camera))}<span class="badge bg-theme text-black ms-auto">selected</span>{/if}</button>{:else}<div class="empty-panel">No devices</div>{/each}</div>
+            <div class="choice-list">{#each filteredCameras as camera (cameraId(camera))}<button type="button" class="choice-row" class:selected={selectedCameras.has(cameraId(camera))} onclick={() => toggle('camera', cameraId(camera))}><i class={selectedCameras.has(cameraId(camera)) ? 'bi bi-check-square-fill text-theme' : 'bi bi-square'}></i><i class="bi bi-camera"></i><span class="text-truncate">{camera.name}</span>{#if selectedCameras.has(cameraId(camera))}<span class="permission-node-badge ms-auto">เลือกแล้ว</span>{/if}</button>{:else}<div class="empty-panel">No devices</div>{/each}</div>
           </section>
         {/if}
       </div>
@@ -368,11 +406,9 @@
 
   .permission-topbar {
     flex: 0 0 auto;
-    padding: 1rem 1rem 0;
+    padding: .75rem 1.5rem 0;
     border-bottom: 1px solid rgba(var(--bs-border-color-rgb), .42);
-    background:
-      linear-gradient(180deg, rgba(var(--bs-body-bg-rgb), .94), rgba(var(--bs-body-bg-rgb), .76)),
-      radial-gradient(circle at 18% 0%, rgba(var(--bs-theme-rgb), .12), transparent 32%);
+    background: rgba(var(--bs-body-bg-rgb), .96);
     backdrop-filter: blur(10px);
   }
 
@@ -381,20 +417,24 @@
     align-items: flex-start;
     justify-content: space-between;
     gap: 1rem;
+    margin-bottom: .5rem !important;
   }
 
   .permission-page-header { align-items: flex-start; }
+  .page-title { font-size: 1.25rem; margin: 0; }
   .page-subtitle { color: rgba(var(--bs-body-color-rgb), .58); margin: .25rem 0 0; }
-  .permission-tabs { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; border-bottom: 1px solid rgba(var(--bs-border-color-rgb), .55); padding-bottom: .75rem; }
-  .permission-tabs button { border: 1px solid rgba(var(--bs-border-color-rgb), .75); background: rgba(var(--bs-body-bg-rgb), .18); color: rgba(var(--bs-body-color-rgb), .72); border-radius: .35rem; padding: .45rem .75rem; }
-  .permission-tabs button.active { border-color: rgba(var(--bs-theme-rgb), .72); color: var(--bs-theme); background: rgba(var(--bs-theme-rgb), .12); }
+  .permission-tabs { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; border-bottom: 1px solid rgba(var(--bs-border-color-rgb), .55); padding-bottom: 0; }
+  .permission-tabs button { border: 0; border-bottom: 2px solid transparent; background: transparent; color: rgba(var(--bs-body-color-rgb), .62); border-radius: 0; padding: .7rem .25rem .75rem; }
+  .permission-tabs button.active { border-bottom-color: var(--bs-theme); color: var(--bs-theme); background: transparent; }
   .permission-list-title { display: flex; align-items: center; justify-content: space-between; font-weight: 700; color: rgba(var(--bs-body-color-rgb), .82); }
-  .permission-workspace { display: grid; grid-template-columns: minmax(18rem, 24rem) minmax(0, 1fr); gap: 1rem; min-height: calc(100vh - 12rem); }
-  .permission-list, .permission-editor, .permission-card { border: 1px solid rgba(var(--bs-border-color-rgb), .72); background: rgba(var(--bs-body-bg-rgb), .34); border-radius: .45rem; }
+  .permission-workspace { display: grid; grid-template-columns: minmax(18rem, 25rem) minmax(0, 1fr); gap: 1rem; min-height: calc(100vh - 12rem); }
+  .permission-list, .permission-editor, .permission-card { border: 1px solid rgba(var(--bs-border-color-rgb), .72); background: rgba(24, 24, 28, .72); border-radius: .45rem; }
   .permission-list, .permission-editor { padding: 1rem; min-height: 0; }
   .permission-stack, .choice-list { display: grid; gap: .5rem; max-height: calc(100vh - 19rem); overflow: auto; padding-right: .25rem; }
-  .permission-row, .choice-row { width: 100%; border: 1px solid rgba(var(--bs-border-color-rgb), .7); background: rgba(var(--bs-body-bg-rgb), .2); color: var(--bs-body-color); border-radius: .35rem; padding: .65rem .75rem; display: flex; align-items: center; gap: .6rem; text-align: left; }
-  .permission-row.active, .choice-row.selected { border-color: rgba(var(--bs-theme-rgb), .7); background: rgba(var(--bs-theme-rgb), .12); box-shadow: inset 3px 0 0 rgba(var(--bs-theme-rgb), .75); }
+  .permission-row, .choice-row { width: 100%; border: 1px solid transparent; background: transparent; color: var(--bs-body-color); border-radius: .35rem; padding: .55rem .65rem; display: flex; align-items: center; gap: .6rem; text-align: left; }
+  .permission-row:hover, .choice-row:hover { background: rgba(255, 255, 255, .045); }
+  .permission-row.active, .choice-row.selected { border-color: rgba(var(--bs-theme-rgb), .56); background: rgba(var(--bs-theme-rgb), .13); box-shadow: inset 3px 0 0 rgba(var(--bs-theme-rgb), .85); color: var(--bs-theme); }
+  .choice-row.has-child-selection:not(.selected) { background: rgba(var(--bs-theme-rgb), .055); color: rgba(var(--bs-body-color-rgb), .88); }
   .permission-status { width: .55rem; height: .55rem; border-radius: 50%; background: var(--bs-secondary); box-shadow: 0 0 0 .2rem rgba(var(--bs-secondary-rgb), .12); }
   .permission-status.on { background: var(--bs-theme); box-shadow: 0 0 0 .2rem rgba(var(--bs-theme-rgb), .15); }
   .permission-toolbar, .permission-summary { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
@@ -405,10 +445,42 @@
   .field label { display: block; font-size: .7rem; font-weight: 700; text-transform: uppercase; color: rgba(var(--bs-body-color-rgb), .62); margin-bottom: .35rem; }
   .picker-search { margin-bottom: 1rem; }
   .permission-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
-  .permission-card { padding: .85rem; min-height: 21rem; }
+  .permission-card { padding: .85rem; min-height: 15rem; }
   .permission-card header { display: flex; align-items: center; justify-content: space-between; gap: .75rem; font-weight: 700; margin-bottom: .75rem; }
   .empty-panel { border: 1px dashed rgba(var(--bs-border-color-rgb), .8); border-radius: .35rem; color: rgba(var(--bs-body-color-rgb), .55); padding: 1rem; text-align: center; }
   .permission-summary { border-top: 1px solid rgba(var(--bs-theme-rgb), .24); margin-top: 1rem; padding-top: .85rem; color: rgba(var(--bs-body-color-rgb), .7); }
+  .permission-mini-badges {
+    display: inline-flex;
+    align-items: center;
+    gap: .25rem;
+    flex: 0 0 auto;
+  }
+
+  .permission-node-badge {
+    min-width: 1.25rem;
+    height: 1.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .15rem;
+    border-radius: .25rem;
+    padding-inline: .35rem;
+    background: rgba(var(--bs-theme-rgb), .2);
+    color: var(--bs-theme);
+    font-size: .7rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .permission-node-badge.warn {
+    background: rgba(255, 193, 7, .18);
+    color: #ffc107;
+  }
+
+  .permission-node-badge.muted {
+    background: rgba(255, 255, 255, .08);
+    color: rgba(var(--bs-body-color-rgb), .68);
+  }
   .permission-shell .permission-tabs {
     margin-bottom: 0;
     border-bottom: 0;
