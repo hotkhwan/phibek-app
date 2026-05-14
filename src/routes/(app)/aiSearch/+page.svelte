@@ -135,11 +135,12 @@
     const raw = (value || '').trim()
     if (!raw) return ''
     if (/^(blob|data|https?):/i.test(raw)) return raw
+    if (raw.startsWith('/kapi/files/')) return raw.replace(/^\/kapi\/files/, '/api/v1/files')
     if (raw.startsWith('/kapi/')) return raw
-    if (raw.startsWith('/files/')) return `/kapi${raw}`
-    if (raw.startsWith('/api/v1/files/')) return raw.replace(/^\/api\/v1/, '/kapi')
+    if (raw.startsWith('/files/')) return `/api/v1${raw}`
+    if (raw.startsWith('/api/v1/files/')) return raw
     const normalized = raw.replace(/^\/+/, '')
-    if (normalized.startsWith('canonical/')) return `/kapi/files/${normalized.split('/').map(encodeURIComponent).join('/')}`
+    if (normalized.startsWith('canonical/')) return `/api/v1/files/${normalized.split('/').map(encodeURIComponent).join('/')}`
     return ''
   }
 
