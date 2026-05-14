@@ -16,6 +16,7 @@
   let details = $state<InvestigationDetails | null>(null)
   let pagination = $state<InvestigationPagination | null>(null)
   let zoomCard = $state<InvestigationCard | null>(null)
+  let zoomIndex = $state(-1)
 
   const suggestions = ['รถกระบะสีแดง', 'ชายเสื้อดำ', 'คนใส่แมสก์', 'เดินวนหน้าประตู', 'Mercedes truck', 'เหตุการณ์ 9 โมงเช้า']
 
@@ -126,6 +127,28 @@
     loadingMore = false
   }
 
+  async function openZoom(card: InvestigationCard) {
+    zoomCard = card
+    zoomIndex = cards.findIndex((item) => item.eventId === card.eventId)
+  }
+
+  function closeZoom() {
+    zoomCard = null
+    zoomIndex = -1
+  }
+
+  async function moveZoom(step: number) {
+    if (!zoomCard) return
+    let nextIndex = zoomIndex + step
+    if (nextIndex >= cards.length && hasNextPage) {
+      await loadMore()
+      nextIndex = zoomIndex + step
+    }
+    if (nextIndex < 0 || nextIndex >= cards.length) return
+    zoomIndex = nextIndex
+    zoomCard = cards[nextIndex]
+  }
+
   function onScroll(event: Event) {
     const el = event.currentTarget as HTMLElement
     if (el.scrollHeight - el.scrollTop - el.clientHeight < 520) loadMore()
@@ -171,14 +194,14 @@
     {#if details}
       <section class="summary-panel"><div><div class="muted">AI สรุปผลการค้นหา</div><h2>{details.summary.headline}</h2><p>{details.summary.narrative}</p></div><div class="summary-cards">{#each Object.entries(details.summary.byClass ?? {}) as [name, count]}<div><i class="bi {classIcon(name)}"></i><strong>{count}</strong><span>{classLabel(name)}</span></div>{/each}</div></section>
       <section class="result-tools"><div class="tabs">{#each classTabs as tab}<button type="button" class:active={activeClass === tab.key} onclick={() => activeClass = tab.key}>{tab.label}<small>{tab.count}</small></button>{/each}</div><label class="filter-box"><i class="bi bi-search"></i><input bind:value={localFilter} type="search" placeholder="Filter results..." /></label></section>
-      <section class="workspace-grid"><div class="cards-grid">{#if cards.length}{#each cards as card (card.eventId)}<article class="event-card"><div class="media-box">{#if previewUrl(card)}<ProtectedImage src={previewUrl(card)} alt={card.caption} class="event-image" bbox={card.media?.bbox} /><button class="zoom-btn" type="button" onclick={() => zoomCard = card} aria-label="zoom image"><i class="bi bi-search"></i></button>{:else}<div class="image-fallback"><i class="bi {classIcon(card.class)}"></i><span>preview image unavailable</span></div>{/if}<span class="confidence">{card.confidenceLabel}</span></div><div class="event-body"><div class="event-head"><h3>{card.title}</h3><span>{classLabel(card.class)}</span></div><p>{card.caption}</p><div class="meta-grid"><div><small>Camera</small><b>{card.camera?.name || 'Unknown'}</b></div><div><small>Location</small><b>{locationLabel(card)}</b></div></div><div class="tags">{#each (card.tags ?? []).slice(0, 5) as tag}<span>{tag}</span>{/each}</div></div></article>{/each}{:else}<div class="empty-state">ไม่พบ event ในหมวดนี้</div>{/if}</div><aside class="side-panel"><section><h3>แผนที่เหตุการณ์</h3><div class="map-mock">Map point จะแสดงเมื่อ event id match location จาก canonical data</div></section><section><h3>ไทม์ไลน์เหตุการณ์</h3>{#if details.timeline?.length}<div class="timeline-list">{#each details.timeline as item}<div><time>{formatTime(item.occurredAt)}</time><span></span><p>{item.title || item.label || item.eventId}</p></div>{/each}</div>{:else}<div class="empty-mini">Timeline จะแสดงหลังค้นหา</div>{/if}</section></aside></section>
+      <section class="workspace-grid"><div class="cards-grid">{#if cards.length}{#each cards as card (card.eventId)}<article class="event-card"><div class="media-box">{#if previewUrl(card)}<ProtectedImage src={previewUrl(card)} alt={card.caption} class="event-image" /><button class="zoom-btn" type="button" onclick={() => openZoom(card)} aria-label="zoom image"><i class="bi bi-search"></i></button>{:else}<div class="image-fallback"><i class="bi {classIcon(card.class)}"></i><span>preview image unavailable</span></div>{/if}<span class="confidence">{card.confidenceLabel}</span></div><div class="event-body"><div class="event-head"><h3>{card.title}</h3><span>{classLabel(card.class)}</span></div><p>{card.caption}</p><div class="meta-grid"><div><small>Camera</small><b>{card.camera?.name || 'Unknown'}</b></div><div><small>Location</small><b>{locationLabel(card)}</b></div></div><div class="tags">{#each (card.tags ?? []).slice(0, 5) as tag}<span>{tag}</span>{/each}</div></div></article>{/each}{:else}<div class="empty-state">ไม่พบ event ในหมวดนี้</div>{/if}</div><aside class="side-panel"><section><h3>แผนที่เหตุการณ์</h3><div class="map-mock">Map point จะแสดงเมื่อ event id match location จาก canonical data</div></section><section><h3>ไทม์ไลน์เหตุการณ์</h3>{#if details.timeline?.length}<div class="timeline-list">{#each details.timeline as item}<div><time>{formatTime(item.occurredAt)}</time><span></span><p>{item.title || item.label || item.eventId}</p></div>{/each}</div>{:else}<div class="empty-mini">Timeline จะแสดงหลังค้นหา</div>{/if}</section></aside></section>
       {#if hasNextPage || loadingMore}<div class="load-more"><button class="btn btn-outline-theme" type="button" disabled={loadingMore} onclick={loadMore}>{loadingMore ? 'Loading…' : 'โหลดผลลัพธ์เพิ่ม'}</button></div>{/if}
     {:else if !loading}
       <section class="starter-grid"><div><i class="bi bi-braces-asterisk"></i><b>Natural language</b><p>พิมพ์คำค้นหาแบบคนคุยกับคน เช่น สีรถ เสื้อผ้า พื้นที่ หรือช่วงเวลา</p></div><div><i class="bi bi-map"></i><b>Geo context</b><p>ผลลัพธ์ match event id แล้วเติม camera, zone, location และ map point</p></div><div><i class="bi bi-clock-history"></i><b>Timeline first</b><p>Event intelligence ถูกจัดเรียงเป็นลำดับเหตุการณ์</p></div></section>
     {/if}
   </div>
   {#if loading}<div class="status-toast"><i class="bi bi-arrow-clockwise spin"></i>กำลังสืบค้นด้วย AI และ match event id กับ canonical data...</div>{/if}
-  {#if zoomCard}<div class="zoom-modal" role="button" tabindex="0" aria-label="Close zoom image" onclick={(e) => { if (e.target === e.currentTarget) zoomCard = null }} onkeydown={(e) => { if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') zoomCard = null }}><div><header><span>{zoomCard.title}</span><button type="button" aria-label="Close zoom image" onclick={() => zoomCard = null}><i class="bi bi-x-lg"></i></button></header><ProtectedImage src={previewUrl(zoomCard)} alt={zoomCard.caption} class="zoom-image" bbox={zoomCard.media?.bbox} /></div></div>{/if}
+  {#if zoomCard}<div class="zoom-modal" role="button" tabindex="0" aria-label="Close zoom image" onclick={(e) => { if (e.target === e.currentTarget) closeZoom() }} onkeydown={(e) => { if (e.key === 'Escape') closeZoom(); if (e.key === 'ArrowLeft') moveZoom(-1); if (e.key === 'ArrowRight') moveZoom(1) }}><div><header><button type="button" aria-label="Previous image" disabled={zoomIndex <= 0} onclick={() => moveZoom(-1)}><i class="bi bi-chevron-left"></i></button><span>{zoomCard.title}</span><button type="button" aria-label="Next image" disabled={zoomIndex >= cards.length - 1 && !hasNextPage} onclick={() => moveZoom(1)}><i class="bi bi-chevron-right"></i></button><button type="button" aria-label="Close zoom image" onclick={closeZoom}><i class="bi bi-x-lg"></i></button></header><ProtectedImage src={previewUrl(zoomCard)} alt={zoomCard.caption} class="zoom-image" /></div></div>{/if}
 </DomainStarter>
 
 <style lang="scss">
