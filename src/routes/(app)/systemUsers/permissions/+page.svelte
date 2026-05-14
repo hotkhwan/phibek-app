@@ -308,8 +308,8 @@
 
   {#if errorMsg}<div class="alert alert-danger mx-3 mt-3 mb-0">{errorMsg}</div>{/if}
 
-  <div class="permission-workspace">
-  <aside class="permission-list">
+  <div class="permission-workspace file-manager">
+  <aside class="permission-list file-manager-sidebar">
     <div class="permission-list-title mb-3">
       <span>{activeTab === 'resource' ? 'Resource profiles' : activeTab === 'menu' ? 'Menu profiles' : 'API permissions'}</span>
       <span class="d-flex align-items-center gap-2">
@@ -338,11 +338,11 @@
     {/if}
   </aside>
 
-  <main class="permission-editor">
+  <main class="permission-editor file-manager-content">
     {#if activeTab === 'api'}
       <div class="empty-panel h-100 d-flex align-items-center justify-content-center">API permissions are separated from Menu and Resource profiles, matching the Klynx permission model.</div>
     {:else}
-      <div class="permission-toolbar">
+      <div class="permission-toolbar file-manager-toolbar">
         <div><div class="text-muted small text-uppercase">{createMode ? 'New permission profile' : selected ? 'Edit permission profile' : 'No profile selected'}</div><h2>{form.name || selected?.name || 'Untitled profile'}</h2></div>
         <div class="d-flex gap-2">
           <button class="btn btn-outline-secondary btn-sm" onclick={toggleStatus}><i class={form.status ? 'bi bi-toggle-on' : 'bi bi-toggle-off'}></i> {form.status ? 'Active' : 'Disabled'}</button>
@@ -426,27 +426,35 @@
   .permission-tabs { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; border-bottom: 1px solid rgba(var(--bs-border-color-rgb), .55); padding-bottom: 0; }
   .permission-tabs button { border: 0; border-bottom: 2px solid transparent; background: transparent; color: rgba(var(--bs-body-color-rgb), .62); border-radius: 0; padding: .7rem .25rem .75rem; }
   .permission-tabs button.active { border-bottom-color: var(--bs-theme); color: var(--bs-theme); background: transparent; }
-  .permission-list-title { display: flex; align-items: center; justify-content: space-between; font-weight: 700; color: rgba(var(--bs-body-color-rgb), .82); }
-  .permission-workspace { display: grid; grid-template-columns: minmax(18rem, 25rem) minmax(0, 1fr); gap: 1rem; min-height: calc(100vh - 12rem); }
-  .permission-list, .permission-editor, .permission-card { border: 1px solid rgba(var(--bs-border-color-rgb), .72); background: rgba(24, 24, 28, .72); border-radius: .45rem; }
-  .permission-list, .permission-editor { padding: 1rem; min-height: 0; }
-  .permission-stack, .choice-list { display: grid; gap: .5rem; max-height: calc(100vh - 19rem); overflow: auto; padding-right: .25rem; }
-  .permission-row, .choice-row { width: 100%; border: 1px solid transparent; background: transparent; color: var(--bs-body-color); border-radius: .35rem; padding: .55rem .65rem; display: flex; align-items: center; gap: .6rem; text-align: left; }
-  .permission-row:hover, .choice-row:hover { background: rgba(255, 255, 255, .045); }
-  .permission-row.active, .choice-row.selected { border-color: rgba(var(--bs-theme-rgb), .56); background: rgba(var(--bs-theme-rgb), .13); box-shadow: inset 3px 0 0 rgba(var(--bs-theme-rgb), .85); color: var(--bs-theme); }
-  .choice-row.has-child-selection:not(.selected) { background: rgba(var(--bs-theme-rgb), .055); color: rgba(var(--bs-body-color-rgb), .88); }
+  .permission-list-title { display: flex; align-items: center; justify-content: space-between; font-weight: 700; color: rgba(var(--bs-body-color-rgb), .82); padding: 1rem 1rem .75rem; margin: 0 !important; border-bottom: 1px solid rgba(var(--bs-border-color-rgb), .55); }
+  .permission-workspace { flex: 1 1 auto; min-height: 0; display: flex; overflow: hidden; border-top: 1px solid rgba(var(--bs-border-color-rgb), .5); }
+  .permission-list, .permission-editor, .permission-card { border: 0; background: transparent; border-radius: 0; }
+  .permission-list { width: 25rem; min-width: 25rem; border-right: 1px solid rgba(var(--bs-border-color-rgb), .55); background: rgba(18, 18, 22, .72); }
+  .permission-editor { flex: 1 1 auto; min-width: 0; background: rgba(18, 18, 22, .34); }
+  .permission-list, .permission-editor { padding: 0; min-height: 0; }
+  .permission-list > :global(input), .permission-list > input { margin: 1rem; width: calc(100% - 2rem); }
+  .permission-stack, .choice-list { display: grid; align-content: start; gap: .15rem; max-height: none; overflow: auto; padding: .75rem 1rem 1rem; }
+  .permission-row, .choice-row { width: 100%; min-height: 2rem; border: 0; background: transparent; color: rgba(var(--bs-body-color-rgb), .82); border-radius: .25rem; padding: .35rem .55rem; display: flex; align-items: center; gap: .45rem; text-align: left; font-size: .86rem; }
+  .permission-row:hover, .choice-row:hover { background: rgba(255, 255, 255, .055); }
+  .permission-row.active, .choice-row.selected { border: 1px solid rgba(var(--bs-theme-rgb), .56); background: rgba(var(--bs-theme-rgb), .13); box-shadow: inset 3px 0 0 rgba(var(--bs-theme-rgb), .85); color: var(--bs-theme); font-weight: 700; }
+  .choice-row.has-child-selection:not(.selected) { background: rgba(var(--bs-theme-rgb), .055); color: rgba(var(--bs-body-color-rgb), .9); }
   .permission-status { width: .55rem; height: .55rem; border-radius: 50%; background: var(--bs-secondary); box-shadow: 0 0 0 .2rem rgba(var(--bs-secondary-rgb), .12); }
   .permission-status.on { background: var(--bs-theme); box-shadow: 0 0 0 .2rem rgba(var(--bs-theme-rgb), .15); }
   .permission-toolbar, .permission-summary { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
   .permission-toolbar h2 { font-size: 1.25rem; margin: 0; }
-  .permission-toolbar { border-bottom: 1px solid rgba(var(--bs-border-color-rgb), .55); padding-bottom: .85rem; }
-  .permission-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; margin-block: 1rem; }
+  .permission-toolbar { border-bottom: 1px solid rgba(var(--bs-border-color-rgb), .55); padding: 1rem 1.25rem; background: rgba(18, 18, 22, .72); }
+  .permission-editor-scroll { padding: 1rem 1.25rem; }
+  .permission-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; margin: 0 0 1rem; }
   .field-wide { grid-column: 1 / -1; }
   .field label { display: block; font-size: .7rem; font-weight: 700; text-transform: uppercase; color: rgba(var(--bs-body-color-rgb), .62); margin-bottom: .35rem; }
   .picker-search { margin-bottom: 1rem; }
-  .permission-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
-  .permission-card { padding: .85rem; min-height: 15rem; }
-  .permission-card header { display: flex; align-items: center; justify-content: space-between; gap: .75rem; font-weight: 700; margin-bottom: .75rem; }
+  .permission-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 1px solid rgba(var(--bs-border-color-rgb), .46); border-radius: .35rem; overflow: hidden; background: rgba(10, 12, 16, .24); }
+  .permission-card { padding: 0; min-height: 15rem; border-left: 1px solid rgba(var(--bs-border-color-rgb), .38); border-top: 1px solid rgba(var(--bs-border-color-rgb), .38); }
+  .permission-card:nth-child(odd) { border-left: 0; }
+  .permission-card:nth-child(-n + 2) { border-top: 0; }
+  .permission-card header { display: flex; align-items: center; justify-content: space-between; gap: .75rem; font-weight: 700; margin: 0; padding: .8rem 1rem; border-bottom: 1px solid rgba(var(--bs-border-color-rgb), .36); background: rgba(255, 255, 255, .025); }
+  .permission-card .form-check,
+  .permission-card .text-muted { margin: .65rem 1rem .25rem; }
   .empty-panel { border: 1px dashed rgba(var(--bs-border-color-rgb), .8); border-radius: .35rem; color: rgba(var(--bs-body-color-rgb), .55); padding: 1rem; text-align: center; }
   .permission-summary { border-top: 1px solid rgba(var(--bs-theme-rgb), .24); margin-top: 1rem; padding-top: .85rem; color: rgba(var(--bs-body-color-rgb), .7); }
   .permission-mini-badges {
@@ -481,17 +489,29 @@
     background: rgba(255, 255, 255, .08);
     color: rgba(var(--bs-body-color-rgb), .68);
   }
+
+  .choice-list {
+    position: relative;
+  }
+
+  .choice-list .choice-row {
+    position: relative;
+  }
+
+  .choice-list .choice-row::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: .2rem;
+    width: .55rem;
+    border-top: 1px solid rgba(var(--bs-body-color-rgb), .16);
+  }
   .permission-shell .permission-tabs {
     margin-bottom: 0;
     border-bottom: 0;
   }
 
-  .permission-shell .permission-workspace {
-    flex: 1 1 auto;
-    min-height: 0;
-    padding: 1rem;
-    overflow: hidden;
-  }
+  .permission-shell .permission-workspace { flex: 1 1 auto; min-height: 0; padding: 0; overflow: hidden; }
 
   .permission-shell .permission-list,
   .permission-shell .permission-editor {
@@ -507,17 +527,9 @@
     align-content: start;
   }
 
-  .permission-editor-scroll {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow: auto;
-    padding-right: .25rem;
-  }
+  .permission-editor-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; }
 
-  .permission-shell .choice-list {
-    max-height: 18rem;
-    align-content: start;
-  }
+  .permission-shell .choice-list { max-height: min(28vh, 19rem); align-content: start; }
 
   .permission-shell .permission-toolbar {
     flex: 0 0 auto;
