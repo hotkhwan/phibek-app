@@ -262,7 +262,7 @@
                         aria-label="Open event image"
                         onclick={() => openZoom(firstImage(r), eventTypeLabel(r), bboxFor(r))}
                       >
-                        <ProtectedImage src={firstImage(r)} alt={eventTypeLabel(r)} class="event-thumb" bbox={bboxFor(r)} />
+                        <ProtectedImage src={firstImage(r)} alt={eventTypeLabel(r)} class="event-thumb" />
                       </button>
                     {:else}
                       <span class="text-body text-opacity-25">—</span>
