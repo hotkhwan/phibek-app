@@ -18,7 +18,7 @@
   }>()
 </script>
 
-<div class="container-xxl p-3 p-lg-4">
+<div class="p-3 p-lg-4">
   <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
     <div>
       <h1 class="page-header mb-1 fw-bold">

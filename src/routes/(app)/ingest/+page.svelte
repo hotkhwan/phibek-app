@@ -38,8 +38,9 @@
   let detailOpen = $state(false)
   let detailLoading = $state(false)
   let detailEvent = $state<Detail | null>(null)
-  let zoomImage = $state<{ src: string; alt: string; bbox?: IngestPictureCoordinate | null } | null>(null)
+  let zoomImage = $state<{ src: string; alt: string; bbox?: IngestPictureCoordinate | null; source?: 'list' | 'detail' } | null>(null)
   let zoomOpen = $state(false)
+  let zoomIndex = $state(-1)
 
   function toIso(input: string): string | undefined {
     if (!input) return undefined
@@ -66,6 +67,11 @@
       items = items.filter((e) => (e.source ?? '').toLowerCase().includes(needle))
     }
     rows = items
+  }
+
+  async function loadPage(page: number) {
+    pageNumber = page
+    await load()
   }
 
   function clearFilters() {
@@ -116,7 +122,8 @@
   }
 
   function bboxFor(event: IngestEvent | Detail | null | undefined, index = 0) {
-    return coordinatesFor(event)[index] ?? coordinatesFor(event)[0] ?? null
+    if (index > 0) return null
+    return coordinatesFor(event)[0] ?? null
   }
 
   function eventTypeLabel(event: IngestEvent) {
@@ -127,14 +134,55 @@
     return event.source ?? event.sourceFamily ?? '—'
   }
 
-  function openZoom(src: string, alt: string, bbox?: IngestPictureCoordinate | null) {
-    zoomImage = { src, alt, bbox }
+  function openZoom(src: string, alt: string, bbox?: IngestPictureCoordinate | null, source: 'list' | 'detail' = 'detail', index = 0) {
+    zoomImage = { src, alt, bbox, source }
+    zoomIndex = index
     zoomOpen = true
   }
 
   function closeZoom() {
     zoomOpen = false
     zoomImage = null
+    zoomIndex = -1
+  }
+
+  async function moveListZoom(step: number) {
+    const nextIndex = zoomIndex + step
+    if (nextIndex >= 0 && nextIndex < rows.length) {
+      const row = rows[nextIndex]
+      openZoom(firstImage(row), eventTypeLabel(row), bboxFor(row), 'list', nextIndex)
+      return
+    }
+    if (step > 0 && rows.length >= PER_PAGE) {
+      await loadPage(pageNumber + 1)
+      const row = rows[0]
+      if (row && firstImage(row)) openZoom(firstImage(row), eventTypeLabel(row), bboxFor(row), 'list', 0)
+      return
+    }
+    if (step < 0 && pageNumber > 1) {
+      await loadPage(pageNumber - 1)
+      const lastIndex = rows.length - 1
+      const row = rows[lastIndex]
+      if (row && firstImage(row)) openZoom(firstImage(row), eventTypeLabel(row), bboxFor(row), 'list', lastIndex)
+    }
+  }
+
+  function moveDetailZoom(step: number) {
+    if (!detailEvent) return
+    const refs = refsFor(detailEvent)
+    const nextIndex = zoomIndex + step
+    const ref = refs[nextIndex]
+    if (!ref) return
+    const src = imageUrl(ref)
+    openZoom(src, `${detailEvent.eventType ?? detailEvent.type ?? 'event'} capture ${nextIndex + 1}`, bboxFor(detailEvent, nextIndex), 'detail', nextIndex)
+  }
+
+  function moveZoom(step: number) {
+    if (zoomImage?.source === 'list') {
+      moveListZoom(step)
+      return
+    }
+    moveDetailZoom(step)
   }
 
   function pageNext() {
@@ -260,7 +308,7 @@
                         type="button"
                         class="event-thumb-btn"
                         aria-label="Open event image"
-                        onclick={() => openZoom(firstImage(r), eventTypeLabel(r), bboxFor(r))}
+                        onclick={() => openZoom(firstImage(r), eventTypeLabel(r), bboxFor(r), 'list', rows.findIndex((item) => (item.eventId ?? item.id) === (r.eventId ?? r.id)))}
                       >
                         <ProtectedImage src={firstImage(r)} alt={eventTypeLabel(r)} class="event-thumb" />
                       </button>
@@ -351,7 +399,7 @@
               type="button"
               class="event-capture"
               aria-label="Open capture image"
-              onclick={() => openZoom(src, `${detailEvent?.eventType ?? detailEvent?.type ?? 'event'} capture ${index + 1}`, bboxFor(detailEvent, index))}
+              onclick={() => openZoom(src, `${detailEvent?.eventType ?? detailEvent?.type ?? 'event'} capture ${index + 1}`, bboxFor(detailEvent, index), 'detail', index)}
             >
               <ProtectedImage src={src} alt="Event capture" class="event-capture-image" bbox={bboxFor(detailEvent, index)} />
               <span>{index + 1}</span>
@@ -409,7 +457,27 @@
 <Modal bind:open={zoomOpen} title="Capture Preview" size="xl" onClose={closeZoom}>
   {#snippet body()}
     {#if zoomImage}
-      <ProtectedImage src={zoomImage.src} alt={zoomImage.alt} class="event-zoom-image" bbox={zoomImage.bbox} />
+      <div class="event-zoom-stage">
+        <button
+          type="button"
+          class="event-zoom-nav prev"
+          aria-label="Previous image"
+          disabled={zoomImage.source === 'list' ? (pageNumber <= 1 && zoomIndex <= 0) : zoomIndex <= 0}
+          onclick={() => moveZoom(-1)}
+        >
+          <i class="bi bi-chevron-left"></i>
+        </button>
+        <ProtectedImage src={zoomImage.src} alt={zoomImage.alt} class="event-zoom-image" bbox={zoomImage.bbox} />
+        <button
+          type="button"
+          class="event-zoom-nav next"
+          aria-label="Next image"
+          disabled={zoomImage.source === 'detail' ? zoomIndex >= refsFor(detailEvent).length - 1 : false}
+          onclick={() => moveZoom(1)}
+        >
+          <i class="bi bi-chevron-right"></i>
+        </button>
+      </div>
     {/if}
   {/snippet}
   {#snippet footer()}
@@ -475,5 +543,42 @@
 
   :global(.event-zoom-image) {
     max-height: 76vh;
+  }
+
+  .event-zoom-stage {
+    position: relative;
+    min-height: 320px;
+    display: grid;
+    place-items: center;
+    background: #050607;
+  }
+
+  .event-zoom-nav {
+    position: absolute;
+    top: 50%;
+    z-index: 3;
+    width: 42px;
+    height: 42px;
+    border: 1px solid rgba(255, 255, 255, .28);
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    background: rgba(0, 0, 0, .36);
+    color: #fff;
+    backdrop-filter: blur(8px);
+    transform: translateY(-50%);
+
+    &:disabled {
+      opacity: .28;
+      cursor: not-allowed;
+    }
+
+    &.prev {
+      left: .75rem;
+    }
+
+    &.next {
+      right: .75rem;
+    }
   }
 </style>
