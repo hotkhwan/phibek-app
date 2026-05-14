@@ -39,13 +39,13 @@
   }
 </script>
 
-<div class="card">
+<div class="card data-table-starter">
   <div class="card-body p-0">
     {#if error}
       <div class="alert alert-danger small m-3">{error}</div>
     {/if}
 
-    <div class="table-responsive">
+    <div class="table-responsive data-table-starter-scroll">
       <table class="table table-card mb-0">
         <thead>
           <tr>
@@ -105,3 +105,22 @@
     <div class="card-arrow-bottom-right"></div>
   </div>
 </div>
+
+<style>
+  .data-table-starter {
+    min-height: 0;
+  }
+
+  .data-table-starter-scroll {
+    max-height: min(62vh, 44rem);
+    overflow: auto;
+  }
+
+  .data-table-starter-scroll :global(thead th) {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: rgba(var(--bs-body-bg-rgb), 0.96);
+    backdrop-filter: blur(10px);
+  }
+</style>

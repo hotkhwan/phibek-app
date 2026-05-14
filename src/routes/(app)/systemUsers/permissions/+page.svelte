@@ -1,8 +1,9 @@
 <!-- src/routes/(app)/systemUsers/permissions/+page.svelte -->
 <script lang="ts">
-  import { onMount } from 'svelte'
+  import { onDestroy, onMount } from 'svelte'
   import { page } from '$app/state'
   import { setPageTitle } from '$lib/utils/title'
+  import { appOptions } from '$lib/stores/appOptions'
   import {
     createMenuPermission,
     createResourcePermission,
@@ -244,30 +245,38 @@
     const tab = page.url.searchParams.get('tab')
     if (tab === 'menu' || tab === 'resource' || tab === 'api') activeTab = tab
     setPageTitle(`${m.navSystemUsers()} · ${m.navSystemUsersPermissions()}`)
+    $appOptions.appContentClass = 'p-0 d-flex flex-column'
     await Promise.all([loadLookups(), load()])
+  })
+
+  onDestroy(() => {
+    $appOptions.appContentClass = ''
   })
 </script>
 
-<div class="page-header mb-3 permission-page-header">
-  <div>
-    <h1 class="page-title">{m.navSystemUsersPermissions()}</h1>
-    <p class="page-subtitle">จัดการ Menu, Resource และ API permission profiles ตามรูปแบบ Klynx</p>
+<div class="permission-shell">
+  <div class="permission-topbar">
+    <div class="page-header mb-3 permission-page-header">
+      <div>
+        <h1 class="page-title">{m.navSystemUsersPermissions()}</h1>
+        <p class="page-subtitle">จัดการ Menu, Resource และ API permission profiles ตามรูปแบบ Klynx</p>
+      </div>
+      <div class="d-flex gap-2">
+        <button class="btn btn-outline-theme btn-sm" onclick={load} disabled={loading}><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button>
+        <button class="btn btn-theme btn-sm" onclick={startCreate} disabled={activeTab === 'api'}><i class="bi bi-plus-lg me-1"></i>Create profile</button>
+      </div>
+    </div>
+
+    <nav class="permission-tabs" aria-label="Permission sections">
+      <button type="button" class:active={activeTab === 'resource'} onclick={() => switchTab('resource')}><i class="bi bi-box me-1"></i>Resource</button>
+      <button type="button" class:active={activeTab === 'menu'} onclick={() => switchTab('menu')}><i class="bi bi-menu-button-wide me-1"></i>Menu</button>
+      <button type="button" class:active={activeTab === 'api'} onclick={() => switchTab('api')}><i class="bi bi-server me-1"></i>API</button>
+    </nav>
   </div>
-  <div class="d-flex gap-2">
-    <button class="btn btn-outline-theme btn-sm" onclick={load} disabled={loading}><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button>
-    <button class="btn btn-theme btn-sm" onclick={startCreate} disabled={activeTab === 'api'}><i class="bi bi-plus-lg me-1"></i>Create profile</button>
-  </div>
-</div>
 
-<nav class="permission-tabs" aria-label="Permission sections">
-  <button type="button" class:active={activeTab === 'resource'} onclick={() => switchTab('resource')}><i class="bi bi-box me-1"></i>Resource</button>
-  <button type="button" class:active={activeTab === 'menu'} onclick={() => switchTab('menu')}><i class="bi bi-menu-button-wide me-1"></i>Menu</button>
-  <button type="button" class:active={activeTab === 'api'} onclick={() => switchTab('api')}><i class="bi bi-server me-1"></i>API</button>
-</nav>
+  {#if errorMsg}<div class="alert alert-danger mx-3 mt-3 mb-0">{errorMsg}</div>{/if}
 
-{#if errorMsg}<div class="alert alert-danger">{errorMsg}</div>{/if}
-
-<div class="permission-workspace">
+  <div class="permission-workspace">
   <aside class="permission-list">
     <div class="permission-list-title mb-3">
       <span>{activeTab === 'resource' ? 'Resource profiles' : activeTab === 'menu' ? 'Menu profiles' : 'API permissions'}</span>
@@ -304,14 +313,15 @@
         </div>
       </div>
 
-      <div class="permission-form">
-        <div class="field"><label for="perm-profile-name">Name</label><input id="perm-profile-name" class="form-control form-control-sm" bind:value={form.name} /></div>
-        <div class="field"><label for="perm-profile-description">Description</label><input id="perm-profile-description" class="form-control form-control-sm" bind:value={form.description} /></div>
-        <div class="field"><label for="perm-profile-action">Action</label><select id="perm-profile-action" class="form-select form-select-sm" bind:value={form.relation}><option value="viewer">Read</option><option value="editor">Read / Write</option><option value="creator">Create / Manage</option></select></div>
-        {#if activeTab === 'menu'}<div class="field field-wide"><label for="perm-menu-ids">Menu IDs</label><input id="perm-menu-ids" class="form-control form-control-sm font-monospace" bind:value={form.menuIdsText} placeholder="dashboard, systemUsers, ingest.events" /></div>{/if}
-      </div>
+      <div class="permission-editor-scroll">
+        <div class="permission-form">
+          <div class="field"><label for="perm-profile-name">Name</label><input id="perm-profile-name" class="form-control form-control-sm" bind:value={form.name} /></div>
+          <div class="field"><label for="perm-profile-description">Description</label><input id="perm-profile-description" class="form-control form-control-sm" bind:value={form.description} /></div>
+          <div class="field"><label for="perm-profile-action">Action</label><select id="perm-profile-action" class="form-select form-select-sm" bind:value={form.relation}><option value="viewer">Read</option><option value="editor">Read / Write</option><option value="creator">Create / Manage</option></select></div>
+          {#if activeTab === 'menu'}<div class="field field-wide"><label for="perm-menu-ids">Menu IDs</label><input id="perm-menu-ids" class="form-control form-control-sm font-monospace" bind:value={form.menuIdsText} placeholder="dashboard, systemUsers, ingest.events" /></div>{/if}
+        </div>
 
-      <input class="form-control form-control-sm picker-search" bind:value={pickerSearch} placeholder="Filter org units, users, resource groups, devices..." />
+        <input class="form-control form-control-sm picker-search" bind:value={pickerSearch} placeholder="Filter org units, users, resource groups, devices..." />
 
       <div class="permission-grid">
         <section class="permission-card">
@@ -341,12 +351,38 @@
         {/if}
       </div>
 
-      <div class="permission-summary"><span><b>{relationLabel()}</b></span><span>Org units <b>{selectedOrgUnits.size}</b></span><span>Users <b>{selectedMembers.size || 'All'}</b></span>{#if activeTab === 'resource'}<span>Resource groups <b>{selectedGroups.size}</b></span><span>Devices <b>{selectedCameras.size || 'All'}</b></span>{/if}{#if detailLoading}<span class="ms-auto"><span class="spinner-border spinner-border-sm me-1"></span>Loading detail</span>{/if}</div>
+        <div class="permission-summary"><span><b>{relationLabel()}</b></span><span>Org units <b>{selectedOrgUnits.size}</b></span><span>Users <b>{selectedMembers.size || 'All'}</b></span>{#if activeTab === 'resource'}<span>Resource groups <b>{selectedGroups.size}</b></span><span>Devices <b>{selectedCameras.size || 'All'}</b></span>{/if}{#if detailLoading}<span class="ms-auto"><span class="spinner-border spinner-border-sm me-1"></span>Loading detail</span>{/if}</div>
+      </div>
     {/if}
   </main>
+  </div>
 </div>
 
 <style lang="scss">
+  .permission-shell {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .permission-topbar {
+    flex: 0 0 auto;
+    padding: 1rem 1rem 0;
+    border-bottom: 1px solid rgba(var(--bs-border-color-rgb), .42);
+    background:
+      linear-gradient(180deg, rgba(var(--bs-body-bg-rgb), .94), rgba(var(--bs-body-bg-rgb), .76)),
+      radial-gradient(circle at 18% 0%, rgba(var(--bs-theme-rgb), .12), transparent 32%);
+    backdrop-filter: blur(10px);
+  }
+
+  .permission-page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
   .permission-page-header { align-items: flex-start; }
   .page-subtitle { color: rgba(var(--bs-body-color-rgb), .58); margin: .25rem 0 0; }
   .permission-tabs { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; border-bottom: 1px solid rgba(var(--bs-border-color-rgb), .55); padding-bottom: .75rem; }
@@ -373,5 +409,56 @@
   .permission-card header { display: flex; align-items: center; justify-content: space-between; gap: .75rem; font-weight: 700; margin-bottom: .75rem; }
   .empty-panel { border: 1px dashed rgba(var(--bs-border-color-rgb), .8); border-radius: .35rem; color: rgba(var(--bs-body-color-rgb), .55); padding: 1rem; text-align: center; }
   .permission-summary { border-top: 1px solid rgba(var(--bs-theme-rgb), .24); margin-top: 1rem; padding-top: .85rem; color: rgba(var(--bs-body-color-rgb), .7); }
-  @media (max-width: 1199.98px) { .permission-workspace, .permission-grid, .permission-form { grid-template-columns: 1fr; } }
+  .permission-shell .permission-tabs {
+    margin-bottom: 0;
+    border-bottom: 0;
+  }
+
+  .permission-shell .permission-workspace {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 1rem;
+    overflow: hidden;
+  }
+
+  .permission-shell .permission-list,
+  .permission-shell .permission-editor {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .permission-shell .permission-stack {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    align-content: start;
+  }
+
+  .permission-editor-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    padding-right: .25rem;
+  }
+
+  .permission-shell .choice-list {
+    max-height: 18rem;
+    align-content: start;
+  }
+
+  .permission-shell .permission-toolbar {
+    flex: 0 0 auto;
+  }
+
+  @media (max-width: 1199.98px) {
+    .permission-workspace, .permission-grid, .permission-form { grid-template-columns: 1fr; }
+    .permission-shell .permission-workspace { overflow: auto; }
+  }
+
+  @media (max-width: 767.98px) {
+    .permission-page-header { flex-direction: column; }
+    .permission-topbar { padding-inline: .75rem; }
+    .permission-shell .permission-workspace { padding: .75rem; }
+  }
 </style>
