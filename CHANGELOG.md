@@ -6,6 +6,13 @@ this project follows semantic versioning.
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-05-15
+
+### Changed
+- Dashboard content now follows the Phase 1 Livestream Analytics direction: a clear Phase 1/2/3
+  experience strip, cleaner analytics density, preserved camera-group line chart, and an API-driven
+  activity summary panel for livestream event counts.
+
 ## [0.7.5] — 2026-05-15
 
 ### Fixed
