@@ -3,6 +3,8 @@
   import { onDestroy, onMount } from 'svelte'
   import { setPageTitle } from '$lib/utils/title'
   import { appOptions } from '$lib/stores/appOptions'
+  import { auth } from '$lib/stores/auth'
+  import ViewerMapLibre from '$lib/components/dashboard/ViewerMapLibre.svelte'
   import {
     fetchAnalyticsEvents,
     fetchAnalyticsOverview,
@@ -67,12 +69,6 @@
     value: string
     color: string
     points: number[]
-  }
-
-  type MapDot = {
-    left: number
-    top: number
-    size: 'sm' | 'md' | 'lg' | 'xl'
   }
 
   type PhaseCard = {
@@ -169,17 +165,12 @@
     { label: 'Floor 2', value: '728', color: '#8b5cf6', points: [4, 5, 6, 7, 6, 8, 7, 9, 8, 10, 9, 12] }
   ]
 
-  const demoMapDots: MapDot[] = [
-    { left: 13, top: 52, size: 'sm' },
-    { left: 27, top: 47, size: 'lg' },
-    { left: 39, top: 55, size: 'sm' },
-    { left: 52, top: 35, size: 'xl' },
-    { left: 54, top: 48, size: 'lg' },
-    { left: 62, top: 44, size: 'md' },
-    { left: 70, top: 56, size: 'md' },
-    { left: 83, top: 50, size: 'lg' },
-    { left: 77, top: 68, size: 'md' },
-    { left: 31, top: 66, size: 'md' }
+  const demoGeoPoints: AnalyticsGeoMapPoint[] = [
+    { lat: 13.7563, lon: 100.5018, count: 18, label: 'Bangkok' },
+    { lat: 1.3521, lon: 103.8198, count: 4, label: 'Singapore' },
+    { lat: 13.3611, lon: 100.9847, count: 3, label: 'Chonburi' },
+    { lat: 18.7883, lon: 98.9853, count: 2, label: 'Chiang Mai' },
+    { lat: 12.6814, lon: 101.2816, count: 2, label: 'Rayong' }
   ]
 
   const demoEventActivity: EventActivity[] = [
@@ -196,6 +187,8 @@
   let loading = $state(false)
   let errorMsg = $state('')
   let hasLoaded = $state(false)
+  let dashboardRoot: HTMLDivElement | null = null
+  const motionStops: Array<() => void> = []
 
   const initialRange = buildDefaultRange()
   let dateTimeParam = $state(initialRange.dateTime)
@@ -209,8 +202,9 @@
   const latestCategory = $derived(lastLabel(overview?.charts?.playsSeries?.categories) || 'Latest')
   const rangeLabel = $derived(rangeLabelFromOverview(overview) || fallbackRangeLabel)
   const actualGeoPoints = $derived(overview?.charts?.geoMap?.points ?? [])
-  const geoTotal = $derived(actualGeoPoints.reduce((sum, point) => sum + (point.count || 0), 0))
-  const topGeoLabel = $derived(actualGeoPoints.slice().sort((a, b) => (b.count || 0) - (a.count || 0))[0]?.label ?? '-')
+  const viewerGeoPoints = $derived(usingFallback ? demoGeoPoints : actualGeoPoints)
+  const geoTotal = $derived(viewerGeoPoints.reduce((sum, point) => sum + (point.count || 0), 0))
+  const topGeoLabel = $derived(viewerGeoPoints.slice().sort((a, b) => (b.count || 0) - (a.count || 0))[0]?.label ?? '-')
 
   const statusTiles = $derived(usingFallback
     ? demoStatusTiles
@@ -243,9 +237,6 @@
   const resourceGroupLines = $derived(usingFallback
     ? demoResourceGroupLines
     : resourceGroupRows(overview?.charts?.byResourceGroupSeries?.series ?? []))
-  const mapDots = $derived(usingFallback
-    ? demoMapDots
-    : geoDots(actualGeoPoints))
   const eventActivityRows = $derived(usingFallback
     ? demoEventActivity
     : eventActivity(eventItems))
@@ -469,17 +460,6 @@
     }))
   }
 
-  function geoDots(points: AnalyticsGeoMapPoint[]): MapDot[] {
-    const max = Math.max(...points.map((point) => point.count || 0), 1)
-    return points.slice(0, 18).map((point) => {
-      const left = Math.max(3, Math.min(97, ((point.lon + 180) / 360) * 100))
-      const top = Math.max(5, Math.min(95, ((90 - point.lat) / 180) * 100))
-      const ratio = (point.count || 0) / max
-      const size: MapDot['size'] = ratio > .7 ? 'xl' : ratio > .4 ? 'lg' : ratio > .18 ? 'md' : 'sm'
-      return { left, top, size }
-    })
-  }
-
   function eventActivity(items: AnalyticsEventItem[]): EventActivity[] {
     return items.slice(0, 5).map((item, index) => ({
       event: item.event || 'unknown.event',
@@ -524,9 +504,37 @@
     return `conic-gradient(${parts.join(', ')})`
   }
 
+  function delay(ms: number) {
+    return new Promise((resolve) => window.setTimeout(resolve, ms))
+  }
+
+  async function waitForAuthContext(timeoutMs = 1400) {
+    const started = Date.now()
+    while (Date.now() - started < timeoutMs) {
+      const state = auth.get()
+      if (state.user?.token || state.ready) return
+      await delay(50)
+    }
+  }
+
+  async function runIntroMotion() {
+    if (!dashboardRoot || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const { animate } = await import('motion/mini')
+    const elements = Array.from(dashboardRoot.querySelectorAll('.phase-strip article, .status-tile, .panel, .health-bar'))
+    elements.forEach((element, index) => {
+      const animation = animate(
+        element,
+        { opacity: [0, 1], transform: ['translateY(14px)', 'translateY(0)'] },
+        { duration: 0.42, delay: index * 0.035, ease: 'easeOut' }
+      )
+      motionStops.push(() => animation.stop())
+    })
+  }
+
   async function loadDashboard() {
     loading = true
     errorMsg = ''
+    await waitForAuthContext()
     const query = { dateTime: dateTimeParam, tz: TZ, scope: 'all' as const }
     const [overviewResult, eventsResult] = await Promise.all([
       fetchAnalyticsOverview(query),
@@ -551,15 +559,17 @@
     $appOptions.appContentClass = 'p-0 d-flex flex-column overflow-hidden phibek-analytics-content'
     $appOptions.appFooter = false
     void loadDashboard()
+    void runIntroMotion()
   })
 
   onDestroy(() => {
+    for (const stop of motionStops.splice(0)) stop()
     $appOptions.appContentClass = previousContentClass
     $appOptions.appFooter = previousFooter
   })
 </script>
 
-<div class="system-dashboard">
+<div class="system-dashboard" bind:this={dashboardRoot}>
   <section class="dashboard-hero" aria-label="System analytics heading">
     <div>
       <h1>LIVESTREAM <span>ANALYTICS</span></h1>
@@ -738,28 +748,22 @@
         <h2>VIEWER LOCATIONS</h2>
       </div>
 
-      <div class="world-map" aria-label="Viewer location map">
-        <div class="map-blob blob-na"></div>
-        <div class="map-blob blob-eu"></div>
-        <div class="map-blob blob-asia"></div>
-        <div class="map-blob blob-sa"></div>
-        {#each mapDots as dot}
-          <span class={`map-dot ${dot.size}`} style={`left: ${dot.left}%; top: ${dot.top}%`}></span>
-        {/each}
+      <div class="world-map" aria-label="Viewer location MapLibre map">
+        <ViewerMapLibre points={viewerGeoPoints} />
       </div>
 
       <div class="map-summary">
         <div>
           <span>LOCATIONS</span>
-          <strong>{usingFallback ? 2 : actualGeoPoints.length}</strong>
+          <strong>{viewerGeoPoints.length}</strong>
         </div>
         <div>
           <span>TOTAL VIEWS</span>
-          <strong>{usingFallback ? 24 : fmt(geoTotal)}</strong>
+          <strong>{fmt(geoTotal)}</strong>
         </div>
         <div>
           <span>TOP COUNTRY</span>
-          <strong>{usingFallback ? 'TH' : topGeoLabel}</strong>
+          <strong>{topGeoLabel}</strong>
         </div>
       </div>
     </article>
@@ -1607,83 +1611,11 @@
     overflow: hidden;
     border-radius: 8px;
     border: 1px solid rgba(var(--accent-rgb), .1);
-    background:
-      linear-gradient(rgba(var(--accent-rgb), .05) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(var(--accent-rgb), .05) 1px, transparent 1px),
-      radial-gradient(circle at 56% 42%, rgba(var(--accent-rgb), .2), transparent 16%),
-      linear-gradient(180deg, rgba(12, 40, 52, .5), rgba(4, 15, 22, .55));
-    background-size: 38px 38px, 38px 38px, auto, auto;
+    background: #041019;
   }
 
   :global([data-bs-theme="light"]) .world-map {
-    background:
-      linear-gradient(rgba(5, 122, 80, .06) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(5, 122, 80, .06) 1px, transparent 1px),
-      radial-gradient(circle at 56% 42%, rgba(var(--accent-rgb), .2), transparent 16%),
-      linear-gradient(180deg, rgba(255, 255, 255, .6), rgba(223, 241, 235, .58));
-  }
-
-  .map-blob {
-    position: absolute;
-    border-radius: 48% 52% 42% 58%;
-    background: rgba(130, 178, 170, .14);
-    filter: blur(.1px);
-    transform: rotate(-12deg);
-  }
-
-  .blob-na {
-    left: 7%;
-    top: 35%;
-    width: 24%;
-    height: 28%;
-  }
-
-  .blob-eu {
-    left: 42%;
-    top: 24%;
-    width: 16%;
-    height: 18%;
-  }
-
-  .blob-asia {
-    left: 55%;
-    top: 29%;
-    width: 34%;
-    height: 31%;
-  }
-
-  .blob-sa {
-    left: 25%;
-    top: 58%;
-    width: 15%;
-    height: 25%;
-    transform: rotate(14deg);
-  }
-
-  .map-dot {
-    position: absolute;
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: #54ff9a;
-    box-shadow: 0 0 0 6px rgba(var(--accent-rgb), .14), 0 0 22px rgba(var(--accent-rgb), .75);
-    transform: translate(-50%, -50%);
-  }
-
-  .map-dot.sm {
-    width: 8px;
-    height: 8px;
-  }
-
-  .map-dot.lg {
-    width: 14px;
-    height: 14px;
-  }
-
-  .map-dot.xl {
-    width: 18px;
-    height: 18px;
-    box-shadow: 0 0 0 34px rgba(var(--accent-rgb), .16), 0 0 0 66px rgba(var(--accent-rgb), .08), 0 0 28px rgba(var(--accent-rgb), .9);
+    background: #edf8f3;
   }
 
   .map-summary {
