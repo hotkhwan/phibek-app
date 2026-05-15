@@ -35,12 +35,12 @@
   }
 
   type Activity = {
-    time: string
-    event: string
-    detail: string
-    user: string
-    status: string
-    tone: 'success' | 'warning' | 'danger'
+    rank: number
+    camera: string
+    group: string
+    plays: string
+    share: string
+    points: number[]
   }
 
   type DonutItem = {
@@ -51,21 +51,27 @@
     color: string
   }
 
+  type LineSeries = {
+    label: string
+    value: string
+    color: string
+    points: number[]
+  }
+
   const statusTiles: StatusTile[] = [
-    { label: 'ACTIVE BACKUP', value: '12', unit: 'Systems', icon: 'bi-arrow-clockwise', color: '#2ef27d' },
-    { label: 'ACTIVE FIREWALL', value: '24', unit: 'Nodes', icon: 'bi-shield-check', color: '#53a6ff' },
-    { label: 'DETECTED THREAT', value: '7', unit: 'Alerts', icon: 'bi-radioactive', color: '#ff405a' },
-    { label: 'PENDING SYNC', value: '18', unit: 'Tasks', icon: 'bi-cloud-arrow-up', color: '#ff9f1c' },
-    { label: 'LOCKED DATA VAULT', value: '3', unit: 'Vaults', icon: 'bi-safe2', color: '#16d9e3' }
+    { label: 'TOTAL VIEWS', value: '10,245', unit: 'plays', icon: 'bi-play-circle-fill', color: '#2ef27d' },
+    { label: 'VIEWING SESSIONS', value: '3,456', unit: 'sessions', icon: 'bi-display', color: '#53a6ff' },
+    { label: 'UNIQUE VIEWERS', value: '1,234', unit: 'viewers', icon: 'bi-people', color: '#ff9f1c' },
+    { label: 'ACTIVE STREAMS', value: '156', unit: '/ 256 live', icon: 'bi-camera-video-fill', color: '#8b5cf6' },
+    { label: 'EVENT TYPES', value: '89', unit: 'events', icon: 'bi-activity', color: '#16d9e3' }
   ]
 
   const sideStats: SparkStat[] = [
-    { label: 'PAGE VIEWS', value: '12,543', delta: '23.6%', trend: 'up', points: [12, 16, 18, 15, 24, 16, 20, 22, 29, 25, 34, 30, 42, 35, 44] },
-    { label: 'AVG. SESSION DURATION', value: '02:34', delta: '18.7%', trend: 'up', points: [18, 19, 24, 20, 31, 21, 28, 30, 39, 33, 49, 36, 45, 41, 52] },
-    { label: 'NEW VISITORS', value: '45.2%', delta: '9.8%', trend: 'up', points: [14, 15, 20, 17, 25, 18, 23, 27, 24, 35, 28, 44, 31, 39, 37] },
-    { label: 'BOUNCE RATE', value: '32.6%', delta: '4.3%', trend: 'down', points: [42, 40, 35, 38, 31, 29, 33, 27, 23, 25, 18, 21, 16, 19, 14] },
-    { label: 'TOP REFERRING SITES', value: 'Google', delta: '15.3%', trend: 'up', points: [18, 20, 17, 26, 21, 30, 24, 32, 28, 38, 34, 45, 39, 51, 47] },
-    { label: 'COUNTRIES REACH', value: '87', delta: '12.1%', trend: 'up', points: [13, 16, 18, 15, 24, 19, 29, 23, 33, 29, 42, 36, 48, 41, 55] }
+    { label: 'BANGKOK', value: '18', delta: '75.0%', trend: 'up', points: [10, 12, 18, 14, 21, 20, 26, 24, 31, 29, 38, 34, 42, 40, 46] },
+    { label: 'SINGAPORE', value: '4', delta: '25.0%', trend: 'up', points: [3, 4, 5, 4, 7, 5, 8, 6, 9, 8, 11, 9, 13, 12, 14] },
+    { label: 'CHONBURI', value: '3', delta: '12.5%', trend: 'up', points: [2, 3, 3, 5, 4, 6, 5, 7, 7, 8, 9, 8, 10, 11, 12] },
+    { label: 'CHIANG MAI', value: '2', delta: '8.3%', trend: 'up', points: [1, 2, 2, 3, 2, 4, 3, 5, 4, 6, 5, 7, 6, 8, 8] },
+    { label: 'RAYONG', value: '2', delta: '8.3%', trend: 'up', points: [1, 1, 2, 2, 3, 2, 4, 3, 4, 5, 4, 6, 5, 7, 6] }
   ]
 
   const campaignBars = [
@@ -81,36 +87,45 @@
   const campaignTicks = ['8 MAY', '9 MAY', '10 MAY', '11 MAY', '12 MAY', '13 MAY', '14 MAY', '15 MAY']
 
   const salesMetrics: Metric[] = [
-    { icon: 'bi-currency-dollar', label: 'REVENUE', value: '$1.68M', delta: '24.8%', points: [22, 24, 25, 30, 26, 36, 28, 42, 34, 48, 39, 55] },
-    { icon: 'bi-hdd-network', label: 'PROFIT', value: '$720K', delta: '18.9%', points: [16, 18, 20, 19, 25, 17, 30, 23, 35, 28, 38, 34] },
-    { icon: 'bi-send', label: 'VISITS', value: '1.3M', delta: '17.5%', points: [12, 14, 16, 18, 15, 25, 17, 28, 21, 33, 24, 36] }
+    { icon: 'bi-display', label: 'DESKTOP', value: '6,366', delta: '62.1%', points: [22, 24, 25, 30, 26, 36, 28, 42, 34, 48, 39, 55] },
+    { icon: 'bi-phone', label: 'MOBILE', value: '3,547', delta: '34.6%', points: [16, 18, 20, 19, 25, 17, 30, 23, 35, 28, 38, 34] },
+    { icon: 'bi-tablet', label: 'TABLET', value: '332', delta: '3.3%', points: [12, 14, 16, 18, 15, 25, 17, 28, 21, 33, 24, 36] }
   ]
 
   const regions: Region[] = [
-    { label: 'NORTH AMERICA REGION', value: '62%', progress: 62 },
-    { label: 'EUROPE REGION', value: '38%', progress: 38 }
+    { label: 'WINDOWS', value: '57.7%', progress: 58 },
+    { label: 'ANDROID', value: '29.2%', progress: 29 },
+    { label: 'IOS', value: '10.1%', progress: 10 },
+    { label: 'MACOS', value: '3.0%', progress: 3 }
   ]
 
   const activityRows: Activity[] = [
-    { time: '10:03:21', event: 'User Login', detail: 'Admin logged in from 192.168.1.10', user: 'admin', status: 'Success', tone: 'success' },
-    { time: '10:02:15', event: 'Data Sync', detail: 'Sync data from edge node E-102', user: 'system', status: 'Success', tone: 'success' },
-    { time: '10:01:08', event: 'Threat Detected', detail: 'Suspicious activity detected (High)', user: 'watchman', status: 'Warning', tone: 'warning' },
-    { time: '10:00:44', event: 'Backup Completed', detail: 'Daily backup completed successfully', user: 'system', status: 'Success', tone: 'success' },
-    { time: '09:59:32', event: 'Firewall Alert', detail: 'Blocked IP 203.0.113.45', user: 'firewall', status: 'Blocked', tone: 'danger' }
+    { rank: 1, camera: 'Meeting Room Front Camera 1', group: 'Group 1', plays: '5,125', share: '50.0%', points: [8, 12, 9, 16, 13, 18, 11, 20, 17, 24, 18, 26] },
+    { rank: 2, camera: 'Parking Lot Camera', group: 'Group 2', plays: '3,187', share: '31.1%', points: [5, 8, 6, 9, 7, 12, 8, 14, 9, 16, 11, 18] },
+    { rank: 3, camera: 'Entrance Camera', group: 'Floor 1', plays: '1,205', share: '11.8%', points: [3, 5, 4, 7, 5, 8, 6, 10, 7, 11, 8, 12] },
+    { rank: 4, camera: 'Office Zone Camera', group: 'Floor 2', plays: '728', share: '7.1%', points: [2, 4, 3, 5, 4, 6, 4, 7, 5, 8, 6, 9] }
   ]
 
   const channelRows: DonutItem[] = [
-    { label: 'Organic Search', value: '6,523', percent: '35.8%', share: 35.8, color: '#2de67f' },
-    { label: 'Direct', value: '4,812', percent: '26.4%', share: 26.4, color: '#0ba6df' },
-    { label: 'Referral', value: '3,245', percent: '17.8%', share: 17.8, color: '#31c0c5' },
-    { label: 'Social', value: '2,104', percent: '11.5%', share: 11.5, color: '#f7a72c' },
-    { label: 'Email', value: '1,559', percent: '8.5%', share: 8.5, color: '#ff4358' }
+    { label: 'Edge', value: '6,156', percent: '60.2%', share: 60.2, color: '#2de67f' },
+    { label: 'Chrome', value: '2,910', percent: '28.4%', share: 28.4, color: '#0ba6df' },
+    { label: 'Safari', value: '726', percent: '7.1%', share: 7.1, color: '#8b5cf6' },
+    { label: 'Firefox', value: '235', percent: '2.3%', share: 2.3, color: '#f7a72c' },
+    { label: 'Other', value: '208', percent: '2.0%', share: 2.0, color: '#ff7a1c' }
   ]
 
-  const deviceRows: DonutItem[] = [
-    { label: 'Desktop', value: '10,642', percent: '55.3%', share: 55.3, color: '#33e17f' },
-    { label: 'Mobile', value: '6,048', percent: '33.2%', share: 33.2, color: '#088ee6' },
-    { label: 'Tablet', value: '1,553', percent: '8.5%', share: 8.5, color: '#21bd65' }
+  const trafficRows: LineSeries[] = [
+    { label: 'Direct', value: '5,490', color: '#8b5cf6', points: [22, 25, 23, 31, 28, 37, 35, 42, 39, 48, 44, 52] },
+    { label: 'Referral', value: '2,642', color: '#6366f1', points: [12, 16, 14, 20, 18, 24, 21, 30, 26, 34, 30, 38] },
+    { label: 'Search', value: '1,271', color: '#7c3aed', points: [8, 9, 11, 12, 10, 14, 13, 16, 15, 18, 17, 20] },
+    { label: 'Social', value: '842', color: '#a855f7', points: [5, 7, 6, 9, 8, 10, 11, 12, 10, 13, 12, 15] }
+  ]
+
+  const resourceGroupLines: LineSeries[] = [
+    { label: 'Group 1', value: '5,125', color: '#2de67f', points: [18, 24, 21, 30, 26, 36, 29, 42, 35, 48, 40, 52] },
+    { label: 'Group 2', value: '3,187', color: '#ef4444', points: [14, 17, 15, 21, 18, 25, 21, 29, 24, 32, 27, 35] },
+    { label: 'Floor 1', value: '1,205', color: '#0ba6df', points: [8, 10, 9, 13, 11, 15, 12, 17, 14, 18, 15, 20] },
+    { label: 'Floor 2', value: '728', color: '#8b5cf6', points: [4, 5, 6, 7, 6, 8, 7, 9, 8, 10, 9, 12] }
   ]
 
   const mapDots = [
@@ -157,7 +172,7 @@
   }
 
   onMount(() => {
-    setPageTitle('System Analytics')
+    setPageTitle('Livestream Analytics')
     previousContentClass = $appOptions.appContentClass
     previousFooter = $appOptions.appFooter
     $appOptions.appContentClass = 'p-0 d-flex flex-column overflow-hidden phibek-analytics-content'
@@ -173,8 +188,8 @@
 <div class="system-dashboard">
   <section class="dashboard-hero" aria-label="System analytics heading">
     <div>
-      <h1>SYSTEM <span>ANALYTICS</span></h1>
-      <p>Real-time overview of platform performance and activity</p>
+      <h1>LIVESTREAM <span>ANALYTICS</span></h1>
+      <p>Realtime overview of livestream plays, viewers, camera groups, and active sessions</p>
     </div>
 
     <div class="dashboard-actions" aria-label="Dashboard controls">
@@ -209,14 +224,14 @@
   <section class="top-grid">
     <article class="panel campaign-panel">
       <div class="panel-header">
-        <h2>MARKETING CAMPAIGN</h2>
+        <h2>VIEWS OVER TIME</h2>
         <button type="button" class="select-pill" title="Time grain">
           Daily
           <i class="bi bi-chevron-down"></i>
         </button>
       </div>
 
-      <div class="campaign-chart" aria-label="Marketing campaign orders and revenue chart">
+      <div class="campaign-chart" aria-label="Livestream views over time chart">
         <div class="axis axis-left">
           <span>10K</span>
           <span>8K</span>
@@ -226,12 +241,12 @@
           <span>0</span>
         </div>
         <div class="axis axis-right">
-          <span>$100K</span>
-          <span>$80K</span>
-          <span>$60K</span>
-          <span>$40K</span>
-          <span>$20K</span>
-          <span>$0</span>
+          <span>250 Live</span>
+          <span>200</span>
+          <span>150</span>
+          <span>100</span>
+          <span>50</span>
+          <span>0</span>
         </div>
         <div class="chart-field">
           <div class="chart-grid-lines"></div>
@@ -249,8 +264,8 @@
           </svg>
           <div class="campaign-tooltip">
             <strong>15 May 2026</strong>
-            <span><i></i> Orders <b>7,842</b></span>
-            <span><i></i> Revenue <b>$78,430</b></span>
+            <span><i></i> Views <b>7,842</b></span>
+            <span><i></i> Active streams <b>156</b></span>
           </div>
         </div>
         <div class="x-axis">
@@ -259,13 +274,14 @@
           {/each}
         </div>
         <div class="chart-legend">
-          <span><i></i>Orders</span>
-          <span><i></i>Revenue</span>
+          <span><i></i>Views</span>
+          <span><i></i>Active streams</span>
         </div>
       </div>
     </article>
 
-    <aside class="panel insight-panel" aria-label="Performance insights">
+    <aside class="panel insight-panel" aria-label="Top viewer locations">
+      <div class="insight-heading">TOP LOCATIONS</div>
       {#each sideStats as stat}
         <div class="insight-row">
           <div>
@@ -287,7 +303,7 @@
   <section class="middle-grid">
     <article class="panel sales-panel">
       <div class="panel-header compact">
-        <h2>SALES PERFORMANCE</h2>
+        <h2>VIEWERS BY DEVICE</h2>
       </div>
 
       <div class="sales-metrics">
@@ -322,10 +338,10 @@
 
     <article class="panel map-panel">
       <div class="panel-header compact">
-        <h2>BUSINESS METRICS</h2>
+        <h2>VIEWER LOCATIONS</h2>
       </div>
 
-      <div class="world-map" aria-label="Business metrics world map">
+      <div class="world-map" aria-label="Viewer location map">
         <div class="map-blob blob-na"></div>
         <div class="map-blob blob-eu"></div>
         <div class="map-blob blob-asia"></div>
@@ -337,37 +353,38 @@
 
       <div class="map-summary">
         <div>
-          <span>ACTIVE REGIONS</span>
+          <span>LOCATIONS</span>
+          <strong>2</strong>
+        </div>
+        <div>
+          <span>TOTAL VIEWS</span>
           <strong>24</strong>
         </div>
         <div>
-          <span>TOTAL USERS</span>
-          <strong>18,243</strong>
-        </div>
-        <div>
-          <span>LIVE SESSIONS</span>
-          <strong>3,582</strong>
+          <span>TOP COUNTRY</span>
+          <strong>TH</strong>
         </div>
       </div>
     </article>
 
     <div class="callout-stack">
       <article class="panel callout-card">
-        <div class="callout-icon"><i class="bi bi-cpu"></i></div>
+        <div class="callout-icon"><i class="bi bi-diagram-3"></i></div>
         <div>
-          <p>INCREASED WEEKLY PRODUCTION RATE BY <strong>9%</strong>, REFLECTING IMPROVED OPERATIONAL PERFORMANCE.</p>
-          <div class="callout-grid">
-            <span>CURRENT <b>1,600 UNITS</b></span>
-            <span>RATE <b>210 UNITS</b></span>
-            <span>TARGET <b>2,000 UNITS</b></span>
-            <span>PREV. WEEK <b>193 UNITS</b></span>
+          <p>VIEWS BY TRAFFIC SOURCE, MATCHING THE K-LYNX ANALYTICS BREAKDOWN.</p>
+          <div class="callout-grid source-grid">
+            {#each trafficRows as row}
+              <span style={`--source-color: ${row.color}`}>
+                <i></i>{row.label} <b>{row.value}</b>
+              </span>
+            {/each}
           </div>
         </div>
       </article>
 
       <article class="panel callout-card slim">
-        <div class="callout-icon"><i class="bi bi-database-fill"></i></div>
-        <p>REDUCED SYSTEM DOWNTIME BY <strong>18%</strong>, ENHANCING OVERALL INFRASTRUCTURE RELIABILITY.</p>
+        <div class="callout-icon"><i class="bi bi-activity"></i></div>
+        <p>EVENT BREAKDOWN: <strong>klive.play.started</strong> 102 times, <strong>klive.play.ended</strong> 84 times.</p>
       </article>
     </div>
   </section>
@@ -375,28 +392,34 @@
   <section class="bottom-grid">
     <article class="panel activity-panel">
       <div class="panel-header compact">
-        <h2>RECENT ACTIVITIES</h2>
+        <h2>TOP 10 MOST VIEWED CAMERAS</h2>
       </div>
 
       <div class="activity-table-wrap">
         <table class="activity-table">
           <thead>
             <tr>
-              <th>TIME</th>
-              <th>EVENT</th>
-              <th>DETAILS</th>
-              <th>USER</th>
-              <th>STATUS</th>
+              <th>#</th>
+              <th>CAMERA NAME</th>
+              <th>CAMERA GROUP</th>
+              <th>VIEWS</th>
+              <th>SHARE</th>
+              <th>TREND</th>
             </tr>
           </thead>
           <tbody>
             {#each activityRows as row}
               <tr>
-                <td>{row.time}</td>
-                <td>{row.event}</td>
-                <td>{row.detail}</td>
-                <td>{row.user}</td>
-                <td><span class={`status-badge ${row.tone}`}>{row.status}</span></td>
+                <td>{row.rank}</td>
+                <td>{row.camera}</td>
+                <td>{row.group}</td>
+                <td>{row.plays}</td>
+                <td>{row.share}</td>
+                <td>
+                  <svg class="table-spark" viewBox="0 0 112 34" preserveAspectRatio="none" aria-hidden="true">
+                    <polyline points={sparkPoints(row.points, 112, 34)}></polyline>
+                  </svg>
+                </td>
               </tr>
             {/each}
           </tbody>
@@ -406,14 +429,14 @@
 
     <article class="panel donut-panel">
       <div class="panel-header compact">
-        <h2>TOP PERFORMING CHANNELS</h2>
+        <h2>VIEWERS BY WEB BROWSER</h2>
       </div>
       <div class="donut-layout">
         <div class="donut" style={`background: ${donutGradient(channelRows)}`}>
           <div>
             <span>Total</span>
-            <strong>18,243</strong>
-            <small>Sessions</small>
+            <strong>10,245</strong>
+            <small>Views</small>
           </div>
         </div>
         <div class="donut-legend">
@@ -427,34 +450,35 @@
       </div>
     </article>
 
-    <article class="panel donut-panel">
+    <article class="panel line-panel">
       <div class="panel-header compact">
-        <h2>DEVICE BREAKDOWN</h2>
+        <h2>PLAYS BY CAMERA GROUP</h2>
       </div>
-      <div class="donut-layout">
-        <div class="donut device" style={`background: ${donutGradient(deviceRows)}`}>
-          <div>
-            <span>Total</span>
-            <strong>18,243</strong>
-            <small>Sessions</small>
-          </div>
-        </div>
-        <div class="donut-legend">
-          {#each deviceRows as item}
-            <div style={`--dot-color: ${item.color}`}>
-              <span><i></i>{item.label}</span>
-              <b>{item.value} ({item.percent})</b>
-            </div>
+      <div class="resource-line-chart">
+        <svg viewBox="0 0 240 96" preserveAspectRatio="none" aria-hidden="true">
+          {#each resourceGroupLines as row}
+            <polyline
+              points={sparkPoints(row.points, 240, 90)}
+              style={`stroke: ${row.color}`}
+            ></polyline>
           {/each}
-        </div>
+        </svg>
+      </div>
+      <div class="line-legend">
+        {#each resourceGroupLines as row}
+          <div style={`--dot-color: ${row.color}`}>
+            <span><i></i>{row.label}</span>
+            <b>{row.value}</b>
+          </div>
+        {/each}
       </div>
     </article>
   </section>
 
-  <section class="health-bar" aria-label="System health">
-    <div><span>SYSTEM HEALTH</span><i></i><strong>All Systems Operational</strong></div>
-    <div><span>DATA PIPELINE</span><i></i><strong>Healthy</strong></div>
-    <div><span>EDGE NODES</span><i></i><strong>128 Online</strong></div>
+  <section class="health-bar" aria-label="Livestream analytics status">
+    <div><span>LIVESTREAM HEALTH</span><i></i><strong>Tracking</strong></div>
+    <div><span>DATA WINDOW</span><i></i><strong>Last 7 Days</strong></div>
+    <div><span>CAMERA GROUPS</span><i></i><strong>4 Groups</strong></div>
     <div><span>LAST UPDATED</span><i class="bi bi-clock-history"></i><strong>10:03:21</strong></div>
   </section>
 </div>
@@ -871,6 +895,14 @@
     padding: 12px 16px;
   }
 
+  .insight-heading {
+    padding: 4px 0 10px;
+    color: var(--dash-text);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0;
+  }
+
   .insight-row {
     position: relative;
     min-height: 73px;
@@ -1199,10 +1231,28 @@
 
   .callout-grid span {
     display: flex;
+    align-items: center;
     justify-content: space-between;
     gap: 10px;
     color: var(--dash-muted);
     font-size: 11px;
+  }
+
+  .source-grid span i {
+    width: 8px;
+    height: 8px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: var(--source-color);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--source-color) 70%, transparent);
+  }
+
+  .source-grid span {
+    justify-content: flex-start;
+  }
+
+  .source-grid b {
+    margin-left: auto;
   }
 
   .callout-grid b {
@@ -1220,7 +1270,7 @@
 
   .activity-table {
     width: 100%;
-    min-width: 620px;
+    min-width: 720px;
     border-collapse: collapse;
     color: var(--dash-muted);
     font-size: 12px;
@@ -1239,39 +1289,31 @@
     text-transform: uppercase;
   }
 
-  .activity-table td:nth-child(3) {
+  .activity-table td:nth-child(2) {
     white-space: normal;
-    min-width: 220px;
+    min-width: 240px;
   }
 
   .activity-table td:nth-child(2),
+  .activity-table td:nth-child(4),
   .activity-table td:nth-child(5) {
     color: var(--dash-text);
   }
 
-  .status-badge {
-    display: inline-flex;
-    min-width: 66px;
-    justify-content: center;
-    border-radius: 5px;
-    padding: 3px 8px;
-    font-size: 11px;
-    font-weight: 700;
+  .table-spark {
+    display: block;
+    width: 112px;
+    height: 34px;
+    margin-left: auto;
   }
 
-  .status-badge.success {
-    color: #5cff9c;
-    background: rgba(var(--accent-rgb), .13);
-  }
-
-  .status-badge.warning {
-    color: #ffca59;
-    background: rgba(255, 159, 28, .14);
-  }
-
-  .status-badge.danger {
-    color: #ff6b7b;
-    background: rgba(255, 64, 90, .14);
+  .table-spark polyline {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    filter: drop-shadow(0 0 6px rgba(var(--accent-rgb), .38));
   }
 
   .donut-panel {
@@ -1347,6 +1389,7 @@
   }
 
   .donut-legend i,
+  .line-legend i,
   .health-bar div > i:not(.bi) {
     width: 10px;
     height: 10px;
@@ -1361,6 +1404,64 @@
     font-size: 11px;
     font-weight: 500;
     text-align: right;
+    white-space: nowrap;
+  }
+
+  .line-panel {
+    padding-bottom: 16px;
+  }
+
+  .resource-line-chart {
+    height: 150px;
+    margin: 4px 18px 12px;
+    border: 1px solid var(--grid-line);
+    border-radius: 8px;
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 100% 25%, 25% 100%;
+    overflow: hidden;
+  }
+
+  .resource-line-chart svg {
+    width: 100%;
+    height: 100%;
+    padding: 16px;
+    overflow: visible;
+  }
+
+  .resource-line-chart polyline {
+    fill: none;
+    stroke-width: 2.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    filter: drop-shadow(0 0 6px rgba(var(--accent-rgb), .25));
+  }
+
+  .line-legend {
+    display: grid;
+    gap: 10px;
+    padding: 0 18px;
+  }
+
+  .line-legend div,
+  .line-legend span {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .line-legend div {
+    justify-content: space-between;
+    min-width: 0;
+    color: var(--dash-muted);
+    font-size: 11px;
+  }
+
+  .line-legend b {
+    color: var(--dash-text);
+    font-size: 11px;
+    font-weight: 600;
     white-space: nowrap;
   }
 
