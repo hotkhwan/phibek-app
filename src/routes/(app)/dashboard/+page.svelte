@@ -3,6 +3,17 @@
   import { onDestroy, onMount } from 'svelte'
   import { setPageTitle } from '$lib/utils/title'
   import { appOptions } from '$lib/stores/appOptions'
+  import {
+    fetchAnalyticsEvents,
+    fetchAnalyticsOverview,
+    type AnalyticsBarChart,
+    type AnalyticsChartSeries,
+    type AnalyticsDonutChart,
+    type AnalyticsEventItem,
+    type AnalyticsGeoMapPoint,
+    type AnalyticsOverviewDetails,
+    type AnalyticsTopCamera
+  } from '$lib/api/dashboard'
 
   type StatusTile = {
     label: string
@@ -58,7 +69,16 @@
     points: number[]
   }
 
-  const statusTiles: StatusTile[] = [
+  type MapDot = {
+    left: number
+    top: number
+    size: 'sm' | 'md' | 'lg' | 'xl'
+  }
+
+  const TZ = 'Asia/Bangkok'
+  const chartPalette = ['#2de67f', '#0ba6df', '#8b5cf6', '#f97316', '#06b6d4', '#a3e635', '#6366f1', '#ef4444']
+
+  const demoStatusTiles: StatusTile[] = [
     { label: 'TOTAL VIEWS', value: '10,245', unit: 'plays', icon: 'bi-play-circle-fill', color: '#2ef27d' },
     { label: 'VIEWING SESSIONS', value: '3,456', unit: 'sessions', icon: 'bi-display', color: '#53a6ff' },
     { label: 'UNIQUE VIEWERS', value: '1,234', unit: 'viewers', icon: 'bi-people', color: '#ff9f1c' },
@@ -66,7 +86,7 @@
     { label: 'EVENT TYPES', value: '89', unit: 'events', icon: 'bi-activity', color: '#16d9e3' }
   ]
 
-  const sideStats: SparkStat[] = [
+  const demoSideStats: SparkStat[] = [
     { label: 'BANGKOK', value: '18', delta: '75.0%', trend: 'up', points: [10, 12, 18, 14, 21, 20, 26, 24, 31, 29, 38, 34, 42, 40, 46] },
     { label: 'SINGAPORE', value: '4', delta: '25.0%', trend: 'up', points: [3, 4, 5, 4, 7, 5, 8, 6, 9, 8, 11, 9, 13, 12, 14] },
     { label: 'CHONBURI', value: '3', delta: '12.5%', trend: 'up', points: [2, 3, 3, 5, 4, 6, 5, 7, 7, 8, 9, 8, 10, 11, 12] },
@@ -74,39 +94,38 @@
     { label: 'RAYONG', value: '2', delta: '8.3%', trend: 'up', points: [1, 1, 2, 2, 3, 2, 4, 3, 4, 5, 4, 6, 5, 7, 6] }
   ]
 
-  const campaignBars = [
+  const demoCampaignBars = [
     38, 44, 51, 60, 66, 73, 80, 70, 58, 64, 76, 84, 70, 68, 66, 62, 55, 48,
     42, 39, 43, 46, 44, 37, 42, 48, 53, 33, 31, 36, 41, 43, 31, 38, 45, 52,
     58, 55, 46, 37, 31, 34, 40, 44, 49, 53, 48, 39, 32, 36, 42, 46, 51, 34,
     27, 24, 22, 25, 29, 26, 31, 28, 34, 43, 51, 59, 68, 72, 78, 84, 90, 76
   ]
 
-  const campaignLine =
-    '0,170 42,150 84,128 126,110 168,104 210,88 252,74 294,66 336,52 378,62 420,76 462,82 504,80 546,92 588,112 630,130 672,148 714,166 756,174 798,168 840,172 882,164 924,92 960,64'
+  const demoCampaignValues = [70, 92, 140, 221, 308, 402, 480, 540, 682, 890, 1120, 1402, 1602, 1080, 580, 230]
 
-  const campaignTicks = ['8 MAY', '9 MAY', '10 MAY', '11 MAY', '12 MAY', '13 MAY', '14 MAY', '15 MAY']
+  const demoCampaignTicks = ['8 MAY', '9 MAY', '10 MAY', '11 MAY', '12 MAY', '13 MAY', '14 MAY', '15 MAY']
 
-  const salesMetrics: Metric[] = [
+  const demoSalesMetrics: Metric[] = [
     { icon: 'bi-display', label: 'DESKTOP', value: '6,366', delta: '62.1%', points: [22, 24, 25, 30, 26, 36, 28, 42, 34, 48, 39, 55] },
     { icon: 'bi-phone', label: 'MOBILE', value: '3,547', delta: '34.6%', points: [16, 18, 20, 19, 25, 17, 30, 23, 35, 28, 38, 34] },
     { icon: 'bi-tablet', label: 'TABLET', value: '332', delta: '3.3%', points: [12, 14, 16, 18, 15, 25, 17, 28, 21, 33, 24, 36] }
   ]
 
-  const regions: Region[] = [
+  const demoRegions: Region[] = [
     { label: 'WINDOWS', value: '57.7%', progress: 58 },
     { label: 'ANDROID', value: '29.2%', progress: 29 },
     { label: 'IOS', value: '10.1%', progress: 10 },
     { label: 'MACOS', value: '3.0%', progress: 3 }
   ]
 
-  const activityRows: Activity[] = [
+  const demoActivityRows: Activity[] = [
     { rank: 1, camera: 'Meeting Room Front Camera 1', group: 'Group 1', plays: '5,125', share: '50.0%', points: [8, 12, 9, 16, 13, 18, 11, 20, 17, 24, 18, 26] },
     { rank: 2, camera: 'Parking Lot Camera', group: 'Group 2', plays: '3,187', share: '31.1%', points: [5, 8, 6, 9, 7, 12, 8, 14, 9, 16, 11, 18] },
     { rank: 3, camera: 'Entrance Camera', group: 'Floor 1', plays: '1,205', share: '11.8%', points: [3, 5, 4, 7, 5, 8, 6, 10, 7, 11, 8, 12] },
     { rank: 4, camera: 'Office Zone Camera', group: 'Floor 2', plays: '728', share: '7.1%', points: [2, 4, 3, 5, 4, 6, 4, 7, 5, 8, 6, 9] }
   ]
 
-  const channelRows: DonutItem[] = [
+  const demoChannelRows: DonutItem[] = [
     { label: 'Edge', value: '6,156', percent: '60.2%', share: 60.2, color: '#2de67f' },
     { label: 'Chrome', value: '2,910', percent: '28.4%', share: 28.4, color: '#0ba6df' },
     { label: 'Safari', value: '726', percent: '7.1%', share: 7.1, color: '#8b5cf6' },
@@ -114,21 +133,21 @@
     { label: 'Other', value: '208', percent: '2.0%', share: 2.0, color: '#ff7a1c' }
   ]
 
-  const trafficRows: LineSeries[] = [
+  const demoTrafficRows: LineSeries[] = [
     { label: 'Direct', value: '5,490', color: '#8b5cf6', points: [22, 25, 23, 31, 28, 37, 35, 42, 39, 48, 44, 52] },
     { label: 'Referral', value: '2,642', color: '#6366f1', points: [12, 16, 14, 20, 18, 24, 21, 30, 26, 34, 30, 38] },
     { label: 'Search', value: '1,271', color: '#7c3aed', points: [8, 9, 11, 12, 10, 14, 13, 16, 15, 18, 17, 20] },
     { label: 'Social', value: '842', color: '#a855f7', points: [5, 7, 6, 9, 8, 10, 11, 12, 10, 13, 12, 15] }
   ]
 
-  const resourceGroupLines: LineSeries[] = [
+  const demoResourceGroupLines: LineSeries[] = [
     { label: 'Group 1', value: '5,125', color: '#2de67f', points: [18, 24, 21, 30, 26, 36, 29, 42, 35, 48, 40, 52] },
     { label: 'Group 2', value: '3,187', color: '#ef4444', points: [14, 17, 15, 21, 18, 25, 21, 29, 24, 32, 27, 35] },
     { label: 'Floor 1', value: '1,205', color: '#0ba6df', points: [8, 10, 9, 13, 11, 15, 12, 17, 14, 18, 15, 20] },
     { label: 'Floor 2', value: '728', color: '#8b5cf6', points: [4, 5, 6, 7, 6, 8, 7, 9, 8, 10, 9, 12] }
   ]
 
-  const mapDots = [
+  const demoMapDots: MapDot[] = [
     { left: 13, top: 52, size: 'sm' },
     { left: 27, top: 47, size: 'lg' },
     { left: 39, top: 55, size: 'sm' },
@@ -143,20 +162,294 @@
 
   let previousContentClass = ''
   let previousFooter = false
+  let overview = $state<AnalyticsOverviewDetails | null>(null)
+  let eventItems = $state<AnalyticsEventItem[]>([])
+  let loading = $state(false)
+  let errorMsg = $state('')
+  let hasLoaded = $state(false)
 
-  function sparkPoints(values: number[], width = 128, height = 38): string {
-    const min = Math.min(...values)
-    const max = Math.max(...values)
+  const initialRange = buildDefaultRange()
+  let dateTimeParam = $state(initialRange.dateTime)
+  let fallbackRangeLabel = $state(initialRange.label)
+  const usingFallback = $derived(!hasLoaded || !!errorMsg)
+  const eventTotal = $derived(eventItems.reduce((sum, item) => sum + (item.count || 0), 0))
+  const playsData = $derived(seriesData(overview?.charts?.playsSeries?.series?.[0]))
+  const activeStreamData = $derived(seriesData(overview?.charts?.activeStreamsSeries?.series?.[0]))
+  const latestPlayCount = $derived(lastNumber(playsData))
+  const latestActiveStreams = $derived(lastNumber(activeStreamData))
+  const latestCategory = $derived(lastLabel(overview?.charts?.playsSeries?.categories) || 'Latest')
+  const rangeLabel = $derived(rangeLabelFromOverview(overview) || fallbackRangeLabel)
+  const actualGeoPoints = $derived(overview?.charts?.geoMap?.points ?? [])
+  const geoTotal = $derived(actualGeoPoints.reduce((sum, point) => sum + (point.count || 0), 0))
+  const topGeoLabel = $derived(actualGeoPoints.slice().sort((a, b) => (b.count || 0) - (a.count || 0))[0]?.label ?? '-')
+
+  const statusTiles = $derived(usingFallback
+    ? demoStatusTiles
+    : buildStatusTiles(overview, eventTotal))
+  const sideStats = $derived(usingFallback
+    ? demoSideStats
+    : buildLocationRows(actualGeoPoints))
+  const campaignBars = $derived(usingFallback
+    ? demoCampaignBars
+    : scaleBars(playsData))
+  const campaignLine = $derived(pointsForLine(usingFallback ? demoCampaignValues : playsData, 960, 220))
+  const campaignTicks = $derived(usingFallback
+    ? demoCampaignTicks
+    : pickTicks(overview?.charts?.playsSeries?.categories ?? [], 8))
+  const salesMetrics = $derived(usingFallback
+    ? demoSalesMetrics
+    : deviceMetricRows(overview?.breakdowns?.byDevice))
+  const regions = $derived(usingFallback
+    ? demoRegions
+    : osRows(overview?.breakdowns?.byOS))
+  const activityRows = $derived(usingFallback
+    ? demoActivityRows
+    : cameraRows(overview?.topCameras ?? []))
+  const channelRows = $derived(usingFallback
+    ? demoChannelRows
+    : donutRows(overview?.breakdowns?.byBrowser))
+  const trafficRows = $derived(usingFallback
+    ? demoTrafficRows
+    : barLineRows(overview?.breakdowns?.bySource))
+  const resourceGroupLines = $derived(usingFallback
+    ? demoResourceGroupLines
+    : resourceGroupRows(overview?.charts?.byResourceGroupSeries?.series ?? []))
+  const mapDots = $derived(usingFallback
+    ? demoMapDots
+    : geoDots(actualGeoPoints))
+
+  function fmt(n: number | undefined | null): string {
+    return Number(n ?? 0).toLocaleString('en-US')
+  }
+
+  function pct(value: number, total: number): number {
+    if (!total) return 0
+    return Math.max(0, Math.min(100, (value / total) * 100))
+  }
+
+  function palette(index: number): string {
+    return chartPalette[index % chartPalette.length] ?? '#2de67f'
+  }
+
+  function formatDateForApi(d: Date): string {
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+  }
+
+  function formatDateLabel(value: string | Date): string {
+    const raw = value instanceof Date ? formatDateForApi(value) : String(value)
+    const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    if (match) {
+      const [, y, m, d] = match
+      return new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric'
+      })
+    }
+    const date = new Date(raw)
+    return Number.isNaN(date.getTime())
+      ? raw
+      : date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+  }
+
+  function buildDefaultRange() {
+    const end = new Date()
+    const start = new Date(end)
+    start.setDate(start.getDate() - 7)
+    return {
+      dateTime: `${formatDateForApi(start)},${formatDateForApi(end)}`,
+      label: `${formatDateLabel(start)} - ${formatDateLabel(end)}`
+    }
+  }
+
+  function rangeLabelFromOverview(value: AnalyticsOverviewDetails | null): string {
+    if (!value?.range?.start || !value?.range?.end) return ''
+    return `${formatDateLabel(value.range.start)} - ${formatDateLabel(value.range.end)}`
+  }
+
+  function seriesData(series?: AnalyticsChartSeries): number[] {
+    return Array.isArray(series?.data) ? series.data.map((v) => Number(v || 0)) : []
+  }
+
+  function lastNumber(values: number[]): number {
+    return values.length ? values[values.length - 1] ?? 0 : 0
+  }
+
+  function lastLabel(values?: string[]): string {
+    return Array.isArray(values) && values.length ? values[values.length - 1] ?? '' : ''
+  }
+
+  function spreadTrend(value: number, seed = 0): number[] {
+    const base = Math.max(1, value)
+    return Array.from({ length: 12 }, (_, i) => Math.max(1, Math.round(base * (.45 + (i + seed + 1) / 16))))
+  }
+
+  function buildStatusTiles(data: AnalyticsOverviewDetails | null, events: number): StatusTile[] {
+    const kpis = data?.kpis
+    return [
+      { label: 'TOTAL VIEWS', value: fmt(kpis?.plays), unit: 'plays', icon: 'bi-play-circle-fill', color: '#2ef27d' },
+      { label: 'VIEWING SESSIONS', value: fmt(kpis?.uniqueSessions), unit: 'sessions', icon: 'bi-display', color: '#53a6ff' },
+      { label: 'UNIQUE VIEWERS', value: fmt(kpis?.uniqueViewersApprox), unit: 'viewers', icon: 'bi-people', color: '#ff9f1c' },
+      { label: 'ACTIVE STREAMS', value: fmt(kpis?.activeStreamsApprox), unit: 'live', icon: 'bi-camera-video-fill', color: '#8b5cf6' },
+      { label: 'EVENT TYPES', value: fmt(events), unit: 'events', icon: 'bi-activity', color: '#16d9e3' }
+    ]
+  }
+
+  function buildLocationRows(points: AnalyticsGeoMapPoint[]): SparkStat[] {
+    const total = points.reduce((sum, point) => sum + (point.count || 0), 0)
+    return points
+      .slice()
+      .sort((a, b) => (b.count || 0) - (a.count || 0))
+      .slice(0, 5)
+      .map((point, index) => ({
+        label: (point.label || `${point.lat}, ${point.lon}`).toUpperCase(),
+        value: fmt(point.count),
+        delta: `${pct(point.count || 0, total).toFixed(1)}%`,
+        trend: 'up' as const,
+        points: spreadTrend(point.count || 1, index)
+      }))
+  }
+
+  function scaleBars(values: number[]): number[] {
+    if (!values.length) return []
+    const max = Math.max(...values, 1)
+    return values.map((value) => Math.max(8, Math.round((value / max) * 90)))
+  }
+
+  function pointsForLine(values: number[], width = 128, height = 38): string {
+    const cleaned = values.filter((value) => Number.isFinite(value))
+    if (!cleaned.length) return ''
+    if (cleaned.length === 1) return `0,${height / 2} ${width},${height / 2}`
+    const min = Math.min(...cleaned)
+    const max = Math.max(...cleaned)
     const range = max - min || 1
-    const step = width / (values.length - 1 || 1)
-
-    return values
+    const step = width / (cleaned.length - 1)
+    return cleaned
       .map((value, index) => {
         const x = Math.round(index * step)
-        const y = Math.round(height - ((value - min) / range) * height)
+        const y = Math.round(height - ((value - min) / range) * (height - 8) - 4)
         return `${x},${Math.max(2, Math.min(height - 2, y))}`
       })
       .join(' ')
+  }
+
+  function pickTicks(categories: string[], limit: number): string[] {
+    if (!categories.length) return []
+    if (categories.length <= limit) return categories.map(shortTick)
+    const step = (categories.length - 1) / (limit - 1)
+    return Array.from({ length: limit }, (_, i) => shortTick(categories[Math.round(i * step)] ?? ''))
+  }
+
+  function shortTick(value: string): string {
+    if (!value) return ''
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    if (!match) return value
+    const [, y, m, d] = match
+    return new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'short'
+    }).toUpperCase()
+  }
+
+  function barRows(chart?: AnalyticsBarChart): DonutItem[] {
+    const categories = chart?.categories ?? []
+    const rows = categories.map((label, index) => ({
+      label,
+      raw: (chart?.series ?? []).reduce((sum, series) => sum + (series.data[index] || 0), 0),
+      color: palette(index)
+    }))
+    const total = rows.reduce((sum, row) => sum + row.raw, 0)
+    return rows.map((row) => ({
+      label: row.label,
+      value: fmt(row.raw),
+      percent: `${pct(row.raw, total).toFixed(1)}%`,
+      share: pct(row.raw, total),
+      color: row.color
+    }))
+  }
+
+  function donutRows(chart?: AnalyticsDonutChart): DonutItem[] {
+    const labels = chart?.labels ?? []
+    const values = chart?.series ?? []
+    const total = values.reduce((sum, value) => sum + (value || 0), 0)
+    return labels.slice(0, 5).map((label, index) => {
+      const value = values[index] ?? 0
+      const percent = pct(value, total)
+      return {
+        label,
+        value: fmt(value),
+        percent: `${percent.toFixed(1)}%`,
+        share: percent,
+        color: palette(index)
+      }
+    })
+  }
+
+  function deviceMetricRows(chart?: AnalyticsBarChart): Metric[] {
+    const icons = ['bi-display', 'bi-phone', 'bi-tablet', 'bi-device-hdd']
+    return barRows(chart).slice(0, 4).map((row, index) => ({
+      icon: icons[index] ?? 'bi-display',
+      label: row.label.toUpperCase(),
+      value: row.value,
+      delta: row.percent,
+      points: spreadTrend(Number(row.value.replace(/,/g, '')) || 1, index)
+    }))
+  }
+
+  function osRows(chart?: AnalyticsDonutChart): Region[] {
+    return donutRows(chart).slice(0, 4).map((row) => ({
+      label: row.label.toUpperCase(),
+      value: row.percent,
+      progress: Math.round(row.share)
+    }))
+  }
+
+  function cameraRows(cameras: AnalyticsTopCamera[]): Activity[] {
+    const total = cameras.reduce((sum, camera) => sum + (camera.plays || 0), 0)
+    return cameras.slice(0, 6).map((camera, index) => ({
+      rank: index + 1,
+      camera: camera.name || camera.streamId || '-',
+      group: camera.siteName || camera.district || camera.location || '-',
+      plays: fmt(camera.plays),
+      share: `${pct(camera.plays || 0, total).toFixed(1)}%`,
+      points: spreadTrend(camera.plays || 1, index)
+    }))
+  }
+
+  function barLineRows(chart?: AnalyticsBarChart): LineSeries[] {
+    return barRows(chart).slice(0, 4).map((row, index) => ({
+      label: row.label,
+      value: row.value,
+      color: row.color,
+      points: spreadTrend(Number(row.value.replace(/,/g, '')) || 1, index)
+    }))
+  }
+
+  function resourceGroupRows(series: AnalyticsChartSeries[]): LineSeries[] {
+    return series.slice(0, 5).map((item, index) => ({
+      label: item.name || `Group ${index + 1}`,
+      value: fmt(seriesData(item).reduce((sum, value) => sum + value, 0)),
+      color: palette(index),
+      points: seriesData(item)
+    }))
+  }
+
+  function geoDots(points: AnalyticsGeoMapPoint[]): MapDot[] {
+    const max = Math.max(...points.map((point) => point.count || 0), 1)
+    return points.slice(0, 18).map((point) => {
+      const left = Math.max(3, Math.min(97, ((point.lon + 180) / 360) * 100))
+      const top = Math.max(5, Math.min(95, ((90 - point.lat) / 180) * 100))
+      const ratio = (point.count || 0) / max
+      const size: MapDot['size'] = ratio > .7 ? 'xl' : ratio > .4 ? 'lg' : ratio > .18 ? 'md' : 'sm'
+      return { left, top, size }
+    })
+  }
+
+  function sparkPoints(values: number[], width = 128, height = 38): string {
+    return pointsForLine(values, width, height)
   }
 
   function donutGradient(items: DonutItem[]): string {
@@ -171,12 +464,33 @@
     return `conic-gradient(${parts.join(', ')})`
   }
 
+  async function loadDashboard() {
+    loading = true
+    errorMsg = ''
+    const query = { dateTime: dateTimeParam, tz: TZ, scope: 'all' as const }
+    const [overviewResult, eventsResult] = await Promise.all([
+      fetchAnalyticsOverview(query),
+      fetchAnalyticsEvents(query)
+    ])
+
+    loading = false
+    hasLoaded = true
+    overview = overviewResult.data?.details ?? null
+    eventItems = eventsResult.data?.details?.items ?? []
+    if (overviewResult.error) {
+      errorMsg = overviewResult.error.message
+    } else if (eventsResult.error) {
+      errorMsg = eventsResult.error.message
+    }
+  }
+
   onMount(() => {
     setPageTitle('Livestream Analytics')
     previousContentClass = $appOptions.appContentClass
     previousFooter = $appOptions.appFooter
     $appOptions.appContentClass = 'p-0 d-flex flex-column overflow-hidden phibek-analytics-content'
     $appOptions.appFooter = false
+    void loadDashboard()
   })
 
   onDestroy(() => {
@@ -195,8 +509,11 @@
     <div class="dashboard-actions" aria-label="Dashboard controls">
       <button type="button" class="control-button" title="Date range">
         <i class="bi bi-calendar3"></i>
-        <span>8 May 2026 - 15 May 2026</span>
+        <span>{rangeLabel}</span>
         <i class="bi bi-chevron-down"></i>
+      </button>
+      <button type="button" class="control-button icon-only" title="Refresh analytics" onclick={loadDashboard} disabled={loading}>
+        <i class={`bi ${loading ? 'bi-arrow-repeat spin' : 'bi-arrow-clockwise'}`}></i>
       </button>
       <button type="button" class="control-button" title="Filters">
         <i class="bi bi-funnel"></i>
@@ -205,6 +522,13 @@
       </button>
     </div>
   </section>
+
+  {#if errorMsg}
+    <div class="dashboard-alert" role="status">
+      <i class="bi bi-exclamation-triangle"></i>
+      <span>Unable to load live analytics: {errorMsg}. Showing fallback dashboard data.</span>
+    </div>
+  {/if}
 
   <section class="status-strip" aria-label="System status">
     {#each statusTiles as tile}
@@ -263,9 +587,9 @@
             <circle cx="924" cy="92" r="4"></circle>
           </svg>
           <div class="campaign-tooltip">
-            <strong>15 May 2026</strong>
-            <span><i></i> Views <b>7,842</b></span>
-            <span><i></i> Active streams <b>156</b></span>
+            <strong>{latestCategory}</strong>
+            <span><i></i> Views <b>{fmt(usingFallback ? 1602 : latestPlayCount)}</b></span>
+            <span><i></i> Active streams <b>{fmt(usingFallback ? 156 : latestActiveStreams)}</b></span>
           </div>
         </div>
         <div class="x-axis">
@@ -354,15 +678,15 @@
       <div class="map-summary">
         <div>
           <span>LOCATIONS</span>
-          <strong>2</strong>
+          <strong>{usingFallback ? 2 : actualGeoPoints.length}</strong>
         </div>
         <div>
           <span>TOTAL VIEWS</span>
-          <strong>24</strong>
+          <strong>{usingFallback ? 24 : fmt(geoTotal)}</strong>
         </div>
         <div>
           <span>TOP COUNTRY</span>
-          <strong>TH</strong>
+          <strong>{usingFallback ? 'TH' : topGeoLabel}</strong>
         </div>
       </div>
     </article>
@@ -384,7 +708,15 @@
 
       <article class="panel callout-card slim">
         <div class="callout-icon"><i class="bi bi-activity"></i></div>
-        <p>EVENT BREAKDOWN: <strong>klive.play.started</strong> 102 times, <strong>klive.play.ended</strong> 84 times.</p>
+        <p>
+          EVENT BREAKDOWN:
+          {#if eventItems.length}
+            <strong>{eventItems[0]?.event}</strong> {fmt(eventItems[0]?.count)} times
+            {#if eventItems[1]}, <strong>{eventItems[1]?.event}</strong> {fmt(eventItems[1]?.count)} times{/if}.
+          {:else}
+            <strong>klive.play.started</strong> 102 times, <strong>klive.play.ended</strong> 84 times.
+          {/if}
+        </p>
       </article>
     </div>
   </section>
@@ -606,6 +938,45 @@
 
   .control-button:first-child {
     min-width: 252px;
+  }
+
+  .control-button.icon-only {
+    width: 46px;
+    min-width: 46px;
+    padding: 0;
+  }
+
+  .control-button:disabled {
+    cursor: wait;
+    opacity: .72;
+  }
+
+  .spin {
+    animation: dashboard-spin .8s linear infinite;
+  }
+
+  @keyframes dashboard-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .dashboard-alert {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    border: 1px solid rgba(255, 159, 28, .32);
+    border-radius: 8px;
+    background: rgba(255, 159, 28, .1);
+    color: var(--dash-text);
+    padding: 10px 14px;
+    font-size: 12px;
+    text-transform: none;
+  }
+
+  .dashboard-alert i {
+    color: var(--warning);
   }
 
   .status-strip {

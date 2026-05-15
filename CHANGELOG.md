@@ -6,6 +6,12 @@ this project follows semantic versioning.
 
 ## [Unreleased]
 
+## [0.7.5] — 2026-05-15
+
+### Fixed
+- Dashboard now calls the livestream analytics API (`/analytics/live/overview` and `/analytics/live/events`)
+  instead of rendering static-only cards; fallback demo data remains only for loading/error states.
+
 ## [0.7.0] — 2026-05-06
 
 ### Added

@@ -9,6 +9,13 @@
   type Entry = { version: string; date: string; bullets: string[] }
   const entries: Entry[] = [
     {
+      version: '0.7.5',
+      date: '2026-05-15',
+      bullets: [
+        'Dashboard now loads livestream overview and event metrics from the analytics API, with fallback data only while loading or when the API returns an error.'
+      ]
+    },
+    {
       version: '0.7.0',
       date: '2026-05-07',
       bullets: [
