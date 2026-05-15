@@ -6,6 +6,13 @@ this project follows semantic versioning.
 
 ## [Unreleased]
 
+## [0.8.1] — 2026-05-15
+
+### Fixed
+- System Users table avatars now stay at the compact 30px row size when protected images load.
+- Dashboard viewer map now renders with MapLibre GL JS clusters instead of the temporary CSS map.
+- Dashboard waits briefly for the auth context before firing livestream analytics API calls and uses Motion One for the initial analytics card entrance.
+
 ## [0.8.0] — 2026-05-15
 
 ### Changed

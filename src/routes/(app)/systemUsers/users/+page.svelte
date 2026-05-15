@@ -1108,10 +1108,16 @@
     padding-inline: 0;
   }
 
-  .user-avatar-inline {
+  :global(.user-avatar-inline) {
+    display: inline-block;
+    flex: 0 0 30px;
     width: 30px;
     height: 30px;
+    max-width: 30px;
+    max-height: 30px;
     background: rgba(var(--bs-body-color-rgb), 0.08);
+    overflow: hidden;
+    object-fit: cover;
   }
 
   .user-create-shell {
