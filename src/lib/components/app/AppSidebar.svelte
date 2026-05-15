@@ -7,8 +7,14 @@
   import { appOptions } from '$lib/stores/appOptions'
   import { appSidebarMenus } from '$lib/stores/appSidebarMenus'
   import { auth } from '$lib/stores/auth'
+  import {
+    activeWorkspace,
+    setActiveWorkspace,
+    setWorkspaceList,
+    workspaceList
+  } from '$lib/stores/activeWorkspace'
   import { effectiveAccess } from '$lib/stores/effectiveAccess'
-  import { logout as kcLogout } from '$lib/client/keycloak'
+  import { listWorkspaces } from '$lib/api/workspace'
   import pkg from '../../../../package.json'
 
   import { page } from '$app/state'
@@ -22,8 +28,15 @@
     SidebarMenuLink
   } from '$lib/types/navigation'
 
-  onMount(() => {
+  onMount(async () => {
     document.body.classList.add('app-init')
+    if ($workspaceList.length > 0) return
+    try {
+      const workspaces = await listWorkspaces()
+      setWorkspaceList(workspaces)
+    } catch (err) {
+      console.warn('[AppSidebar] failed to load organizations', err)
+    }
   })
 
   function isLinkMenu(menu: SidebarMenu): menu is SidebarMenuLink {
@@ -123,55 +136,63 @@
     ($auth.user?.role || 'member').toUpperCase()
   )
 
-  async function onLogout(e: MouseEvent) {
-    e.preventDefault()
-    await kcLogout()
+  async function chooseWorkspace(id: string) {
+    await setActiveWorkspace(id)
   }
 </script>
 
 <!-- BEGIN #appSidebar -->
 <div id="sidebar" class="app-sidebar">
   <div class="app-sidebar-content">
-    <!-- BEGIN menu-profile (cyber_admin pattern) -->
+    <!-- BEGIN organization selector -->
     <div class="menu menu-profile-shell">
-      <div class="menu-profile">
-      <a
-        href="#/"
-        class="menu-profile-link"
-        data-bs-toggle="dropdown"
-        data-bs-display="static"
-        aria-expanded="false"
-        onclick={(e) => e.preventDefault()}
-      >
-        <div class="menu-profile-image text-body text-opacity-50">
-          <i class="bi bi-shield-check"></i>
+      <div class="menu-org-selector dropdown">
+        <button
+          type="button"
+          class="menu-org-selector-btn"
+          data-bs-toggle="dropdown"
+          data-bs-display="static"
+          aria-expanded="false"
+          title={$activeWorkspace?.name ?? 'Select organization'}
+        >
+          <span class="menu-org-selector-icon">
+            <i class="bi bi-building"></i>
+          </span>
+          <span class="menu-org-selector-copy">
+            <span class="menu-org-selector-text">{$activeWorkspace?.name ?? 'Select organization'}</span>
+            <small>{profileName} · {profileRole}</small>
+          </span>
+          <b class="caret"></b>
+        </button>
+        <div class="dropdown-menu dropdown-menu-end me-2">
+          {#if $workspaceList.length > 0}
+            {#each $workspaceList as workspace (workspace.id)}
+              <button
+                type="button"
+                class="dropdown-item d-flex align-items-center"
+                class:active={$activeWorkspace?.id === workspace.id}
+                onclick={() => chooseWorkspace(workspace.id)}
+              >
+                <i class="bi bi-building me-2"></i>
+                <span class="text-truncate">{workspace.name}</span>
+                {#if $activeWorkspace?.id === workspace.id}
+                  <i class="bi bi-check-lg ms-auto"></i>
+                {/if}
+              </button>
+            {/each}
+          {:else}
+            <a class="dropdown-item d-flex align-items-center" href={withBase('systemUsers/organizations')}>
+              <i class="bi bi-plus-lg me-2"></i> Add organization
+            </a>
+          {/if}
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item d-flex align-items-center" href={withBase('systemUsers/organizations')}>
+            <i class="bi bi-gear me-2"></i> Manage organizations
+          </a>
         </div>
-        <div class="menu-profile-info">
-          <div class="d-flex align-items-center">
-            <div class="flex-1 fw-bold text-uppercase">{profileName}</div>
-            <div class="d-flex opacity-5"><b class="caret"></b></div>
-          </div>
-          <small>{profileRole}</small>
-        </div>
-      </a>
-      <div class="dropdown-menu dropdown-menu-end me-2">
-        <a class="dropdown-item d-flex align-items-center" href={withBase('profile')}>
-          <i class="bi bi-person-circle me-2"></i> {m.navProfile()}
-        </a>
-        <a class="dropdown-item d-flex align-items-center" href={withBase('settings')}>
-          <i class="bi bi-gear me-2"></i> {m.navSettings()}
-        </a>
-        <a class="dropdown-item d-flex align-items-center" href={withBase('subscription')}>
-          <i class="bi bi-gem me-2"></i> {m.navSubscription()}
-        </a>
-        <div class="dropdown-divider"></div>
-        <a class="dropdown-item d-flex align-items-center" href="#/" onclick={onLogout}>
-          <i class="bi bi-box-arrow-right me-2"></i> {m.authPageSignOut()}
-        </a>
-      </div>
       </div>
     </div>
-    <!-- END menu-profile -->
+    <!-- END organization selector -->
 
     <!-- BEGIN navigation menu -->
     <div class="menu sidebar-menu-section sidebar-menu-navigation">

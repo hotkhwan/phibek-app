@@ -2,8 +2,10 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte'
   import { page } from '$app/state'
+  import { get } from 'svelte/store'
   import { setPageTitle } from '$lib/utils/title'
   import { appOptions } from '$lib/stores/appOptions'
+  import { appSidebarMenus } from '$lib/stores/appSidebarMenus'
   import {
     createMenuPermission,
     createResourcePermission,
@@ -26,10 +28,23 @@
   import { listCameras, listResourceGroups, type Camera, type ResourceGroup } from '$lib/api/devices'
   import { notify } from '$lib/stores/notify'
   import { m } from '$lib/i18n/messages'
+  import type { SidebarChild, SidebarMenu, SidebarMenuLink } from '$lib/types/navigation'
 
   type Tab = 'resource' | 'menu' | 'api'
   type Relation = 'viewer' | 'editor' | 'creator'
   type Row = (MenuPermission | ResourcePermission) & { id: string }
+  type TreeKind = 'section' | 'profile' | 'menu' | 'orgUnit' | 'member' | 'resourceGroup' | 'camera' | 'apiScope'
+  type PermissionTreeNode = {
+    id: string
+    kind: TreeKind
+    label: string
+    value?: string
+    description?: string
+    icon?: string
+    count?: string | number
+    selectable?: boolean
+    children?: PermissionTreeNode[]
+  }
 
   let activeTab = $state<Tab>('resource')
   let menuRows = $state<MenuPermission[]>([])
@@ -45,11 +60,26 @@
   let errorMsg = $state('')
   let search = $state('')
   let pickerSearch = $state('')
-  let form = $state({ name: '', description: '', status: true, relation: 'viewer' as Relation, menuIdsText: '' })
+  let form = $state({ name: '', description: '', status: true, relation: 'viewer' as Relation })
   let selectedOrgUnits = $state<Set<string>>(new Set())
   let selectedMembers = $state<Set<string>>(new Set())
   let selectedGroups = $state<Set<string>>(new Set())
   let selectedCameras = $state<Set<string>>(new Set())
+  let selectedMenus = $state<Set<string>>(new Set())
+  let expandedNodes = $state<Set<string>>(new Set([
+    'profiles:resource',
+    'profiles:menu',
+    'profiles:api',
+    'menu-section:nav',
+    'menu-section:userPortal',
+    'audience:orgUnits',
+    'audience:members',
+    'resources:groups',
+    'resources:ungrouped',
+    'api:root',
+    'api:third-party',
+    'api:aliza'
+  ]))
   let includeOrgUnitChildren = $state(true)
   let includeResourceGroupChildren = $state(true)
   let createMode = $state(false)
@@ -57,19 +87,19 @@
   const rows = $derived<Row[]>(activeTab === 'menu' ? menuRows : activeTab === 'resource' ? resourceRows : [])
   const selected = $derived(rows.find((x) => x.id === selectedId))
   const filteredRows = $derived(rows.filter((x) => `${x.name ?? ''} ${x.description ?? ''} ${x.id}`.toLowerCase().includes(search.toLowerCase())))
-  const filteredUnits = $derived(orgUnits.filter((x) => `${x.name} ${x.description ?? ''}`.toLowerCase().includes(pickerSearch.toLowerCase())))
-  const filteredMembers = $derived(members.filter((x) => `${displayName(x)} ${x.email ?? ''}`.toLowerCase().includes(pickerSearch.toLowerCase())))
-  const filteredGroups = $derived(groups.filter((x) => `${x.name} ${x.description ?? ''}`.toLowerCase().includes(pickerSearch.toLowerCase())))
-  const filteredCameras = $derived(cameras.filter((x) => `${x.name} ${x.description ?? ''} ${x.camId ?? ''}`.toLowerCase().includes(pickerSearch.toLowerCase())))
+  const profileTree = $derived.by(() => buildProfileTree(filteredRows))
+  const menuTree = $derived.by(() => filterTree(buildMenuTree(), pickerSearch))
+  const audienceTree = $derived.by(() => filterTree(buildAudienceTree(), pickerSearch))
+  const resourceTree = $derived.by(() => filterTree(buildResourceTree(), pickerSearch))
+  const apiTree = $derived.by(() => filterTree(buildApiTree(), pickerSearch))
 
   function idOfUser(row: KlynxUser & { userId?: string }) { return row.userId ?? row.id }
   function displayName(row: KlynxUser) { return row.fullName || `${row.firstName ?? ''} ${row.lastName ?? ''}`.trim() || row.username || row.email || row.id }
   function cameraId(row: Camera) { return row.camId ?? row.id }
-  function unitDepth(row: OrgUnit) { let d = 0; let p = row.parentId; while (p && d < 8) { d++; p = orgUnits.find((u) => u.id === p)?.parentId } return d }
   function relations(): Relation[] { return form.relation === 'creator' ? ['viewer', 'editor', 'creator'] : form.relation === 'editor' ? ['viewer', 'editor'] : ['viewer'] }
   function relationFrom(values?: string[]) { return values?.includes('creator') ? 'creator' : values?.includes('editor') ? 'editor' : 'viewer' }
   function relationLabel() { return form.relation === 'creator' ? 'Create / Manage' : form.relation === 'editor' ? 'Read / Write' : 'Read' }
-  function menuIds() { return form.menuIdsText.split(',').map((x) => x.trim()).filter(Boolean) }
+  function menuIds() { return [...selectedMenus] }
   function setFrom(values: Array<string | undefined | null>) { return new Set(values.filter(Boolean).map(String)) }
   function selectedListCount(values?: Array<string | undefined | null>) { return values?.filter(Boolean).length ?? 0 }
   function rowSelectedCount(row: Row) {
@@ -101,8 +131,11 @@
     for (const id of selectedIds) if (ids.has(id)) count += 1
     return count
   }
-  function childCount<T extends { parentId?: string }>(items: T[], parentId: string) {
-    return items.filter((item) => item.parentId === parentId).length
+
+  function t(key: string | number | symbol): string {
+    if (typeof key !== 'string') return String(key)
+    const fn = (m as Record<string, unknown>)[key]
+    return typeof fn === 'function' ? (fn as () => string)() : key
   }
 
   function flattenUnits(items: OrgUnit[]): OrgUnit[] {
@@ -118,23 +151,333 @@
     return out
   }
 
-  function toggle(setName: 'ou' | 'member' | 'group' | 'camera', id: string) {
-    const source = setName === 'ou' ? selectedOrgUnits : setName === 'member' ? selectedMembers : setName === 'group' ? selectedGroups : selectedCameras
+  function toggle(setName: 'ou' | 'member' | 'group' | 'camera' | 'menu', id: string) {
+    const source = setName === 'ou'
+      ? selectedOrgUnits
+      : setName === 'member'
+        ? selectedMembers
+        : setName === 'group'
+          ? selectedGroups
+          : setName === 'camera'
+            ? selectedCameras
+            : selectedMenus
     const next = new Set(source)
     if (next.has(id)) next.delete(id)
     else next.add(id)
     if (setName === 'ou') selectedOrgUnits = next
     else if (setName === 'member') selectedMembers = next
     else if (setName === 'group') selectedGroups = next
-    else selectedCameras = next
+    else if (setName === 'camera') selectedCameras = next
+    else selectedMenus = next
+  }
+
+  function toggleExpanded(id: string) {
+    const next = new Set(expandedNodes)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    expandedNodes = next
+  }
+
+  function isLinkMenu(menu: SidebarMenu): menu is SidebarMenuLink {
+    return menu.kind === 'link'
+  }
+
+  function childNodes(children?: SidebarChild[]) {
+    return children?.map(sidebarChildToNode).filter((x): x is PermissionTreeNode => !!x) ?? []
+  }
+
+  function sidebarChildToNode(child: SidebarChild): PermissionTreeNode | null {
+    const children = childNodes(child.children)
+    if (!child.menuId && children.length === 0) return null
+    return {
+      id: `menu:${child.menuId ?? child.id}`,
+      kind: 'menu',
+      label: t(child.textKey),
+      value: child.menuId,
+      description: child.url,
+      icon: children.length ? 'bi-folder2-open' : 'bi-file-earmark-text',
+      count: children.length || undefined,
+      selectable: !!child.menuId,
+      children
+    }
+  }
+
+  function sidebarMenuToNode(menu: SidebarMenuLink): PermissionTreeNode | null {
+    const children = childNodes(menu.children)
+    if (!menu.menuId && children.length === 0) return null
+    return {
+      id: `menu:${menu.menuId ?? menu.id}`,
+      kind: 'menu',
+      label: t(menu.textKey),
+      value: menu.menuId,
+      description: menu.url,
+      icon: menu.icon ?? (children.length ? 'bi-folder2-open' : 'bi-file-earmark-text'),
+      count: children.length || undefined,
+      selectable: !!menu.menuId,
+      children
+    }
+  }
+
+  function buildMenuTree(): PermissionTreeNode[] {
+    const sections: PermissionTreeNode[] = []
+    let current: PermissionTreeNode | null = null
+    for (const item of get(appSidebarMenus)) {
+      if (item.kind === 'header') {
+        current = {
+          id: `menu-section:${item.id}`,
+          kind: 'section',
+          label: t(item.textKey),
+          icon: 'bi-folder2-open',
+          selectable: false,
+          children: []
+        }
+        sections.push(current)
+        continue
+      }
+      if (!isLinkMenu(item)) continue
+      const node = sidebarMenuToNode(item)
+      if (!node) continue
+      if (!current) {
+        current = { id: 'menu-section:root', kind: 'section', label: 'Menus', icon: 'bi-folder2-open', selectable: false, children: [] }
+        sections.push(current)
+      }
+      current.children = [...(current.children ?? []), node]
+    }
+    return sections.filter((section) => section.children?.length)
+  }
+
+  function buildProfileTree(items: Row[]): PermissionTreeNode[] {
+    const label = activeTab === 'resource' ? 'Resource profiles' : activeTab === 'menu' ? 'Menu profiles' : 'API integrations'
+    return [{
+      id: `profiles:${activeTab}`,
+      kind: 'section',
+      label,
+      icon: 'bi-folder2-open',
+      count: activeTab === 'api' ? 'read-only' : items.length,
+      selectable: false,
+      children: activeTab === 'api'
+        ? [
+          { id: 'profiles:api:third-party', kind: 'apiScope', label: 'third-party integrations', icon: 'bi-hdd-stack', selectable: false },
+          { id: 'profiles:api:service-account', kind: 'apiScope', label: 'service-account scopes', icon: 'bi-key', selectable: false }
+        ]
+        : items.map((row) => ({
+          id: `profile:${row.id}`,
+          kind: 'profile',
+          label: row.name || row.id,
+          value: row.id,
+          description: row.description || row.id,
+          icon: (row as ResourcePermission).status === false ? 'bi-folder-x' : 'bi-folder2-open',
+          count: rowSelectedCount(row) || undefined
+        }))
+    }]
+  }
+
+  function buildOrgUnitNodes(parentId?: string): PermissionTreeNode[] {
+    return orgUnits
+      .filter((unit) => (unit.parentId ?? '') === (parentId ?? ''))
+      .map((unit) => {
+        const children = buildOrgUnitNodes(unit.id)
+        return {
+          id: `ou:${unit.id}`,
+          kind: 'orgUnit',
+          label: unit.name,
+          value: unit.id,
+          description: unit.description,
+          icon: children.length ? 'bi-folder2-open' : 'bi-building',
+          count: children.length || selectedDescendantCount(orgUnits, unit.id, selectedOrgUnits) || undefined,
+          children
+        }
+      })
+  }
+
+  function buildMemberNodes(): PermissionTreeNode[] {
+    return members.map((member) => ({
+      id: `member:${idOfUser(member)}`,
+      kind: 'member',
+      label: displayName(member),
+      value: idOfUser(member),
+      description: member.email ?? member.username,
+      icon: 'bi-person'
+    }))
+  }
+
+  function buildAudienceTree(): PermissionTreeNode[] {
+    return [
+      {
+        id: 'audience:orgUnits',
+        kind: 'section',
+        label: 'Source org units',
+        icon: 'bi-diagram-3',
+        count: selectedOrgUnits.size,
+        selectable: false,
+        children: buildOrgUnitNodes()
+      },
+      {
+        id: 'audience:members',
+        kind: 'section',
+        label: 'Narrow users',
+        icon: 'bi-people',
+        count: selectedMembers.size || 'All',
+        selectable: false,
+        children: buildMemberNodes()
+      }
+    ]
+  }
+
+  function buildResourceGroupNodes(parentId?: string): PermissionTreeNode[] {
+    return groups
+      .filter((group) => (group.parentId ?? '') === (parentId ?? ''))
+      .map((group) => {
+        const childGroups = buildResourceGroupNodes(group.id)
+        const childCameras = cameras
+          .filter((camera) => camera.groupId === group.id)
+          .map((camera) => ({
+            id: `camera:${cameraId(camera)}`,
+            kind: 'camera' as const,
+            label: camera.name,
+            value: cameraId(camera),
+            description: camera.description ?? camera.camId,
+            icon: camera.online === false ? 'bi-camera-video-off' : 'bi-camera-video'
+          }))
+        const children = [...childGroups, ...childCameras]
+        return {
+          id: `group:${group.id}`,
+          kind: 'resourceGroup',
+          label: group.name,
+          value: group.id,
+          description: group.description,
+          icon: children.length ? 'bi-folder2-open' : 'bi-folder',
+          count: children.length || undefined,
+          children
+        }
+      })
+  }
+
+  function buildResourceTree(): PermissionTreeNode[] {
+    const knownGroupIds = new Set(groups.map((group) => group.id))
+    const ungroupedCameras = cameras
+      .filter((camera) => !camera.groupId || !knownGroupIds.has(camera.groupId))
+      .map((camera) => ({
+        id: `camera:${cameraId(camera)}`,
+        kind: 'camera' as const,
+        label: camera.name,
+        value: cameraId(camera),
+        description: camera.description ?? camera.camId,
+        icon: camera.online === false ? 'bi-camera-video-off' : 'bi-camera-video'
+      }))
+    const children = buildResourceGroupNodes()
+    const nodes: PermissionTreeNode[] = [
+      {
+        id: 'resources:groups',
+        kind: 'section',
+        label: 'Resource groups',
+        icon: 'bi-folder2-open',
+        count: selectedGroups.size,
+        selectable: false,
+        children
+      },
+      {
+        id: 'resources:ungrouped',
+        kind: 'section',
+        label: 'Ungrouped devices',
+        icon: 'bi-hdd-network',
+        count: selectedCameras.size || 'All',
+        selectable: false,
+        children: ungroupedCameras
+      }
+    ]
+    return nodes.filter((node) => (node.children?.length ?? 0) || node.id === 'resources:groups')
+  }
+
+  function buildApiTree(): PermissionTreeNode[] {
+    return [{
+      id: 'api:root',
+      kind: 'section',
+      label: 'API Integrations',
+      icon: 'bi-hdd-stack',
+      count: 'scopes',
+      selectable: false,
+      children: [
+        {
+          id: 'api:third-party',
+          kind: 'apiScope',
+          label: 'third-party integration',
+          icon: 'bi-folder2-open',
+          count: '1',
+          selectable: false,
+          children: [
+            { id: 'api:read-events', kind: 'apiScope', label: 'read:events', description: '/thirdParty/events + /thirdParty/files', icon: 'bi-key', selectable: false }
+          ]
+        },
+        {
+          id: 'api:aliza',
+          kind: 'apiScope',
+          label: 'aliza bot',
+          icon: 'bi-folder2-open',
+          count: '1',
+          selectable: false,
+          children: [
+            { id: 'api:aliza-bug-reports', kind: 'apiScope', label: 'aliza:bug-reports', description: '/admin/aliza/bug-reports', icon: 'bi-key', selectable: false }
+          ]
+        }
+      ]
+    }]
+  }
+
+  function filterTree(nodes: PermissionTreeNode[], query: string): PermissionTreeNode[] {
+    const q = query.trim().toLowerCase()
+    if (!q) return nodes
+    return nodes.flatMap((node) => {
+      const children = filterTree(node.children ?? [], query)
+      const haystack = `${node.label} ${node.value ?? ''} ${node.description ?? ''}`.toLowerCase()
+      if (haystack.includes(q) || children.length) return [{ ...node, children }]
+      return []
+    })
+  }
+
+  function isNodeSelected(node: PermissionTreeNode) {
+    if (!node.value) return false
+    if (node.kind === 'profile') return selectedId === node.value
+    if (node.kind === 'menu') return selectedMenus.has(node.value)
+    if (node.kind === 'orgUnit') return selectedOrgUnits.has(node.value)
+    if (node.kind === 'member') return selectedMembers.has(node.value)
+    if (node.kind === 'resourceGroup') return selectedGroups.has(node.value)
+    if (node.kind === 'camera') return selectedCameras.has(node.value)
+    return false
+  }
+
+  function selectedChildCount(node: PermissionTreeNode): number {
+    return (node.children ?? []).reduce((count, child) => count + (isNodeSelected(child) ? 1 : 0) + selectedChildCount(child), 0)
+  }
+
+  function onTreeNodeClick(node: PermissionTreeNode) {
+    if (node.kind === 'profile' && node.value) {
+      selectedId = node.value
+      hydrate(node.value)
+      return
+    }
+    if (node.selectable === false || !node.value) {
+      if (node.children?.length) toggleExpanded(node.id)
+      return
+    }
+    if (node.kind === 'menu') toggle('menu', node.value)
+    else if (node.kind === 'orgUnit') toggle('ou', node.value)
+    else if (node.kind === 'member') toggle('member', node.value)
+    else if (node.kind === 'resourceGroup') toggle('group', node.value)
+    else if (node.kind === 'camera') toggle('camera', node.value)
+  }
+
+  function treeEmptyText() {
+    return pickerSearch ? 'No match' : 'No items'
   }
 
   function resetForm() {
-    form = { name: '', description: '', status: true, relation: 'viewer', menuIdsText: '' }
+    form = { name: '', description: '', status: true, relation: 'viewer' }
     selectedOrgUnits = new Set()
     selectedMembers = new Set()
     selectedGroups = new Set()
     selectedCameras = new Set()
+    selectedMenus = new Set()
     includeOrgUnitChildren = true
     includeResourceGroupChildren = true
   }
@@ -177,21 +520,23 @@
         const { data, error } = await getMenuPermissionDetail(id)
         if (error) throw error
         const d = data?.details
-        form = { name: d?.name ?? selected?.name ?? '', description: d?.description ?? selected?.description ?? '', status: d?.status ?? true, relation: relationFrom(d?.relations), menuIdsText: (d?.menuIds ?? []).join(', ') }
+        form = { name: d?.name ?? selected?.name ?? '', description: d?.description ?? selected?.description ?? '', status: d?.status ?? true, relation: relationFrom(d?.relations) }
         selectedOrgUnits = setFrom(d?.orgUnitIds ?? [])
         selectedMembers = setFrom(d?.userIds ?? [])
         selectedGroups = new Set()
         selectedCameras = new Set()
+        selectedMenus = setFrom(d?.menuIds ?? [])
         includeOrgUnitChildren = d?.includeOrgUnitChildren ?? true
       } else {
         const { data, error } = await getResourcePermissionDetail(id)
         if (error) throw error
         const d = data?.details
-        form = { name: d?.name ?? selected?.name ?? '', description: d?.description ?? selected?.description ?? '', status: d?.status ?? true, relation: relationFrom(d?.relations), menuIdsText: '' }
+        form = { name: d?.name ?? selected?.name ?? '', description: d?.description ?? selected?.description ?? '', status: d?.status ?? true, relation: relationFrom(d?.relations) }
         selectedOrgUnits = setFrom(d?.orgUnitIds ?? [])
         selectedMembers = setFrom(d?.memberIds ?? [])
         selectedGroups = setFrom(d?.resourceGroupIds ?? [])
         selectedCameras = setFrom(d?.cameraIds ?? [])
+        selectedMenus = new Set()
         includeOrgUnitChildren = d?.includeOrgUnitChildren ?? true
         includeResourceGroupChildren = d?.includeResourceGroupChildren ?? true
       }
@@ -287,15 +632,72 @@
   })
 </script>
 
+{#snippet treeView(nodes: PermissionTreeNode[], emptyText: string)}
+  {#if nodes.length}
+    <div class="file-tree permission-tree">
+      {#each nodes as node (node.id)}
+        {@render treeNode(node)}
+      {/each}
+    </div>
+  {:else}
+    <div class="empty-panel">{emptyText}</div>
+  {/if}
+{/snippet}
+
+{#snippet treeNode(node: PermissionTreeNode)}
+  {@const hasChildren = !!node.children?.length}
+  {@const checked = isNodeSelected(node)}
+  {@const checkedChildren = selectedChildCount(node)}
+  <div
+    class="file-node permission-file-node"
+    class:has-sub={hasChildren}
+    class:expand={expandedNodes.has(node.id)}
+    class:selected={checked}
+  >
+    <div
+      class="file-link permission-tree-link"
+      class:node-checked={checked}
+      class:node-muted={node.selectable === false}
+      aria-expanded={hasChildren ? expandedNodes.has(node.id) : undefined}
+    >
+      <button
+        type="button"
+        class="file-arrow"
+        aria-label={expandedNodes.has(node.id) ? 'Collapse' : 'Expand'}
+        disabled={!hasChildren}
+        onclick={() => toggleExpanded(node.id)}
+      ></button>
+      <button type="button" class="file-info permission-tree-hit" onclick={() => onTreeNodeClick(node)}>
+        <span class="file-icon">
+          <i class={`bi ${node.icon ?? 'bi-file-earmark-text'} ${checked ? 'text-theme' : ''}`}></i>
+        </span>
+        <span class="file-text min-w-0">
+          <span class="file-label text-truncate">{node.label}</span>
+          {#if node.description}<small class="file-description text-truncate">{node.description}</small>{/if}
+        </span>
+        <span class="permission-mini-badges">
+          {#if checked}<span class="permission-node-badge"><i class="bi bi-check2"></i></span>{/if}
+          {#if checkedChildren && !checked}<span class="permission-node-badge muted">{checkedChildren}</span>{/if}
+          {#if node.count !== undefined}<span class="permission-node-badge soft">{node.count}</span>{/if}
+        </span>
+      </button>
+    </div>
+    {#if hasChildren}
+      <div class="file-tree">
+        {#each node.children ?? [] as child (child.id)}
+          {@render treeNode(child)}
+        {/each}
+      </div>
+    {/if}
+  </div>
+{/snippet}
+
 <div class="permission-shell">
   <div class="permission-topbar">
     <div class="page-header mb-3 permission-page-header">
       <div>
         <h1 class="page-title">{m.navSystemUsersPermissions()}</h1>
         <p class="page-subtitle">จัดการ Menu, Resource และ API permission profiles ตามรูปแบบ Klynx</p>
-      </div>
-      <div class="d-flex gap-2">
-        <button class="btn btn-outline-theme btn-sm" onclick={load} disabled={loading}><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button>
       </div>
     </div>
 
@@ -308,91 +710,148 @@
 
   {#if errorMsg}<div class="alert alert-danger mx-3 mt-3 mb-0">{errorMsg}</div>{/if}
 
-  <div class="permission-workspace file-manager">
-  <aside class="permission-list file-manager-sidebar">
-    <div class="permission-list-title mb-3">
-      <span>{activeTab === 'resource' ? 'Resource profiles' : activeTab === 'menu' ? 'Menu profiles' : 'API permissions'}</span>
-      <span class="d-flex align-items-center gap-2">
-        <span class="badge bg-theme text-black">{filteredRows.length}</span>
-        <button class="btn btn-theme btn-sm" onclick={startCreate} disabled={activeTab === 'api'}><i class="bi bi-plus-lg me-1"></i>สร้างใหม่</button>
-      </span>
+  <div class="permission-workspace file-manager" id="permissionManager">
+    <div class="file-manager-toolbar permission-actionbar">
+      <button type="button" class="btn border-0 text-uppercase" onclick={startCreate} disabled={activeTab === 'api'}>
+        <i class="bi bi-plus-lg me-1 opacity-5"></i>Profile
+      </button>
+      <button type="button" class="btn border-0 text-uppercase" onclick={save} disabled={activeTab === 'api' || saving || (!createMode && !selectedId)}>
+        {#if saving}<span class="spinner-border spinner-border-sm me-1"></span>{:else}<i class="bi bi-check2-square me-1 opacity-5"></i>{/if}Apply
+      </button>
+      <button type="button" class="btn border-0 text-uppercase" onclick={remove} disabled={activeTab === 'api' || !selectedId}>
+        <i class="bi bi-trash me-1 opacity-5"></i>Delete
+      </button>
+      <button type="button" class="btn border-0 text-uppercase ms-auto" onclick={load} disabled={loading}>
+        <i class="bi bi-arrow-clockwise me-1 opacity-5"></i>Refresh
+      </button>
     </div>
-    <input class="form-control form-control-sm mb-3" bind:value={search} placeholder="Search profiles..." />
-    {#if activeTab === 'api'}
-      <div class="empty-panel">API permission management is read-only in this view.</div>
-    {:else}
-      <div class="permission-stack">
-        {#each filteredRows as row (row.id)}
-          <button type="button" class="permission-row" class:active={selectedId === row.id} onclick={() => { selectedId = row.id; hydrate(row.id) }}>
-            <span class="permission-status" class:on={(row as ResourcePermission).status !== false}></span>
-            <span class="min-w-0"><b class="d-block text-truncate">{row.name || row.id}</b><small class="d-block text-truncate text-muted">{row.description || row.id}</small></span>
-            <span class="permission-mini-badges ms-auto">
-              {#if rowSelectedCount(row) > 0}<span class="permission-node-badge">{rowSelectedCount(row)}</span>{/if}
-              <span class="badge bg-secondary-subtle text-body">{(row as ResourcePermission).status === false ? 'off' : 'on'}</span>
-            </span>
-          </button>
-        {:else}
-          <div class="empty-panel">No profiles yet.</div>
-        {/each}
-      </div>
-    {/if}
-  </aside>
 
-  <main class="permission-editor file-manager-content">
-    {#if activeTab === 'api'}
-      <div class="empty-panel h-100 d-flex align-items-center justify-content-center">API permissions are separated from Menu and Resource profiles, matching the Klynx permission model.</div>
-    {:else}
-      <div class="permission-toolbar file-manager-toolbar">
-        <div><div class="text-muted small text-uppercase">{createMode ? 'New permission profile' : selected ? 'Edit permission profile' : 'No profile selected'}</div><h2>{form.name || selected?.name || 'Untitled profile'}</h2></div>
-        <div class="d-flex gap-2">
-          <button class="btn btn-outline-secondary btn-sm" onclick={toggleStatus}><i class={form.status ? 'bi bi-toggle-on' : 'bi bi-toggle-off'}></i> {form.status ? 'Active' : 'Disabled'}</button>
-          {#if selectedId}<button class="btn btn-outline-danger btn-sm" aria-label="Delete profile" title="Delete profile" onclick={remove}><i class="bi bi-trash"></i></button>{/if}
-          <button class="btn btn-theme btn-sm" onclick={save} disabled={saving}>{#if saving}<span class="spinner-border spinner-border-sm me-1"></span>{/if}Apply</button>
+    <div class="file-manager-container permission-manager-container">
+      <aside class="permission-list file-manager-sidebar">
+        <div class="p-3 border-bottom">
+          <input class="form-control form-control-sm" bind:value={search} placeholder="Search profiles..." />
         </div>
-      </div>
+        <div class="file-manager-sidebar-content permission-sidebar-scroll">
+          <div class="p-3">
+            {@render treeView(profileTree, activeTab === 'api' ? 'No API nodes' : 'No profiles')}
+          </div>
+        </div>
+        <div class="file-manager-sidebar-footer permission-sidebar-footer">
+          <span>{activeTab === 'api' ? 'API' : filteredRows.length}</span>
+          <span>{activeTab === 'resource' ? 'resource profiles' : activeTab === 'menu' ? 'menu profiles' : 'integration scopes'}</span>
+        </div>
+      </aside>
 
-      <div class="permission-editor-scroll">
-        <div class="permission-form">
-          <div class="field"><label for="perm-profile-name">Name</label><input id="perm-profile-name" class="form-control form-control-sm" bind:value={form.name} /></div>
-          <div class="field"><label for="perm-profile-description">Description</label><input id="perm-profile-description" class="form-control form-control-sm" bind:value={form.description} /></div>
-          <div class="field"><label for="perm-profile-action">Action</label><select id="perm-profile-action" class="form-select form-select-sm" bind:value={form.relation}><option value="viewer">Read</option><option value="editor">Read / Write</option><option value="creator">Create / Manage</option></select></div>
-          {#if activeTab === 'menu'}<div class="field field-wide"><label for="perm-menu-ids">Menu IDs</label><input id="perm-menu-ids" class="form-control form-control-sm font-monospace" bind:value={form.menuIdsText} placeholder="dashboard, systemUsers, ingest.events" /></div>{/if}
+      <main class="permission-editor file-manager-content">
+        <div class="permission-editor-heading">
+          <div class="min-w-0">
+            <div class="text-muted small text-uppercase">{createMode ? 'New permission profile' : selected ? 'Edit permission profile' : activeTab === 'api' ? 'API integrations' : 'No profile selected'}</div>
+            <h2 class="text-truncate">{activeTab === 'api' ? 'API Integrations' : form.name || selected?.name || 'Untitled profile'}</h2>
+          </div>
+          {#if activeTab !== 'api'}
+            <button class="btn btn-outline-secondary btn-sm" onclick={toggleStatus} disabled={!createMode && !selectedId}>
+              <i class={form.status ? 'bi bi-toggle-on' : 'bi bi-toggle-off'}></i> {form.status ? 'Active' : 'Disabled'}
+            </button>
+          {/if}
         </div>
 
-        <input class="form-control form-control-sm picker-search" bind:value={pickerSearch} placeholder="Filter org units, users, resource groups, devices..." />
+        <div class="permission-editor-scroll">
+          {#if activeTab !== 'api'}
+            <div class="permission-form">
+              <div class="field"><label for="perm-profile-name">Name</label><input id="perm-profile-name" class="form-control form-control-sm" bind:value={form.name} /></div>
+              <div class="field"><label for="perm-profile-description">Description</label><input id="perm-profile-description" class="form-control form-control-sm" bind:value={form.description} /></div>
+              <div class="field"><label for="perm-profile-action">Action</label><select id="perm-profile-action" class="form-select form-select-sm" bind:value={form.relation}><option value="viewer">Read</option><option value="editor">Read / Write</option><option value="creator">Create / Manage</option></select></div>
+            </div>
+          {/if}
 
-      <div class="permission-grid">
-        <section class="permission-card">
-          <header><span><i class="bi bi-diagram-3 text-theme me-2"></i>Source org units</span><span class="badge bg-theme text-black">{selectedOrgUnits.size}</span></header>
-          <label class="form-check small mb-2"><input class="form-check-input" type="checkbox" bind:checked={includeOrgUnitChildren} /> Include child units</label>
-          <div class="choice-list">{#each filteredUnits as unit (unit.id)}{@const selectedUnder = selectedDescendantCount(orgUnits, unit.id, selectedOrgUnits)}<button type="button" class="choice-row" class:selected={selectedOrgUnits.has(unit.id)} class:has-child-selection={selectedUnder > 0 && !selectedOrgUnits.has(unit.id)} style={`padding-left:${0.75 + unitDepth(unit) * 1.15}rem`} onclick={() => toggle('ou', unit.id)}><i class={selectedOrgUnits.has(unit.id) ? 'bi bi-check-square-fill text-theme' : 'bi bi-square'}></i><i class="bi bi-folder2-open text-theme"></i><span class="text-truncate">{unit.name}</span><span class="permission-mini-badges ms-auto">{#if childCount(orgUnits, unit.id) > 0}<span class="permission-node-badge muted">{childCount(orgUnits, unit.id)}</span>{/if}{#if selectedUnder > 0}<span class="permission-node-badge"><i class="bi bi-check2"></i>{selectedUnder}</span>{/if}{#if selectedOrgUnits.has(unit.id) && selectedMembers.size > 0}<span class="permission-node-badge warn"><i class="bi bi-person"></i>{selectedMembers.size}</span>{/if}</span></button>{:else}<div class="empty-panel">No org units</div>{/each}</div>
-        </section>
+          <input class="form-control form-control-sm picker-search" bind:value={pickerSearch} placeholder="Filter tree..." />
 
-        <section class="permission-card">
-          <header><span><i class="bi bi-people text-theme me-2"></i>Narrow users</span><span class="badge bg-theme text-black">{selectedMembers.size || 'All'}</span></header>
-          <div class="text-muted small mb-2">No user selected means all members in selected org units.</div>
-          <div class="choice-list">{#each filteredMembers as member (idOfUser(member))}<button type="button" class="choice-row" class:selected={selectedMembers.has(idOfUser(member))} onclick={() => toggle('member', idOfUser(member))}><i class={selectedMembers.has(idOfUser(member)) ? 'bi bi-check-square-fill text-theme' : 'bi bi-square'}></i><i class="bi bi-person"></i><span class="text-truncate">{displayName(member)}</span>{#if selectedMembers.has(idOfUser(member))}<span class="permission-node-badge ms-auto">เลือกแล้ว</span>{/if}</button>{:else}<div class="empty-panel">No users</div>{/each}</div>
-        </section>
+          {#if activeTab === 'menu'}
+            <div class="permission-tree-stage">
+              <section class="permission-tree-panel primary-tree-panel">
+                <header>
+                  <span><i class="bi bi-list text-theme me-2"></i>Menu tree</span>
+                  <span class="permission-node-badge">{selectedMenus.size}</span>
+                </header>
+                <div class="permission-tree-body">
+                  {@render treeView(menuTree, treeEmptyText())}
+                </div>
+              </section>
 
-        {#if activeTab === 'resource'}
-          <section class="permission-card">
-            <header><span><i class="bi bi-folder2-open text-theme me-2"></i>Destination groups</span><span class="badge bg-theme text-black">{selectedGroups.size}</span></header>
-            <label class="form-check small mb-2"><input class="form-check-input" type="checkbox" bind:checked={includeResourceGroupChildren} /> Include child groups</label>
-            <div class="choice-list">{#each filteredGroups as group (group.id)}{@const selectedUnder = selectedDescendantCount(groups, group.id, selectedGroups)}<button type="button" class="choice-row" class:selected={selectedGroups.has(group.id)} class:has-child-selection={selectedUnder > 0 && !selectedGroups.has(group.id)} onclick={() => toggle('group', group.id)}><i class={selectedGroups.has(group.id) ? 'bi bi-check-square-fill text-theme' : 'bi bi-square'}></i><i class="bi bi-folder2-open text-theme"></i><span class="text-truncate">{group.name}</span><span class="permission-mini-badges ms-auto">{#if childCount(groups, group.id) > 0}<span class="permission-node-badge muted">{childCount(groups, group.id)}</span>{/if}{#if selectedUnder > 0}<span class="permission-node-badge warn"><i class="bi bi-check2"></i>{selectedUnder}</span>{/if}{#if selectedGroups.has(group.id) && selectedCameras.size > 0}<span class="permission-node-badge"><i class="bi bi-camera"></i>{selectedCameras.size}</span>{/if}</span></button>{:else}<div class="empty-panel">No resource groups</div>{/each}</div>
-          </section>
+              <section class="permission-tree-panel">
+                <header>
+                  <span><i class="bi bi-diagram-3 text-theme me-2"></i>Scope tree</span>
+                  <label class="form-check tree-toggle">
+                    <input class="form-check-input" type="checkbox" bind:checked={includeOrgUnitChildren} />
+                    <span>Child units</span>
+                  </label>
+                </header>
+                <div class="permission-tree-body">
+                  {@render treeView(audienceTree, treeEmptyText())}
+                </div>
+              </section>
+            </div>
+          {:else if activeTab === 'resource'}
+            <div class="permission-tree-stage">
+              <section class="permission-tree-panel">
+                <header>
+                  <span><i class="bi bi-diagram-3 text-theme me-2"></i>Source tree</span>
+                  <label class="form-check tree-toggle">
+                    <input class="form-check-input" type="checkbox" bind:checked={includeOrgUnitChildren} />
+                    <span>Child units</span>
+                  </label>
+                </header>
+                <div class="permission-tree-body">
+                  {@render treeView(audienceTree, treeEmptyText())}
+                </div>
+              </section>
 
-          <section class="permission-card">
-            <header><span><i class="bi bi-camera-video text-theme me-2"></i>Specific devices</span><span class="badge bg-theme text-black">{selectedCameras.size || 'All'}</span></header>
-            <div class="text-muted small mb-2">Leave empty to allow every device in selected resource groups.</div>
-            <div class="choice-list">{#each filteredCameras as camera (cameraId(camera))}<button type="button" class="choice-row" class:selected={selectedCameras.has(cameraId(camera))} onclick={() => toggle('camera', cameraId(camera))}><i class={selectedCameras.has(cameraId(camera)) ? 'bi bi-check-square-fill text-theme' : 'bi bi-square'}></i><i class="bi bi-camera"></i><span class="text-truncate">{camera.name}</span>{#if selectedCameras.has(cameraId(camera))}<span class="permission-node-badge ms-auto">เลือกแล้ว</span>{/if}</button>{:else}<div class="empty-panel">No devices</div>{/each}</div>
-          </section>
-        {/if}
-      </div>
+              <section class="permission-tree-panel primary-tree-panel">
+                <header>
+                  <span><i class="bi bi-folder2-open text-theme me-2"></i>Resource tree</span>
+                  <label class="form-check tree-toggle">
+                    <input class="form-check-input" type="checkbox" bind:checked={includeResourceGroupChildren} />
+                    <span>Child groups</span>
+                  </label>
+                </header>
+                <div class="permission-tree-body">
+                  {@render treeView(resourceTree, treeEmptyText())}
+                </div>
+              </section>
+            </div>
+          {:else}
+            <div class="permission-tree-stage api-tree-stage">
+              <section class="permission-tree-panel primary-tree-panel">
+                <header>
+                  <span><i class="bi bi-hdd-stack text-theme me-2"></i>API tree</span>
+                  <span class="permission-node-badge">read-only</span>
+                </header>
+                <div class="permission-tree-body">
+                  {@render treeView(apiTree, treeEmptyText())}
+                </div>
+              </section>
+            </div>
+          {/if}
 
-        <div class="permission-summary"><span><b>{relationLabel()}</b></span><span>Org units <b>{selectedOrgUnits.size}</b></span><span>Users <b>{selectedMembers.size || 'All'}</b></span>{#if activeTab === 'resource'}<span>Resource groups <b>{selectedGroups.size}</b></span><span>Devices <b>{selectedCameras.size || 'All'}</b></span>{/if}{#if detailLoading}<span class="ms-auto"><span class="spinner-border spinner-border-sm me-1"></span>Loading detail</span>{/if}</div>
-      </div>
-    {/if}
-  </main>
+          <div class="permission-summary">
+            <span><b>{activeTab === 'api' ? 'Scopes' : relationLabel()}</b></span>
+            {#if activeTab === 'menu'}
+              <span>Menus <b>{selectedMenus.size}</b></span>
+              <span>Org units <b>{selectedOrgUnits.size}</b></span>
+              <span>Users <b>{selectedMembers.size || 'All'}</b></span>
+            {:else if activeTab === 'resource'}
+              <span>Org units <b>{selectedOrgUnits.size}</b></span>
+              <span>Users <b>{selectedMembers.size || 'All'}</b></span>
+              <span>Resource groups <b>{selectedGroups.size}</b></span>
+              <span>Devices <b>{selectedCameras.size || 'All'}</b></span>
+            {:else}
+              <span>Integrations <b>service-account</b></span>
+            {/if}
+            {#if detailLoading}<span class="ms-auto"><span class="spinner-border spinner-border-sm me-1"></span>Loading detail</span>{/if}
+          </div>
+        </div>
+      </main>
+    </div>
   </div>
 </div>
 
@@ -426,35 +885,95 @@
   .permission-tabs { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; border-bottom: 1px solid rgba(var(--bs-border-color-rgb), .55); padding-bottom: 0; }
   .permission-tabs button { border: 0; border-bottom: 2px solid transparent; background: transparent; color: rgba(var(--bs-body-color-rgb), .62); border-radius: 0; padding: .7rem .25rem .75rem; }
   .permission-tabs button.active { border-bottom-color: var(--bs-theme); color: var(--bs-theme); background: transparent; }
-  .permission-list-title { display: flex; align-items: center; justify-content: space-between; font-weight: 700; color: rgba(var(--bs-body-color-rgb), .82); padding: 1rem 1rem .75rem; margin: 0 !important; border-bottom: 1px solid rgba(var(--bs-border-color-rgb), .55); }
-  .permission-workspace { flex: 1 1 auto; min-height: 0; display: flex; overflow: hidden; border-top: 1px solid rgba(var(--bs-border-color-rgb), .5); }
-  .permission-list, .permission-editor, .permission-card { border: 0; background: transparent; border-radius: 0; }
-  .permission-list { width: 25rem; min-width: 25rem; border-right: 1px solid rgba(var(--bs-border-color-rgb), .55); background: rgba(18, 18, 22, .72); }
+
+  .permission-workspace {
+    flex: 1 1 auto;
+    min-height: 0;
+    --bs-file-manager-sidebar-width: 26rem;
+    border-top: 1px solid rgba(var(--bs-border-color-rgb), .5);
+  }
+
+  .permission-manager-container { min-height: 0; }
+  .permission-actionbar { flex: 0 0 auto; background: rgba(18, 18, 22, .72); }
+  .permission-list, .permission-editor, .permission-tree-panel { border: 0; background: transparent; border-radius: 0; }
+  .permission-list { background: rgba(18, 18, 22, .72); }
   .permission-editor { flex: 1 1 auto; min-width: 0; background: rgba(18, 18, 22, .34); }
   .permission-list, .permission-editor { padding: 0; min-height: 0; }
-  .permission-list > :global(input), .permission-list > input { margin: 1rem; width: calc(100% - 2rem); }
-  .permission-stack, .choice-list { display: grid; align-content: start; gap: .15rem; max-height: none; overflow: auto; padding: .75rem 1rem 1rem; }
-  .permission-row, .choice-row { width: 100%; min-height: 2rem; border: 0; background: transparent; color: rgba(var(--bs-body-color-rgb), .82); border-radius: .25rem; padding: .35rem .55rem; display: flex; align-items: center; gap: .45rem; text-align: left; font-size: .86rem; }
-  .permission-row:hover, .choice-row:hover { background: rgba(255, 255, 255, .055); }
-  .permission-row.active, .choice-row.selected { border: 1px solid rgba(var(--bs-theme-rgb), .56); background: rgba(var(--bs-theme-rgb), .13); box-shadow: inset 3px 0 0 rgba(var(--bs-theme-rgb), .85); color: var(--bs-theme); font-weight: 700; }
-  .choice-row.has-child-selection:not(.selected) { background: rgba(var(--bs-theme-rgb), .055); color: rgba(var(--bs-body-color-rgb), .9); }
-  .permission-status { width: .55rem; height: .55rem; border-radius: 50%; background: var(--bs-secondary); box-shadow: 0 0 0 .2rem rgba(var(--bs-secondary-rgb), .12); }
-  .permission-status.on { background: var(--bs-theme); box-shadow: 0 0 0 .2rem rgba(var(--bs-theme-rgb), .15); }
-  .permission-toolbar, .permission-summary { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
-  .permission-toolbar h2 { font-size: 1.25rem; margin: 0; }
-  .permission-toolbar { border-bottom: 1px solid rgba(var(--bs-border-color-rgb), .55); padding: 1rem 1.25rem; background: rgba(18, 18, 22, .72); }
+  .permission-sidebar-scroll { overflow: auto; }
+  .permission-sidebar-footer { display: flex; justify-content: space-between; gap: .75rem; color: rgba(var(--bs-body-color-rgb), .58); font-size: .72rem; text-transform: uppercase; letter-spacing: 0; }
+
+  .permission-editor-heading, .permission-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .permission-editor-heading {
+    border-bottom: 1px solid rgba(var(--bs-border-color-rgb), .55);
+    padding: 1rem 1.25rem;
+    background: rgba(18, 18, 22, .72);
+  }
+
+  .permission-editor-heading h2 { font-size: 1.25rem; margin: 0; }
   .permission-editor-scroll { padding: 1rem 1.25rem; }
   .permission-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; margin: 0 0 1rem; }
-  .field-wide { grid-column: 1 / -1; }
   .field label { display: block; font-size: .7rem; font-weight: 700; text-transform: uppercase; color: rgba(var(--bs-body-color-rgb), .62); margin-bottom: .35rem; }
   .picker-search { margin-bottom: 1rem; }
-  .permission-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 1px solid rgba(var(--bs-border-color-rgb), .46); border-radius: .35rem; overflow: hidden; background: rgba(10, 12, 16, .24); }
-  .permission-card { padding: 0; min-height: 15rem; border-left: 1px solid rgba(var(--bs-border-color-rgb), .38); border-top: 1px solid rgba(var(--bs-border-color-rgb), .38); }
-  .permission-card:nth-child(odd) { border-left: 0; }
-  .permission-card:nth-child(-n + 2) { border-top: 0; }
-  .permission-card header { display: flex; align-items: center; justify-content: space-between; gap: .75rem; font-weight: 700; margin: 0; padding: .8rem 1rem; border-bottom: 1px solid rgba(var(--bs-border-color-rgb), .36); background: rgba(255, 255, 255, .025); }
-  .permission-card .form-check,
-  .permission-card .text-muted { margin: .65rem 1rem .25rem; }
+
+  .permission-tree-stage {
+    display: grid;
+    grid-template-columns: minmax(22rem, 1fr) minmax(22rem, 1fr);
+    border: 1px solid rgba(var(--bs-border-color-rgb), .46);
+    border-radius: .35rem;
+    overflow: hidden;
+    background: rgba(10, 12, 16, .24);
+    min-height: 28rem;
+  }
+
+  .api-tree-stage { grid-template-columns: 1fr; }
+
+  .permission-tree-panel {
+    min-width: 0;
+    min-height: 28rem;
+    border-left: 1px solid rgba(var(--bs-border-color-rgb), .38);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .permission-tree-panel:first-child { border-left: 0; }
+  .primary-tree-panel { background: rgba(var(--bs-theme-rgb), .025); }
+
+  .permission-tree-panel header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    font-weight: 700;
+    margin: 0;
+    padding: .8rem 1rem;
+    border-bottom: 1px solid rgba(var(--bs-border-color-rgb), .36);
+    background: rgba(255, 255, 255, .025);
+  }
+
+  .permission-tree-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    padding: 1rem;
+  }
+
+  .tree-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    margin: 0;
+    color: rgba(var(--bs-body-color-rgb), .68);
+    font-size: .76rem;
+    font-weight: 600;
+  }
+
   .empty-panel { border: 1px dashed rgba(var(--bs-border-color-rgb), .8); border-radius: .35rem; color: rgba(var(--bs-body-color-rgb), .55); padding: 1rem; text-align: center; }
   .permission-summary { border-top: 1px solid rgba(var(--bs-theme-rgb), .24); margin-top: 1rem; padding-top: .85rem; color: rgba(var(--bs-body-color-rgb), .7); }
   .permission-mini-badges {
@@ -480,9 +999,9 @@
     line-height: 1;
   }
 
-  .permission-node-badge.warn {
-    background: rgba(255, 193, 7, .18);
-    color: #ffc107;
+  .permission-node-badge.soft {
+    background: rgba(255, 255, 255, .075);
+    color: rgba(var(--bs-body-color-rgb), .62);
   }
 
   .permission-node-badge.muted {
@@ -490,22 +1009,88 @@
     color: rgba(var(--bs-body-color-rgb), .68);
   }
 
-  .choice-list {
-    position: relative;
+  .permission-tree .file-node {
+    padding-inline-start: 1.1rem;
   }
 
-  .choice-list .choice-row {
-    position: relative;
+  .permission-tree .file-link.permission-tree-link {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: rgba(var(--bs-body-color-rgb), .84);
+    text-align: left;
+    align-items: flex-start;
+    padding: .28rem .35rem;
+    border-radius: .25rem;
   }
 
-  .choice-list .choice-row::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: .2rem;
-    width: .55rem;
-    border-top: 1px solid rgba(var(--bs-body-color-rgb), .16);
+  .permission-tree .permission-tree-hit,
+  .permission-tree .file-arrow {
+    border: 0;
+    background: transparent;
+    color: inherit;
+    padding: 0;
   }
+
+  .permission-tree .permission-tree-hit {
+    display: flex;
+    flex: 1;
+    gap: .3rem;
+    min-width: 0;
+    text-align: left;
+  }
+
+  .permission-tree .file-arrow {
+    width: 1rem;
+    min-width: 1rem;
+    align-self: stretch;
+  }
+
+  .permission-tree .file-arrow:disabled {
+    opacity: 1;
+  }
+
+  .permission-tree .file-link.permission-tree-link:hover {
+    background: rgba(255, 255, 255, .055);
+    opacity: 1;
+  }
+
+  .permission-tree .file-link.node-checked {
+    background: rgba(var(--bs-theme-rgb), .13);
+    box-shadow: inset 3px 0 0 rgba(var(--bs-theme-rgb), .85);
+    color: var(--bs-theme);
+    font-weight: 700;
+  }
+
+  .permission-tree .file-link.node-muted {
+    color: rgba(var(--bs-body-color-rgb), .7);
+  }
+
+  .permission-tree .file-info {
+    min-width: 0;
+    align-items: flex-start;
+  }
+
+  .permission-tree .file-icon {
+    margin-top: .05rem;
+  }
+
+  .permission-tree .file-text {
+    display: grid;
+    min-width: 0;
+  }
+
+  .permission-tree .file-label {
+    min-width: 0;
+    line-height: 1.25;
+  }
+
+  .permission-tree .file-description {
+    color: rgba(var(--bs-body-color-rgb), .46);
+    font-size: .72rem;
+    font-weight: 500;
+  }
+
   .permission-shell .permission-tabs {
     margin-bottom: 0;
     border-bottom: 0;
@@ -520,29 +1105,17 @@
     overflow: hidden;
   }
 
-  .permission-shell .permission-stack {
-    flex: 1 1 auto;
-    min-height: 0;
-    max-height: none;
-    align-content: start;
-  }
-
   .permission-editor-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; }
 
-  .permission-shell .choice-list { max-height: min(28vh, 19rem); align-content: start; }
-
-  .permission-shell .permission-toolbar {
-    flex: 0 0 auto;
-  }
-
   @media (max-width: 1199.98px) {
-    .permission-workspace, .permission-grid, .permission-form { grid-template-columns: 1fr; }
-    .permission-shell .permission-workspace { overflow: auto; }
+    .permission-tree-stage, .permission-form { grid-template-columns: 1fr; }
+    .permission-tree-panel { border-left: 0; border-top: 1px solid rgba(var(--bs-border-color-rgb), .38); }
+    .permission-tree-panel:first-child { border-top: 0; }
   }
 
   @media (max-width: 767.98px) {
     .permission-page-header { flex-direction: column; }
     .permission-topbar { padding-inline: .75rem; }
-    .permission-shell .permission-workspace { padding: .75rem; }
+    .permission-editor-scroll { padding: .75rem; }
   }
 </style>

@@ -22,6 +22,7 @@ function stripBase(pathname: string, basePath: string) {
 const publicExact = new Set([
   '/',
   '/landing',
+  '/landing/landing',
   '/robots.txt',
   '/favicon.ico',
   '/documentation',

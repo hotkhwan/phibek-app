@@ -6,6 +6,19 @@ this project follows semantic versioning.
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-05-15
+
+### Added
+- System Users permission management now uses a file-manager tree UI for profiles, menu scopes,
+  org-unit/user scopes, resource groups, cameras, and read-only API integration scopes.
+- Sidebar organization selector now lists Klynx organizations and keeps the active workspace in
+  the shared workspace store.
+
+### Fixed
+- Org unit creation now blocks duplicate unit names under the same parent before hitting the API.
+- `/landing/landing` is treated as a public route and redirects back to the public landing root
+  without creating an auth redirect loop.
+
 ## [0.8.1] — 2026-05-15
 
 ### Fixed

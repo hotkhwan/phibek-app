@@ -44,10 +44,31 @@
   const selected = $derived(units.find((x) => x.id === selectedId))
   const filtered = $derived(units.filter((x) => `${x.name} ${x.description ?? ''} ${x.parentId ?? ''}`.toLowerCase().includes(search.toLowerCase())))
   const shownMembers = $derived((viewMode === 'members' ? members : addUsers).filter((u) => `${displayName(u)} ${u.email ?? ''}`.toLowerCase().includes(memberSearch.toLowerCase())))
+  const duplicateUnit = $derived.by(() => form.name.trim() ? findDuplicateUnit(form.name, form.parentId, editing?.id) : undefined)
 
   function userId(row: MemberRow) { return row.userId ?? row.id }
   function displayName(row: MemberRow) { return row.label || row.fullName || `${row.firstName ?? ''} ${row.lastName ?? ''}`.trim() || row.username || row.email || userId(row) }
   function unitDepth(row: OrgUnit) { let depth = 0; let parent = row.parentId; while (parent && depth < 6) { depth++; parent = units.find((u) => u.id === parent)?.parentId } return depth }
+  function unitParentKey(parentId?: string) { return parentId || '' }
+  function unitNameKey(name: string) { return name.trim().toLocaleLowerCase() }
+  function parentLabel(parentId?: string) { return parentId ? units.find((u) => u.id === parentId)?.name ?? 'selected parent' : 'root' }
+  function duplicateMessage(name: string, parentId?: string) {
+    return `A unit named "${name.trim()}" already exists under ${parentLabel(parentId)}. Select the existing unit or use another name.`
+  }
+  function findDuplicateUnit(name: string, parentId?: string, excludeId?: string) {
+    const key = unitNameKey(name)
+    const parentKey = unitParentKey(parentId)
+    return units.find((unit) =>
+      unit.id !== excludeId &&
+      unitParentKey(unit.parentId) === parentKey &&
+      unitNameKey(unit.name) === key
+    )
+  }
+  function isDuplicateUnitError(err: unknown) {
+    const apiErr = err as { message?: string; data?: { code?: string; message?: string } }
+    const message = `${apiErr.message ?? ''} ${apiErr.data?.message ?? ''} ${apiErr.data?.code ?? ''}`.toLowerCase()
+    return message.includes('duplicate key') && (message.includes('org_units') || message.includes('uq_root_name_per_org'))
+  }
 
   async function load() {
     loading = true
@@ -106,6 +127,11 @@
       notify.warning('Select an organization', 'Org units are created inside the active organization.')
       return
     }
+    if (duplicateUnit) {
+      selectedId = duplicateUnit.id
+      notify.warning('Unit already exists', duplicateMessage(form.name, form.parentId))
+      return
+    }
     const body = { name: form.name.trim(), description: form.description, ...(form.parentId ? { parentId: form.parentId } : {}) }
     try {
       if (editing) await updateOrgUnit(editing.id, body)
@@ -114,6 +140,11 @@
       formOpen = false
       await load()
     } catch (err) {
+      if (isDuplicateUnitError(err)) {
+        notify.warning('Unit already exists', duplicateMessage(form.name, form.parentId))
+        await load()
+        return
+      }
       notify.error('Unit save failed', (err as { message?: string })?.message ?? 'Unknown error')
     }
   }
@@ -165,8 +196,8 @@
 </div>
 
 <Modal bind:open={formOpen} title={editing ? 'Edit unit' : 'Add unit'} size="md">
-  {#snippet body()}<div class="mb-3"><label class="form-label" for="unit-name">Name</label><input id="unit-name" class="form-control" bind:value={form.name} /></div><div class="mb-3"><label class="form-label" for="unit-parent">Parent unit</label><select id="unit-parent" class="form-select" bind:value={form.parentId}><option value="">— root —</option>{#each units.filter((u) => u.id !== editing?.id) as opt (opt.id)}<option value={opt.id}>{opt.name}</option>{/each}</select></div><div class="mb-3"><label class="form-label" for="unit-description">Description</label><textarea id="unit-description" class="form-control" rows="3" bind:value={form.description}></textarea></div>{/snippet}
-  {#snippet footer()}<button class="btn btn-outline-secondary" onclick={() => formOpen = false}>Cancel</button><button class="btn btn-theme" onclick={save}>Save</button>{/snippet}
+  {#snippet body()}<div class="mb-3"><label class="form-label" for="unit-name">Name</label><input id="unit-name" class="form-control" bind:value={form.name} />{#if duplicateUnit}<div class="alert alert-warning py-2 px-3 mt-2 mb-0 small">{duplicateMessage(form.name, form.parentId)}</div>{/if}</div><div class="mb-3"><label class="form-label" for="unit-parent">Parent unit</label><select id="unit-parent" class="form-select" bind:value={form.parentId}><option value="">— root —</option>{#each units.filter((u) => u.id !== editing?.id) as opt (opt.id)}<option value={opt.id}>{opt.name}</option>{/each}</select></div><div class="mb-3"><label class="form-label" for="unit-description">Description</label><textarea id="unit-description" class="form-control" rows="3" bind:value={form.description}></textarea></div>{/snippet}
+  {#snippet footer()}<button class="btn btn-outline-secondary" onclick={() => formOpen = false}>Cancel</button><button class="btn btn-theme" onclick={save} disabled={!form.name.trim() || !!duplicateUnit}>Save</button>{/snippet}
 </Modal>
 <ConfirmDialog bind:open={deleteOpen} title="Delete unit" message="Delete this unit?" confirmLabel="Delete" danger onConfirm={remove} />
 
