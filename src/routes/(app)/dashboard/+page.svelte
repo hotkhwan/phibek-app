@@ -75,8 +75,30 @@
     size: 'sm' | 'md' | 'lg' | 'xl'
   }
 
+  type PhaseCard = {
+    phase: string
+    title: string
+    meta: string
+    active: boolean
+    icon: string
+  }
+
+  type EventActivity = {
+    event: string
+    count: string
+    meta: string
+    icon: string
+    tone: string
+  }
+
   const TZ = 'Asia/Bangkok'
   const chartPalette = ['#2de67f', '#0ba6df', '#8b5cf6', '#f97316', '#06b6d4', '#a3e635', '#6366f1', '#ef4444']
+
+  const phaseCards: PhaseCard[] = [
+    { phase: 'Phase 1', title: 'Livestream Analytics', meta: 'Usage, viewers, sessions', active: true, icon: 'bi-play-circle-fill' },
+    { phase: 'Phase 2', title: 'AI Event Intelligence', meta: 'Detections and incidents', active: false, icon: 'bi-cpu' },
+    { phase: 'Phase 3', title: 'AI Command Center', meta: 'Digital twin operations', active: false, icon: 'bi-radar' }
+  ]
 
   const demoStatusTiles: StatusTile[] = [
     { label: 'TOTAL VIEWS', value: '10,245', unit: 'plays', icon: 'bi-play-circle-fill', color: '#2ef27d' },
@@ -160,6 +182,13 @@
     { left: 31, top: 66, size: 'md' }
   ]
 
+  const demoEventActivity: EventActivity[] = [
+    { event: 'klive.play.started', count: '102', meta: 'stream started', icon: 'bi-play-circle-fill', tone: 'success' },
+    { event: 'klive.play.ended', count: '84', meta: 'stream ended', icon: 'bi-stop-circle', tone: 'violet' },
+    { event: 'klive.viewer.joined', count: '61', meta: 'user joined', icon: 'bi-person-plus', tone: 'cyan' },
+    { event: 'klive.viewer.disconnected', count: '18', meta: 'user disconnected', icon: 'bi-person-dash', tone: 'warning' }
+  ]
+
   let previousContentClass = ''
   let previousFooter = false
   let overview = $state<AnalyticsOverviewDetails | null>(null)
@@ -217,6 +246,9 @@
   const mapDots = $derived(usingFallback
     ? demoMapDots
     : geoDots(actualGeoPoints))
+  const eventActivityRows = $derived(usingFallback
+    ? demoEventActivity
+    : eventActivity(eventItems))
 
   function fmt(n: number | undefined | null): string {
     return Number(n ?? 0).toLocaleString('en-US')
@@ -448,6 +480,34 @@
     })
   }
 
+  function eventActivity(items: AnalyticsEventItem[]): EventActivity[] {
+    return items.slice(0, 5).map((item, index) => ({
+      event: item.event || 'unknown.event',
+      count: fmt(item.count),
+      meta: eventMeta(item.event),
+      icon: eventIcon(item.event),
+      tone: ['success', 'violet', 'cyan', 'warning', 'blue'][index % 5] ?? 'success'
+    }))
+  }
+
+  function eventMeta(event: string): string {
+    const key = String(event || '').toLowerCase()
+    if (key.includes('started') || key.includes('play')) return 'stream activity'
+    if (key.includes('ended') || key.includes('stop')) return 'stream ended'
+    if (key.includes('join')) return 'user joined'
+    if (key.includes('disconnect') || key.includes('leave')) return 'user disconnected'
+    return 'livestream event'
+  }
+
+  function eventIcon(event: string): string {
+    const key = String(event || '').toLowerCase()
+    if (key.includes('started') || key.includes('play')) return 'bi-play-circle-fill'
+    if (key.includes('ended') || key.includes('stop')) return 'bi-stop-circle'
+    if (key.includes('join')) return 'bi-person-plus'
+    if (key.includes('disconnect') || key.includes('leave')) return 'bi-person-dash'
+    return 'bi-activity'
+  }
+
   function sparkPoints(values: number[], width = 128, height = 38): string {
     return pointsForLine(values, width, height)
   }
@@ -521,6 +581,19 @@
         <i class="bi bi-chevron-down"></i>
       </button>
     </div>
+  </section>
+
+  <section class="phase-strip" aria-label="Dashboard experience phases">
+    {#each phaseCards as phase}
+      <article class:active={phase.active}>
+        <div class="phase-icon"><i class={`bi ${phase.icon}`}></i></div>
+        <div>
+          <span>{phase.phase}</span>
+          <strong>{phase.title}</strong>
+          <small>{phase.meta}</small>
+        </div>
+      </article>
+    {/each}
   </section>
 
   {#if errorMsg}
@@ -805,6 +878,25 @@
         {/each}
       </div>
     </article>
+
+    <article class="panel event-feed-panel">
+      <div class="panel-header compact">
+        <h2>RECENT ACTIVITY</h2>
+        <button type="button" class="view-all-button">VIEW ALL</button>
+      </div>
+      <div class="event-feed-list">
+        {#each eventActivityRows as row}
+          <div class={`event-feed-row ${row.tone}`}>
+            <div class="event-feed-icon"><i class={`bi ${row.icon}`}></i></div>
+            <div>
+              <strong>{row.event}</strong>
+              <span>{row.meta}</span>
+            </div>
+            <b>{row.count} ครั้ง</b>
+          </div>
+        {/each}
+      </div>
+    </article>
   </section>
 
   <section class="health-bar" aria-label="Livestream analytics status">
@@ -865,6 +957,7 @@
 
   .dashboard-hero,
   .dashboard-actions,
+  .phase-strip,
   .status-strip,
   .top-grid,
   .middle-grid,
@@ -877,7 +970,8 @@
   .region-row,
   .map-summary,
   .donut-layout,
-  .callout-card {
+  .callout-card,
+  .event-feed-row {
     display: flex;
   }
 
@@ -938,6 +1032,76 @@
 
   .control-button:first-child {
     min-width: 252px;
+  }
+
+  .phase-strip {
+    align-items: stretch;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .phase-strip article {
+    position: relative;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    min-height: 74px;
+    padding: 14px;
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    background: rgba(8, 20, 30, .42);
+    color: var(--dash-muted);
+    overflow: hidden;
+  }
+
+  :global([data-bs-theme="light"]) .phase-strip article {
+    background: rgba(255, 255, 255, .62);
+  }
+
+  .phase-strip article.active {
+    border-color: var(--panel-border-strong);
+    background: linear-gradient(135deg, rgba(var(--accent-rgb), .16), rgba(8, 20, 30, .48));
+    box-shadow: 0 0 30px rgba(var(--accent-rgb), .08);
+  }
+
+  :global([data-bs-theme="light"]) .phase-strip article.active {
+    background: linear-gradient(135deg, rgba(var(--accent-rgb), .18), rgba(255, 255, 255, .74));
+  }
+
+  .phase-icon {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: 8px;
+    color: var(--accent);
+    background: rgba(var(--accent-rgb), .12);
+    font-size: 18px;
+  }
+
+  .phase-strip span,
+  .phase-strip small {
+    display: block;
+    color: var(--dash-muted);
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .phase-strip strong {
+    display: block;
+    margin: 2px 0;
+    color: var(--dash-text);
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.2;
+  }
+
+  .phase-strip small {
+    font-weight: 500;
+    text-transform: none;
   }
 
   .control-button.icon-only {
@@ -1065,7 +1229,7 @@
 
   .bottom-grid {
     display: grid;
-    grid-template-columns: minmax(520px, 1.5fr) minmax(310px, .9fr) minmax(310px, .95fr);
+    grid-template-columns: minmax(520px, 1.55fr) minmax(290px, .85fr) minmax(300px, .9fr) minmax(300px, .9fr);
     gap: 14px;
     margin-bottom: 14px;
   }
@@ -1836,6 +2000,92 @@
     white-space: nowrap;
   }
 
+  .view-all-button {
+    border: 0;
+    background: transparent;
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  .event-feed-panel {
+    padding-bottom: 10px;
+  }
+
+  .event-feed-list {
+    display: grid;
+    gap: 8px;
+    padding: 4px 14px 14px;
+  }
+
+  .event-feed-row {
+    align-items: center;
+    gap: 10px;
+    min-height: 52px;
+    padding: 10px;
+    border: 1px solid var(--grid-line);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, .025);
+  }
+
+  :global([data-bs-theme="light"]) .event-feed-row {
+    background: rgba(255, 255, 255, .58);
+  }
+
+  .event-feed-icon {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: 8px;
+    color: var(--event-color, var(--accent));
+    background: color-mix(in srgb, var(--event-color, var(--accent)) 14%, transparent);
+    box-shadow: 0 0 18px color-mix(in srgb, var(--event-color, var(--accent)) 18%, transparent);
+  }
+
+  .event-feed-row.success { --event-color: var(--accent); }
+  .event-feed-row.violet { --event-color: #8b5cf6; }
+  .event-feed-row.cyan { --event-color: #06b6d4; }
+  .event-feed-row.warning { --event-color: var(--warning); }
+  .event-feed-row.blue { --event-color: var(--blue); }
+
+  .event-feed-row > div:nth-child(2) {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .event-feed-row strong,
+  .event-feed-row span {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .event-feed-row strong {
+    color: var(--dash-text);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: none;
+  }
+
+  .event-feed-row span {
+    margin-top: 2px;
+    color: var(--dash-muted);
+    font-size: 11px;
+    text-transform: none;
+  }
+
+  .event-feed-row b {
+    flex: 0 0 auto;
+    color: var(--event-color, var(--accent));
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: none;
+  }
+
   .health-bar {
     align-items: center;
     justify-content: space-between;
@@ -1878,6 +2128,14 @@
       flex-wrap: wrap;
     }
 
+    .phase-strip {
+      flex-wrap: wrap;
+    }
+
+    .phase-strip article {
+      flex: 1 1 calc(33.333% - 12px);
+    }
+
     .status-tile {
       flex: 1 1 calc(33.333% - 12px);
     }
@@ -1914,6 +2172,10 @@
     .dashboard-actions {
       width: 100%;
       justify-content: stretch;
+    }
+
+    .phase-strip article {
+      flex-basis: 100%;
     }
 
     .control-button {

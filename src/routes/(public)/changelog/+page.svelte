@@ -9,6 +9,13 @@
   type Entry = { version: string; date: string; bullets: string[] }
   const entries: Entry[] = [
     {
+      version: '0.8.0',
+      date: '2026-05-15',
+      bullets: [
+        'Dashboard refreshed for the Phase 1 Livestream Analytics experience: clearer phase separation, denser analytics cards, camera-group line chart, and livestream activity summary.'
+      ]
+    },
+    {
       version: '0.7.5',
       date: '2026-05-15',
       bullets: [
