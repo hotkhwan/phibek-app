@@ -6,6 +6,12 @@ this project follows semantic versioning.
 
 ## [Unreleased]
 
+## [0.9.1] — 2026-05-15
+
+### Changed
+- Dashboard content now removes the Phase 1/2/3 experience strip, event-type KPI card,
+  event-breakdown callout, and recent activity feed so the Livestream Analytics page stays focused.
+
 ## [0.9.0] — 2026-05-15
 
 ### Added
