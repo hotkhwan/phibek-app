@@ -6,6 +6,26 @@ this project follows semantic versioning.
 
 ## [Unreleased]
 
+## [0.8.1] — 2026-05-15
+
+### Fixed
+- System Users table avatars now stay at the compact 30px row size when protected images load.
+- Dashboard viewer map now renders with MapLibre GL JS clusters instead of the temporary CSS map.
+- Dashboard waits briefly for the auth context before firing livestream analytics API calls and uses Motion One for the initial analytics card entrance.
+
+## [0.8.0] — 2026-05-15
+
+### Changed
+- Dashboard content now follows the Phase 1 Livestream Analytics direction: a clear Phase 1/2/3
+  experience strip, cleaner analytics density, preserved camera-group line chart, and an API-driven
+  activity summary panel for livestream event counts.
+
+## [0.7.5] — 2026-05-15
+
+### Fixed
+- Dashboard now calls the livestream analytics API (`/analytics/live/overview` and `/analytics/live/events`)
+  instead of rendering static-only cards; fallback demo data remains only for loading/error states.
+
 ## [0.7.0] — 2026-05-06
 
 ### Added

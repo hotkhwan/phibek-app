@@ -1,7 +1,7 @@
 {
   "name": "phibek-app",
   "private": true,
-  "version": "0.7.4",
+  "version": "0.8.1",
   "type": "module",
   "scripts": {
     "dev": "bun run i18n:merge && set -a && [ -f .env ] && source .env; set +a && bun run vite dev",
@@ -40,9 +40,9 @@
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.1.0",
-    "@iconify/svelte": "^5.2.1",
     "@googlemaps/js-api-loader": "^2.0.2",
     "@googlemaps/markerclusterer": "^2.6.2",
+    "@iconify/svelte": "^5.2.1",
     "apexcharts": "^5.3.6",
     "bootstrap": "^5.3.8",
     "bootstrap-icons": "^1.13.1",
@@ -57,7 +57,9 @@
     "leaflet": "^1.9.4",
     "leaflet.markercluster": "^1.5.3",
     "lity": "^2.4.1",
+    "maplibre-gl": "^5.24.0",
     "marked": "^17.0.5",
+    "motion": "^12.38.0",
     "mqtt": "^5.15.1",
     "perfect-scrollbar": "^1.5.6",
     "sass": "1.71.1",

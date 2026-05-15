@@ -9,6 +9,27 @@
   type Entry = { version: string; date: string; bullets: string[] }
   const entries: Entry[] = [
     {
+      version: '0.8.1',
+      date: '2026-05-15',
+      bullets: [
+        'Dashboard viewer locations now use MapLibre GL JS clusters and Motion One entrance animation, with analytics API calls waiting for auth context; System Users avatars stay compact in table rows.'
+      ]
+    },
+    {
+      version: '0.8.0',
+      date: '2026-05-15',
+      bullets: [
+        'Dashboard refreshed for the Phase 1 Livestream Analytics experience: clearer phase separation, denser analytics cards, camera-group line chart, and livestream activity summary.'
+      ]
+    },
+    {
+      version: '0.7.5',
+      date: '2026-05-15',
+      bullets: [
+        'Dashboard now loads livestream overview and event metrics from the analytics API, with fallback data only while loading or when the API returns an error.'
+      ]
+    },
+    {
       version: '0.7.0',
       date: '2026-05-07',
       bullets: [
