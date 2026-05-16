@@ -8,6 +8,7 @@ export const appSidebarMenus = writable<SidebarMenu[]>([
   { kind: 'header', id: 'nav', textKey: 'navNavigation' },
 
   { kind: 'link', id: 'dashboard', menuId: 'dashboard', url: 'dashboard', icon: 'bi bi-ui-radios-grid', textKey: 'navDashboard' },
+  { kind: 'link', id: 'intDash', menuId: 'intDash', url: 'intDash', icon: 'bi bi-broadcast-pin', textKey: 'navIntDash' },
   { kind: 'link', id: 'aiSearch', menuId: 'ksearch', url: 'aiSearch', icon: 'bi bi-search-heart', textKey: 'navAiSearch' },
   { kind: 'link', id: 'iotWatch', menuId: 'kwatch', url: 'iotWatch', icon: 'bi bi-eye', textKey: 'navIotWatch' },
   {

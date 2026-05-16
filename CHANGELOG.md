@@ -6,6 +6,17 @@ this project follows semantic versioning.
 
 ## [Unreleased]
 
+## [0.10.0] — 2026-05-16
+
+### Added
+- **`/intDash` AI Event Intelligence page** — new SvelteKit port of klynx FE intDash, consuming klynx-api 4.55.0's `/events` + `/events/aggregate` contracts without FE-side schema invention. Route at `src/routes/(app)/intDash/+page.svelte` with sidebar entry under main navigation (between Dashboard and AI Search). Renders 5 KPI tiles (totalEvents / highSeverity / aiCamerasReporting / aiAccuracy / eventsToday), live event feed (top-20 most-recent, severity-coded badges), MapLibre cluster map of geolocated events from the latest feed, and a 4-widget analytics row (60-minute severity timeline, top-5 devices, camera health donut, event-category donut) backed by chart.js. Refresh every 60s; `/events/aggregate` is the primary source with a graceful fallback to client-side bucketing from the feed if the aggregate endpoint errors. New api wrapper at `src/lib/api/intDash.ts` types `IntDashEvent`, `IntDashAggregateDetails`, `IntDashDatasets`, and `IntDashTimeline` strictly per BE contract; new components `IntDashCharts.svelte` (chart.js 4-widget grid) and `IntDashMap.svelte` (MapLibre cluster source + popup) live under `src/lib/components/intDash/`.
+- i18n key `navIntDash` ("AI Intelligence (Beta)" en/th) in `i18n/{en,th}/nav.json`; sidebar entry registered in `src/lib/stores/appSidebarMenus.ts` with `menuId: 'intDash'` for future permission-tree gating.
+
+### Notes
+- Mirrors klynx FE 3.51.0 minus the deck.gl heat overlay and supercluster (MapLibre native `cluster: true` is used instead — simpler, no new dependency surface). vue-echarts widgets in klynx are rendered here with chart.js, the existing phibek chart plugin, so no new dep added.
+- Status pill in the header reflects which dataset path was used: `aggregate` (green, BE-owned bucketing) vs `fallback` (orange, client-side bucketing from the event feed). `scope=org-only` pill surfaces when the BE applied workspace→org fallback.
+- BE pair: klynx-api 4.51.0 (events query) + 4.52.0 (extra fields) + 4.55.0 (`/events/aggregate`). Contract: klynx-api `docs/contracts/intdash-analytics-aggregate.md`.
+
 ## [0.9.2] — 2026-05-16
 
 ### Security
