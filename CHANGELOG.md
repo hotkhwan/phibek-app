@@ -6,6 +6,22 @@ this project follows semantic versioning.
 
 ## [Unreleased]
 
+## [0.14.0] — 2026-05-16
+
+### Added
+- **`/admin/licenses/[licenseId]` detail page.** Replaced the 307 redirect stub with a real read view (lifecycle actions remain on the list page per PR #41):
+  - **Header card** — customer name + license id + status badge + plan / seats / expires / created / deployment / delivery / customer org id (renders only fields the BE actually returned)
+  - **Signed artifact panel** — key id / version / issued / reissued / signature (truncated). Buttons: **Issue** (only when status=active and no artifact yet), **Reissue** (status≠terminated and an artifact exists), **Download .json** (triggers a `<a download>` with `JSON.stringify(artifact, null, 2)`), **View JSON** (full Modal with copy + download)
+  - **Entitlement panel** — features (chips) + limits (k/v table) + valid-until. Hides gracefully when BE returns empty
+  - **Audit log** — paginated table (when / action / actor / reason) with 10/25/50 per-page selector
+- API additions in [`lib/api/adminLicense.ts`](src/lib/api/adminLicense.ts): `getEntitlement`, `getAuditLog`, `getArtifact`, `issueArtifact`, `reissueArtifact` + types `LicenseStatus`, `Entitlement`, `LicenseAuditEvent`, `LicenseArtifactDetails`. `License` type extended with `updatedAt` / `deploymentType` / `deliveryMode` (matches PR #41's wider vocabulary so the two PRs merge cleanly).
+- `src/routes/(app)/admin/licenses/[licenseId]/+page.ts` (307 redirect stub) **deleted** — the new `+page.svelte` renders the route directly.
+
+### Notes
+- `bun run check` — 2771 files / 0 errors / 0 warnings.
+- Lifecycle actions (activate / suspend / terminate / renew) are intentionally **not duplicated** on the detail page — they live on the list page (PR #41) and the operator clicks "All licenses" to navigate back. Keeps the two PRs orthogonal.
+- Artifact download path: uses `<a download>` with `Blob` + `URL.createObjectURL` (no BE-side `Content-Disposition` needed). Filename is `license-{licenseId}.json`.
+
 ## [0.9.1] — 2026-05-15
 
 ### Changed
