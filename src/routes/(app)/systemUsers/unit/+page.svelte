@@ -41,6 +41,12 @@
   let editing = $state<OrgUnit | null>(null)
   let form = $state({ name: '', description: '', parentId: '' })
 
+  // Move-to-unit modal (for individual members)
+  let moveOpen = $state(false)
+  let moveBusy = $state(false)
+  let moveTarget = $state<MemberRow | null>(null)
+  let moveDestId = $state('')
+
   const selected = $derived(units.find((x) => x.id === selectedId))
   const filtered = $derived(units.filter((x) => `${x.name} ${x.description ?? ''} ${x.parentId ?? ''}`.toLowerCase().includes(search.toLowerCase())))
   const shownMembers = $derived((viewMode === 'members' ? members : addUsers).filter((u) => `${displayName(u)} ${u.email ?? ''}`.toLowerCase().includes(memberSearch.toLowerCase())))
@@ -182,6 +188,40 @@
     await load()
   }
 
+  // ─────────── move member to another unit ───────────
+  function openMove(row: MemberRow) {
+    moveTarget = row
+    moveDestId = ''
+    moveOpen = true
+  }
+
+  async function confirmMove() {
+    if (!moveTarget || !selectedId || !moveDestId) return
+    if (moveDestId === selectedId) {
+      notify.warning('เลือก unit อื่น', 'ไม่สามารถย้ายไปยัง unit เดียวกัน')
+      return
+    }
+    moveBusy = true
+    try {
+      const uid = userId(moveTarget)
+      const role = (moveTarget.orgRole === 'admin' ? 'admin' : 'member') as 'admin' | 'member'
+      // 1) add to destination first (avoid orphan state if remove fails)
+      await addOrgUnitMembers(moveDestId, [{ userId: uid, role }])
+      // 2) remove from source
+      await removeOrgUnitMembers(selectedId, [uid])
+      notify.success('ย้ายสมาชิกสำเร็จ', `→ ${units.find((u) => u.id === moveDestId)?.name ?? moveDestId}`)
+      moveOpen = false
+      moveTarget = null
+      await loadMembers()
+      await load()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      notify.error('ย้ายสมาชิกไม่สำเร็จ', msg)
+    } finally {
+      moveBusy = false
+    }
+  }
+
   onMount(() => { setPageTitle(`${m.navSystemUsers()} · ${m.navSystemUsersUnit()}`); load() })
 </script>
 
@@ -191,7 +231,7 @@
 <div class="row g-3 system-users-workspace">
   <div class="col-xl-4"><div class="card h-100"><div class="card-header d-flex align-items-center gap-2"><i class="bi bi-diagram-2 text-theme"></i><b>Org units</b><span class="badge bg-theme text-black ms-auto">{units.length}</span></div><div class="card-body"><input class="form-control form-control-sm mb-3" bind:value={search} placeholder="Search units..." />{#if loading}<div class="text-muted">Loading…</div>{/if}<div class="list-group list-group-flush">{#each filtered as row (row.id)}<button type="button" class="list-group-item list-group-item-action d-flex align-items-start gap-2" class:active={selectedId === row.id} style={`padding-left:${0.75 + unitDepth(row) * 1.1}rem`} onclick={() => selectUnit(row.id)}><i class="bi {row.parentId ? 'bi-folder' : 'bi-folder2-open'}"></i><span class="min-w-0 flex-grow-1"><b class="d-block text-truncate">{row.name}</b><small class="d-block text-truncate opacity-75">{row.description || row.parentId || 'root'}</small></span><span class="badge bg-secondary-subtle text-body">{row.childCount ?? 0}</span></button>{/each}</div></div></div></div>
   <div class="col-xl-8"><div class="card h-100"><div class="card-header d-flex align-items-center gap-2"><div><b>{selected?.name ?? 'Select unit'}</b><div class="small text-muted">{viewMode === 'members' ? 'Unit members' : 'Add members to unit'}</div></div><div class="ms-auto d-flex gap-2">{#if selected}<button class="btn btn-outline-theme btn-sm" aria-label="Add child unit" onclick={() => startCreate(selected.id)} title="Add child"><i class="bi bi-node-plus"></i></button><button class="btn btn-outline-theme btn-sm" aria-label="Edit" title="Edit" onclick={() => startEdit()}><i class="bi bi-pencil"></i></button><button class="btn btn-outline-danger btn-sm" aria-label="Delete" title="Delete" onclick={() => deleteOpen = true}><i class="bi bi-trash"></i></button>{/if}</div></div><div class="card-body">
-    {#if selected}<div class="d-flex flex-wrap gap-2 align-items-center mb-3"><div class="btn-group btn-group-sm"><button class="btn" class:btn-theme={viewMode === 'members'} class:btn-outline-theme={viewMode !== 'members'} onclick={() => switchMode('members')}>Members</button><button class="btn" class:btn-theme={viewMode === 'add'} class:btn-outline-theme={viewMode !== 'add'} onclick={() => switchMode('add')}>Add members</button></div><input class="form-control form-control-sm ms-auto member-search" bind:value={memberSearch} oninput={() => loadMembers()} placeholder="Search members..." /></div>{#if memberLoading}<div class="text-muted">Loading members…</div>{/if}<div class="table-responsive"><table class="table table-sm table-striped align-middle"><thead><tr><th style="width:42px"></th><th>User</th><th>Email</th><th class="text-center">Role</th></tr></thead><tbody>{#each shownMembers as row (userId(row))}<tr><td>{#if viewMode === 'members'}<input class="form-check-input" type="checkbox" checked={selectedRemoval.has(userId(row))} onchange={() => toggleRemoval(userId(row))} />{:else}<input class="form-check-input" type="checkbox" checked={selectedAdding.has(userId(row))} onchange={() => toggleAdding(row)} />{/if}</td><td><i class="bi bi-person me-2 text-theme"></i>{displayName(row)}</td><td>{row.email ?? '—'}</td><td class="text-center">{#if viewMode === 'add'}<select class="form-select form-select-sm role-select" disabled={!selectedAdding.has(userId(row))} value={selectedAdding.get(userId(row)) ?? 'member'} onchange={(e) => setAddRole(userId(row), (e.currentTarget as HTMLSelectElement).value as 'admin' | 'member')}><option value="member">Member</option><option value="admin">Admin</option></select>{:else}<span class="badge bg-secondary-subtle text-body">{row.orgRole ?? 'member'}</span>{/if}</td></tr>{/each}</tbody></table></div><div class="d-flex justify-content-end gap-2">{#if viewMode === 'members' && selectedRemoval.size}<button class="btn btn-danger btn-sm" onclick={batchRemove}>Remove {selectedRemoval.size}</button>{/if}{#if viewMode === 'add' && selectedAdding.size}<button class="btn btn-theme btn-sm" onclick={batchAdd}>Add {selectedAdding.size}</button>{/if}</div>{:else}<div class="text-muted">Select a unit to manage members.</div>{/if}
+    {#if selected}<div class="d-flex flex-wrap gap-2 align-items-center mb-3"><div class="btn-group btn-group-sm"><button class="btn" class:btn-theme={viewMode === 'members'} class:btn-outline-theme={viewMode !== 'members'} onclick={() => switchMode('members')}>Members</button><button class="btn" class:btn-theme={viewMode === 'add'} class:btn-outline-theme={viewMode !== 'add'} onclick={() => switchMode('add')}>Add members</button></div><input class="form-control form-control-sm ms-auto member-search" bind:value={memberSearch} oninput={() => loadMembers()} placeholder="Search members..." /></div>{#if memberLoading}<div class="text-muted">Loading members…</div>{/if}<div class="table-responsive"><table class="table table-sm table-striped align-middle"><thead><tr><th style="width:42px"></th><th>User</th><th>Email</th><th class="text-center">Role</th>{#if viewMode === 'members'}<th class="text-end" style="width:60px;">Actions</th>{/if}</tr></thead><tbody>{#each shownMembers as row (userId(row))}<tr><td>{#if viewMode === 'members'}<input class="form-check-input" type="checkbox" aria-label="Select" checked={selectedRemoval.has(userId(row))} onchange={() => toggleRemoval(userId(row))} />{:else}<input class="form-check-input" type="checkbox" aria-label="Select" checked={selectedAdding.has(userId(row))} onchange={() => toggleAdding(row)} />{/if}</td><td><i class="bi bi-person me-2 text-theme"></i>{displayName(row)}</td><td>{row.email ?? '—'}</td><td class="text-center">{#if viewMode === 'add'}<select class="form-select form-select-sm role-select" disabled={!selectedAdding.has(userId(row))} value={selectedAdding.get(userId(row)) ?? 'member'} onchange={(e) => setAddRole(userId(row), (e.currentTarget as HTMLSelectElement).value as 'admin' | 'member')}><option value="member">Member</option><option value="admin">Admin</option></select>{:else}<span class="badge bg-secondary-subtle text-body">{row.orgRole ?? 'member'}</span>{/if}</td>{#if viewMode === 'members'}<td class="text-end"><button type="button" class="btn btn-sm btn-link p-1" title="Move to another unit" aria-label="Move" onclick={() => openMove(row)}><i class="bi bi-arrow-left-right"></i></button></td>{/if}</tr>{/each}</tbody></table></div><div class="d-flex justify-content-end gap-2">{#if viewMode === 'members' && selectedRemoval.size}<button class="btn btn-danger btn-sm" onclick={batchRemove}>Remove {selectedRemoval.size}</button>{/if}{#if viewMode === 'add' && selectedAdding.size}<button class="btn btn-theme btn-sm" onclick={batchAdd}>Add {selectedAdding.size}</button>{/if}</div>{:else}<div class="text-muted">Select a unit to manage members.</div>{/if}
   </div></div></div>
 </div>
 
@@ -200,6 +240,35 @@
   {#snippet footer()}<button class="btn btn-outline-secondary" onclick={() => formOpen = false}>Cancel</button><button class="btn btn-theme" onclick={save} disabled={!form.name.trim() || !!duplicateUnit}>Save</button>{/snippet}
 </Modal>
 <ConfirmDialog bind:open={deleteOpen} title="Delete unit" message="Delete this unit?" confirmLabel="Delete" danger onConfirm={remove} />
+
+<Modal bind:open={moveOpen} title="Move member to another unit" size="md" dismissible={!moveBusy}>
+  {#snippet body()}
+    <div>
+      <div class="mb-3 small">
+        <strong>{moveTarget ? displayName(moveTarget) : ''}</strong>
+        <div class="text-body text-opacity-65">{moveTarget?.email ?? ''}</div>
+      </div>
+      <div class="mb-2 small text-body text-opacity-65">
+        From: <strong>{selected?.name ?? '—'}</strong>
+      </div>
+      <label class="form-label" for="move-dest">Move to</label>
+      <select id="move-dest" class="form-select form-select-sm" bind:value={moveDestId}>
+        <option value="">— select target unit —</option>
+        {#each units.filter((u) => u.id !== selectedId) as u (u.id)}
+          <option value={u.id}>{u.name}</option>
+        {/each}
+      </select>
+      <div class="form-text">Member's role ({moveTarget?.orgRole ?? 'member'}) is preserved at the destination.</div>
+    </div>
+  {/snippet}
+  {#snippet footer()}
+    <button type="button" class="btn btn-outline-secondary btn-sm" onclick={() => (moveOpen = false)} disabled={moveBusy}>Cancel</button>
+    <button type="button" class="btn btn-theme btn-sm" onclick={confirmMove} disabled={moveBusy || !moveDestId}>
+      {#if moveBusy}<span class="spinner-border spinner-border-sm me-1"></span>{/if}
+      Move
+    </button>
+  {/snippet}
+</Modal>
 
 <style lang="scss">
   .system-users-workspace { min-height: calc(100vh - 13rem); }

@@ -6,6 +6,20 @@ this project follows semantic versioning.
 
 ## [Unreleased]
 
+## [0.16.0] — 2026-05-16
+
+### Added
+- **`systemUsers/unit` — "Move member to another unit" action.** Each row in the Members tab now has an arrow-left-right action button → opens a small modal with a destination-unit dropdown. The move is a 2-step add-then-remove (add to destination first to avoid orphan state if the remove fails). Member's existing `orgRole` (admin / member) is preserved at the destination.
+
+### Notes
+- `bun run check` — 2771 files / 0 errors / 0 warnings.
+- This is a targeted improvement on top of the existing 209-line unit page (which already covers create / edit / delete / bulk add / bulk remove / duplicate-name detection per 0.9.0).
+- **Deferred follow-ups (larger gaps vs klynx-feature's 1286-line page):**
+  - Visual collapsible tree rendering (current page uses a depth-padded flat list — readable but not a tree-with-toggles)
+  - Drag-drop reorder / re-parent of units
+  - Per-member inline role change from the Members list (today admin↔member toggle requires remove + re-add)
+  - CSV export of members
+
 ## [0.9.1] — 2026-05-15
 
 ### Changed
