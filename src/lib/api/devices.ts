@@ -22,6 +22,12 @@ export type Camera = {
   groupId?: string
   groupName?: string
   enabled?: boolean
+  brand?: string
+  district?: string
+  user?: string
+  lat?: number
+  lng?: number
+  monitorState?: 'online' | 'offline' | 'suspect' | 'unknown' | string
   createAt?: string
   updateAt?: string
 }

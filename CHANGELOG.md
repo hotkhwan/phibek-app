@@ -6,6 +6,26 @@ this project follows semantic versioning.
 
 ## [Unreleased]
 
+## [0.13.0] — 2026-05-16
+
+### Added
+- **`/floorPlans/[id]` placement editor — drag-drop camera markers on the canvas.** Replaced the read-only detail view with a full canvas editor:
+  - Click "Edit placements" → canvas enters edit mode (crosshair cursor + bottom hint banner)
+  - Click empty space → camera picker modal opens (filters out cameras already placed on this plan); pick a camera → marker drops at the click coordinate
+  - Drag an existing marker to reposition; PATCH fires on pointer-up so the live BE state always matches what's on screen
+  - Click a marker to select; right-side panel shows the selected marker's camera + label + coordinates; in edit mode the panel exposes "Edit label" + "Remove marker" actions
+  - Coordinates stored as percentages of the image (0-100) so the BE persists a resolution-independent position — matches the klynx-feature contract
+- API additions in [`lib/api/floorPlan.ts`](src/lib/api/floorPlan.ts): `listPlacements`, `addPlacement`, `updatePlacement`, `removePlacement` + types `PlacementInput`, `PlacementUpdate`, `FloorPlanPlacement`. Endpoints: `GET / POST / PATCH / DELETE /kapi/floorPlans/{id}/placements[/:placementId]`.
+- Types extended: `FloorPlan` now carries `buildingName`, `floorLabel`, `scaleMetersPerPx`, `lat`, `lng` (matches the create-modal fields shipped in 0.11.0 PR #40). `Camera` extended with `brand`, `district`, `user`, `lat`, `lng`, `monitorState` (the picker uses brand/district to disambiguate).
+
+### Notes
+- `bun run check` — 2771 files / 0 errors / 0 warnings.
+- **Deferred follow-up slices on this surface:**
+  - `suggestPlacements` (BE 4.x — heuristic auto-place for new floor plans)
+  - `bulkAddPlacements` (BE 4.x — bulk import via CSV / pairing helper)
+  - Yaw / direction indicator on the marker (BE schema carries `yawDeg` but the editor doesn't yet expose a rotate handle)
+- This PR can land independently of PR #40 (devices+floorPlans CRUD) — the only field added by #40 that this editor uses (`scaleMetersPerPx`, `buildingName`, `floorLabel`) is also extended in this branch's `floorPlan.ts`. If #40 lands first, the merge is clean.
+
 ## [0.9.1] — 2026-05-15
 
 ### Changed
