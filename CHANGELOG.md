@@ -6,6 +6,20 @@ this project follows semantic versioning.
 
 ## [Unreleased]
 
+## [0.17.0] — 2026-05-16
+
+### Added
+- **`systemUsers/organizations` — bulk role change.** When 1+ members are selected (checkboxes in the Members tab), the action bar now exposes **Make admin** + **Make member** in addition to the existing **Remove**. The bulk role-change loops through selected members and calls `updateOrgMemberRole(userId, orgId, role)` per member. Owners are skipped automatically (the BE doesn't allow downgrading owners via this endpoint). Failures are surfaced in a partial-success toast (`สำเร็จ N · ล้มเหลว M`).
+
+### Notes
+- `bun run check` — 2771 files / 0 errors / 0 warnings.
+- Targeted improvement on top of existing 289-line org page (which already covers create/edit/delete org + ingest provisioning + member invite/remove + single-member role update per 0.9.0).
+- **Deferred follow-ups (gaps vs klynx-feature's 823-line page):**
+  - Org-unit picker on the Add Members modal (today only role is selectable; klynx lets the operator pre-assign the new member to a specific org unit)
+  - CSV export of members
+  - Default-role-on-org-add (set the default `orgRole` for newly-invited members per org)
+  - Pending invitation list (klynx surfaces unaccepted invites in a separate tab)
+
 ## [0.9.1] — 2026-05-15
 
 ### Changed
