@@ -2,6 +2,7 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte'
   import { page } from '$app/state'
+  import { resolve } from '$app/paths'
   import { get } from 'svelte/store'
   import { setPageTitle } from '$lib/utils/title'
   import { appOptions } from '$lib/stores/appOptions'
@@ -58,6 +59,14 @@
   let detailLoading = $state(false)
   let saving = $state(false)
   let errorMsg = $state('')
+  /**
+   * klynx-api 4.53.0 tightened GET/LIST on /orgs/(menu|resource)/permissions
+   * to require `organization.manage`. When the BE returns 403, render a
+   * "no permission" panel instead of an empty profile list or just a
+   * red alert string — mirrors klynx FE 3.50.0 page guard per
+   * docs/contracts/permission-profile.md §5.2 + §5.2.1.
+   */
+  let noPermission = $state(false)
   let search = $state('')
   let pickerSearch = $state('')
   let form = $state({ name: '', description: '', status: true, relation: 'viewer' as Relation })
@@ -498,11 +507,24 @@
   async function load() {
     loading = true
     errorMsg = ''
+    noPermission = false
     const [menuRes, resourceRes] = await Promise.all([
       listMenuPermissions({ perPage: 250 }),
       listResourcePermissions({ perPage: 250 })
     ])
     loading = false
+    // BE 4.53.0 — Get/List on permission catalogs requires
+    // organization.manage. When BOTH endpoints return 403, the caller
+    // lacks the capability entirely → render the no-permission panel
+    // and skip hydrate. (If only one of the two is 403 we still
+    // surface the error message; that's an unexpected mid-state.)
+    if (menuRes.error?.statusCode === 403 && resourceRes.error?.statusCode === 403) {
+      noPermission = true
+      menuRows = []
+      resourceRows = []
+      selectedId = ''
+      return
+    }
     if (menuRes.error) errorMsg = menuRes.error.message
     if (resourceRes.error) errorMsg = resourceRes.error.message
     menuRows = menuRes.data?.details?.items ?? []
@@ -692,6 +714,25 @@
   </div>
 {/snippet}
 
+{#if noPermission}
+  <!--
+    BE 4.53.0 — caller lacks `organization.manage`. Render a clear
+    panel instead of the management UI (mirrors klynx FE 3.50.0 page
+    guard per docs/contracts/permission-profile.md §5.2). Sidebar entry
+    is also hidden for the same reason — this panel is the defense-in-
+    depth fallback for users who navigate via URL.
+  -->
+  <div class="permission-shell">
+    <div class="permission-no-access" role="alert">
+      <i class="bi bi-shield-lock no-access-icon" aria-hidden="true"></i>
+      <h2 class="no-access-title">{m.permissionsNoAccessTitle()}</h2>
+      <p class="no-access-description">{m.permissionsNoAccessDescription()}</p>
+      <a class="btn btn-outline-secondary" href={resolve('/dashboard')}>
+        <i class="bi bi-arrow-left me-1"></i>{m.permissionsNoAccessBackHome()}
+      </a>
+    </div>
+  </div>
+{:else}
 <div class="permission-shell">
   <div class="permission-topbar">
     <div class="page-header mb-3 permission-page-header">
@@ -854,6 +895,7 @@
     </div>
   </div>
 </div>
+{/if}
 
 <style lang="scss">
   .permission-shell {
@@ -861,6 +903,32 @@
     min-height: 0;
     display: flex;
     flex-direction: column;
+  }
+
+  .permission-no-access {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: .75rem;
+    padding: 2rem;
+    text-align: center;
+  }
+  .no-access-icon {
+    font-size: 3rem;
+    color: var(--bs-warning, #f59e0b);
+    margin-bottom: .5rem;
+  }
+  .no-access-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0;
+  }
+  .no-access-description {
+    max-width: 28rem;
+    color: var(--bs-secondary-color, #6c757d);
+    margin: 0;
   }
 
   .permission-topbar {

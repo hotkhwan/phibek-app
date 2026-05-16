@@ -76,7 +76,13 @@ export const appSidebarMenus = writable<SidebarMenu[]>([
       { id: 'systemUsersUsers', menuId: 'systemUsersUsers', url: 'systemUsers/users', textKey: 'navSystemUsersUsers' },
       { id: 'systemUsersOrganizations', menuId: 'systemUsersOrgs', url: 'systemUsers/organizations', textKey: 'navSystemUsersOrganizations' },
       { id: 'systemUsersUnit', menuId: 'systemUsersUnits', url: 'systemUsers/unit', textKey: 'navSystemUsersUnit' },
-      { id: 'systemUsersPermissions', menuId: 'systemUsersPermissions', url: 'systemUsers/permissions/menu', textKey: 'navSystemUsersPermissions' }
+      // klynx-api 4.53.0 tightened GET/LIST on /orgs/(menu|resource)/permissions
+      // to require organization.manage on the active org. The legacy
+      // `systemUsersPermissions` menu grant alone is insufficient — gate
+      // this entry on both to stay defense-in-depth aligned with the BE.
+      // See docs/contracts/permission-profile.md §5.2 + §5.2.1 (klynx FE
+      // 3.50.0 mirror).
+      { id: 'systemUsersPermissions', menuId: 'systemUsersPermissions', url: 'systemUsers/permissions/menu', textKey: 'navSystemUsersPermissions', requireCapability: 'organization.manage' }
     ]
   },
   {

@@ -1,5 +1,8 @@
 {
   "_comments_permission": "Permission profile management labels",
+  "permissionsNoAccessTitle": "You don't have access to this page",
+  "permissionsNoAccessDescription": "This page requires the organization-manage capability (organization.manage). Ask your org administrator for access.",
+  "permissionsNoAccessBackHome": "Back to home",
   "permTitle": "Permission Profiles",
   "permCreateTitle": "Create Permission Profile",
   "permEditTitle": "Edit Permission Profile",

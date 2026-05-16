@@ -6,6 +6,16 @@ this project follows semantic versioning.
 
 ## [Unreleased]
 
+## [0.9.2] — 2026-05-16
+
+### Security
+- **Permission catalog page guard** — defense-in-depth port of klynx FE 3.50.0 on top of klynx-api 4.53.0's `Get`/`List` permission gate. Pre-fix the BE returned 403 on `/orgs/(menu|resource)/permissions/` when the caller lacked `organization.manage`, but the page surfaced it as a generic red alert string under the management UI (`guardAuth` is not on the `apiSafe` path used by `listMenuPermissions` / `listResourcePermissions`, so no re-auth redirect either). Now: when **both** endpoints respond with 403, `src/routes/(app)/systemUsers/permissions/+page.svelte` short-circuits to a "ไม่มีสิทธิ์เข้าหน้านี้" panel with a back-to-home link (i18n keys `permissionsNoAccess{Title,Description,BackHome}` in `i18n/{en,th}/permission.json`).
+- **Sidebar gate** — `src/lib/stores/appSidebarMenus.ts` entry `systemUsersPermissions` declares a new `requireCapability: 'organization.manage'` field (added to `SidebarChild` + `SidebarMenuLink` types in `src/lib/types/navigation/sidebar.ts`). `AppSidebar.svelte` `canSeeMenu()` AND's this against the existing `visibleMenuIds[]` check via a new `meetsCapability()` helper — the entry hides when the active org's `effectiveAccess.access.orgCapabilities.canManageOrganization` is false. Mirrors klynx FE 3.50.0 `layout/default.vue` sidebar gate.
+
+### Notes
+- Three klynx FE features were considered but found N/A on phibek today: (1) **resource-group picker unify** — no picker exists on phibek's dashboard / biDash / live / videowall; (2) **RG custom icons on `/map`** — phibek `/map/+page.svelte` is a 37-line placeholder; building blocks live in `lib/components/leaflet/*` but the full Leaflet wire-up is deferred; (3) **`/intDash` AI Event Intelligence page** — does not exist on phibek; a from-scratch SvelteKit build (multi-hour, deferred to a separate session). Only the permission guard had an existing surface to attach to.
+- Contract source of truth: `/home/klynx/klynx-api/docs/contracts/permission-profile.md §5.2 + §5.2.1` (klynx-api 4.53.0 tightening).
+
 ## [0.9.1] — 2026-05-15
 
 ### Changed

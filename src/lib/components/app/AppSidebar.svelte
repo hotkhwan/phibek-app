@@ -56,8 +56,19 @@
     return children?.some((c) => (c.url ? withBase(c.url) === pathname : false)) ?? false
   }
 
+  function meetsCapability(menu: SidebarMenuLink | SidebarChild) {
+    if (!menu.requireCapability) return true
+    switch (menu.requireCapability) {
+      case 'organization.manage':
+        return $effectiveAccess.access.orgCapabilities.canManageOrganization
+      default:
+        return true
+    }
+  }
+
   function canSeeMenu(menu: SidebarMenuLink | SidebarChild) {
-    return !menu.menuId || $effectiveAccess.access.visibleMenuIds.includes(menu.menuId)
+    const menuIdOk = !menu.menuId || $effectiveAccess.access.visibleMenuIds.includes(menu.menuId)
+    return menuIdOk && meetsCapability(menu)
   }
 
   function visibleChildren(children?: SidebarChild[]) {
