@@ -6,6 +6,25 @@ this project follows semantic versioning.
 
 ## [Unreleased]
 
+## [0.15.0] — 2026-05-16
+
+### Added
+- **`systemDevices/groups` upgraded — tree view + CRUD.** Replaced the `AdminExplorer` starter with a real tree editor:
+  - Loads the entire org's RG forest via `GET /kapi/resources/groups?tree=true` (klynx-api 4.25.8+). Falls back to a paginated flat list with client-side `buildTree` for older deployments.
+  - Collapsible tree with depth-indented nodes; click a row to select; expand/collapse all controls.
+  - **New root group** + **Add child group** (modal pre-fills `parentGroupId` and inherits parent's `resourceType`).
+  - **Edit metadata** modal: `name`, `description`, `mapVisibility` (public/private), `filterVisibility` (public/internal), `includeFilterChildren`, `icon.{online,offline}`. Type cannot change after creation (matches klynx-feature semantics).
+  - **Delete** with confirm dialog; warns that member devices stay in the org and only their group assignment is removed.
+  - **Right pane** shows selected group details + member camera list (`GET /kapi/resources/groups/{id}/cameras`).
+- API additions in [`lib/api/devices.ts`](src/lib/api/devices.ts): `getResourceGroupTree`, `getResourceGroup`, `createResourceGroup`, `updateResourceGroup`, `deleteResourceGroup`, `listResourceGroupMembers`, `addResourceGroupMembers`, `removeResourceGroupMembers`. New types: `ResourceGroupInput`, `ResourceGroupResourceType`, `ResourceGroupIcon`. `ResourceGroup` extended with `parentGroupId`, `isRoot`, `resourceType`, `mapVisibility`, `filterVisibility`, `includeFilterChildren`, `icon`, `children`, `cameraCount`.
+
+### Notes
+- `bun run check` — 2771 files / 0 errors / 0 warnings.
+- **Deferred follow-ups:**
+  - Move-between-parents drag-drop (BE supports `PATCH /resources/groups/{id}` with `parentGroupId`, but the UI doesn't expose a drag handle yet).
+  - Member assignment UI from the detail pane (add/remove cameras via a picker modal). The API wrappers (`addResourceGroupMembers` / `removeResourceGroupMembers`) are exported and ready to wire in.
+  - kcontrol / edge tabs alongside cameras in the member list (today the right pane only lists cameras).
+
 ## [0.9.1] — 2026-05-15
 
 ### Changed
