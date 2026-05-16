@@ -11,6 +11,8 @@ type Pagination = {
   totalPages: number
 }
 
+export type LicenseStatus = 'active' | 'suspended' | 'terminated' | 'expired' | 'revoked' | string
+
 export type License = {
   id: string
   licenseId?: string
@@ -19,8 +21,11 @@ export type License = {
   plan?: string
   seats?: number
   expiresAt?: string
-  status?: 'active' | 'expired' | 'revoked'
+  status?: LicenseStatus
   createdAt?: string
+  updatedAt?: string
+  deploymentType?: string
+  deliveryMode?: string
 }
 
 export type PlatformLicense = {
@@ -35,7 +40,7 @@ export type PlatformLicense = {
   signature?: string
 }
 
-export async function listLicenses(params: { page?: number; perPage?: number; search?: string } = {}) {
+export async function listLicenses(params: { page?: number; perPage?: number; search?: string; status?: LicenseStatus } = {}) {
   return apiSafe<
     ApiEnvelope<{ items: License[] }> & { pagination?: Pagination }
   >('/admin/licenses', { params })
@@ -53,7 +58,55 @@ export async function createLicense(body: {
   seats: number
   expiresAt: string
 }) {
-  return api<ApiEnvelope<License>>('/admin/licenses', { method: 'POST', body })
+  return apiSafe<ApiEnvelope<License>>('/admin/licenses', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body
+  })
+}
+
+export async function updateLicense(licenseId: string, body: Partial<{
+  plan: string
+  seats: number
+  expiresAt: string
+}>) {
+  return apiSafe<ApiEnvelope<License>>(`/admin/licenses/${encodeURIComponent(licenseId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body
+  })
+}
+
+export async function renewLicense(licenseId: string, body: { expiresAt: string; reason?: string }) {
+  return apiSafe<ApiEnvelope<License>>(`/admin/licenses/${encodeURIComponent(licenseId)}/renew`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body
+  })
+}
+
+export async function activateLicense(licenseId: string, body: { reason?: string } = {}) {
+  return apiSafe<ApiEnvelope<License>>(`/admin/licenses/${encodeURIComponent(licenseId)}/activate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body
+  })
+}
+
+export async function suspendLicense(licenseId: string, body: { reason?: string } = {}) {
+  return apiSafe<ApiEnvelope<License>>(`/admin/licenses/${encodeURIComponent(licenseId)}/suspend`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body
+  })
+}
+
+export async function terminateLicense(licenseId: string, body: { reason?: string } = {}) {
+  return apiSafe<ApiEnvelope<License>>(`/admin/licenses/${encodeURIComponent(licenseId)}/terminate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body
+  })
 }
 
 export async function getPlatformLicense() {

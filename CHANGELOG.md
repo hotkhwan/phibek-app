@@ -6,6 +6,23 @@ this project follows semantic versioning.
 
 ## [Unreleased]
 
+## [0.12.0] — 2026-05-16
+
+### Added
+- **`admin/licenses` — lifecycle actions on the index page.** Replaced the read-only starter with a proper management table:
+  - 4 KPI tiles (Total / Active / Suspended / Expired+Terminated) — click to filter
+  - search + per-page selector + paginated rows
+  - per-row action buttons: Activate (when not active), Suspend (when active), Renew (always), Terminate (always)
+  - Modal-confirmed lifecycle actions with optional `reason` field (stored in the audit log on the BE)
+  - Modal-confirmed renew with required new `expiresAt` date + optional reason
+  - "Issue license" link kept at the top, routing to the existing `/admin/licenses/create` page
+- API wrappers added to [`lib/api/adminLicense.ts`](src/lib/api/adminLicense.ts): `updateLicense`, `renewLicense`, `activateLicense`, `suspendLicense`, `terminateLicense`. `LicenseStatus` widened to the BE vocabulary (`active` | `suspended` | `terminated` | `expired` | `revoked`). `License` type extended with `updatedAt` / `deploymentType` / `deliveryMode` so the detail view (and future audit-log view) can render without re-fetching.
+
+### Notes
+- `bun run check` — 2771 files / 0 errors / 0 warnings.
+- The `/admin/licenses/[licenseId]` detail page is still the 307 redirect — entitlement / audit-log / artifact download (`/issue`, `/reissue`, `/artifact`) UIs are deferred to a follow-up slice (the BE surface exists per `app/composables/useLicense.ts` in klynx-feature).
+- Renew uses a `date` input — submits as `YYYY-MM-DDT00:00:00Z` via `new Date(value).toISOString()` which is the BE-accepted format. Operators in Asia/Bangkok should treat the displayed date as "expires at midnight UTC on that day"; if the BE needs a different timezone semantic this is a one-line change.
+
 ## [0.9.1] — 2026-05-15
 
 ### Changed
