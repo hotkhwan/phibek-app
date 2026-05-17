@@ -170,6 +170,11 @@
       loaded = true
       ensureSourceAndLayers()
       fitPoints(false)
+      // Defensive: parent flex/grid layouts can settle width AFTER MapLibre
+      // measured the canvas at construct time, leaving tiles painted at
+      // 0×height. rAF-resize forces a remeasure once the page layout settles.
+      // Mirrors klynx 3.54.2 / 3.43.6 fix for AnalyticsGeoMap blank-tiles.
+      requestAnimationFrame(() => map?.resize())
     })
 
     map.on('styledata', () => {

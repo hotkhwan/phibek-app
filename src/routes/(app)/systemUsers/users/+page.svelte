@@ -501,7 +501,13 @@
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `users-${new Date().toISOString().slice(0, 10)}.csv`
+      // Local-timezone Y-M-D (not UTC slice). toISOString() converts to UTC
+      // and in Asia/Bangkok past 17:00 the date shifts to the next day,
+      // putting "tomorrow" on yesterday's export filename. Mirrors klynx 3.43.4
+      // fix for /dashboard date-range stamp.
+      const d = new Date()
+      const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      a.download = `users-${stamp}.csv`
       a.click()
       URL.revokeObjectURL(url)
       notify.success(
