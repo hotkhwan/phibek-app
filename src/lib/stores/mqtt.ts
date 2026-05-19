@@ -13,7 +13,7 @@ export type MqttConfig = {
   url?: string
   username?: string
   password?: string
-  source?: 'PUBLIC_MQTT_URL' | 'NUXT_PUBLIC_MQTT_URL'
+  source?: 'runtime' | 'PUBLIC_MQTT_URL' | 'NUXT_PUBLIC_MQTT_URL'
 }
 
 export type MessageHandler = (topic: string, payload: Uint8Array) => void
@@ -27,6 +27,8 @@ export const mqttConnected = derived(_status, ($s) => $s === 'connected')
 
 let client: MqttClient | null = null
 let connectingPromise: Promise<MqttClient | null> | null = null
+let runtimeUrlOverride: string | undefined
+let configGeneration = 0
 
 const dynamicPublicEnv = env as Record<string, string | undefined>
 const vitePublicEnv = import.meta.env as Record<string, string | undefined>
@@ -40,17 +42,47 @@ function firstPublicEnv(publicKey: string, nuxtKey: string) {
   return cleanEnv(dynamicPublicEnv[publicKey]) ?? cleanEnv(vitePublicEnv[publicKey]) ?? cleanEnv(vitePublicEnv[nuxtKey])
 }
 
+export function normalizeMqttBrokerUrl(value: string): string {
+  const trimmed = cleanEnv(value)
+  if (!trimmed) return ''
+
+  let parsed: URL
+  try {
+    parsed = new URL(trimmed)
+  } catch {
+    throw new Error('MQTT URL must be a valid ws:// or wss:// URL')
+  }
+
+  if (parsed.protocol !== 'ws:' && parsed.protocol !== 'wss:') {
+    throw new Error('MQTT URL must start with ws:// or wss://')
+  }
+  if (parsed.username || parsed.password) {
+    throw new Error('Do not put username/password in the MQTT URL')
+  }
+
+  return parsed.toString()
+}
+
 export function getMqttConfig(): MqttConfig {
+  const runtimeUrl = runtimeUrlOverride
   const publicUrl = cleanEnv(dynamicPublicEnv.PUBLIC_MQTT_URL) ?? cleanEnv(vitePublicEnv.PUBLIC_MQTT_URL)
   const nuxtUrl = cleanEnv(vitePublicEnv.NUXT_PUBLIC_MQTT_URL)
-  const url = publicUrl ?? nuxtUrl
+  const url = runtimeUrl ?? publicUrl ?? nuxtUrl
 
   return {
     url,
     username: firstPublicEnv('PUBLIC_MQTT_USERNAME', 'NUXT_PUBLIC_MQTT_USERNAME'),
     password: firstPublicEnv('PUBLIC_MQTT_PASSWORD', 'NUXT_PUBLIC_MQTT_PASSWORD'),
-    source: publicUrl ? 'PUBLIC_MQTT_URL' : nuxtUrl ? 'NUXT_PUBLIC_MQTT_URL' : undefined
+    source: runtimeUrl ? 'runtime' : publicUrl ? 'PUBLIC_MQTT_URL' : nuxtUrl ? 'NUXT_PUBLIC_MQTT_URL' : undefined
   }
+}
+
+export async function setMqttUrlOverride(url: string | undefined): Promise<void> {
+  const next = url ? normalizeMqttBrokerUrl(url) : undefined
+  if (runtimeUrlOverride === next) return
+  runtimeUrlOverride = next
+  await disconnectMqtt()
+  _lastError.set('')
 }
 
 /**
@@ -69,6 +101,7 @@ export async function getMqttClient(): Promise<MqttClient | null> {
     return null
   }
 
+  const generation = configGeneration
   connectingPromise = (async () => {
     try {
       _status.set('connecting')
@@ -84,6 +117,11 @@ export async function getMqttClient(): Promise<MqttClient | null> {
         connectTimeout: 15_000,
         rejectUnauthorized: false
       })
+
+      if (generation !== configGeneration) {
+        c.end(true)
+        return null
+      }
 
       c.on('connect', () => {
         _status.set('connected')
@@ -112,11 +150,18 @@ export async function getMqttClient(): Promise<MqttClient | null> {
  * End the singleton client. Useful for tests + logout flow.
  */
 export async function disconnectMqtt(): Promise<void> {
-  if (!client) return
-  await new Promise<void>((resolve) => {
-    client!.end(false, {}, () => resolve())
-  })
+  configGeneration += 1
+  connectingPromise = null
+  if (!client) {
+    _status.set('idle')
+    return
+  }
+  const current = client
   client = null
+  await new Promise<void>((resolve) => {
+    current.end(false, {}, () => resolve())
+  })
+  _status.set('idle')
 }
 
 type Match = (pattern: string, topic: string) => boolean
