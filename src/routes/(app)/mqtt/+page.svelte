@@ -8,6 +8,7 @@
   import {
     getMqttClient,
     getMqttConfig,
+    setMqttAuthOverride,
     setMqttUrlOverride,
     subscribeMqtt,
     mqttStatus,
@@ -43,6 +44,8 @@
   let msgs = $state<Msg[]>([])
   let publishStatus = $state('')
   let brokerUrl = $state('')
+  let brokerUsername = $state('')
+  let brokerPassword = $state('')
   let brokerStatus = $state('')
   let brokerBusy = $state(false)
 
@@ -60,6 +63,19 @@
         return 'NUXT_PUBLIC_MQTT_URL'
       default:
         return 'not configured'
+    }
+  }
+
+  function brokerAuthLabel() {
+    switch (mqttConfig.authSource) {
+      case 'runtime':
+        return mqttConfig.username ? `manual (${mqttConfig.username})` : 'manual'
+      case 'PUBLIC_MQTT':
+        return mqttConfig.username ? `PUBLIC_MQTT (${mqttConfig.username})` : 'PUBLIC_MQTT'
+      case 'NUXT_PUBLIC_MQTT':
+        return mqttConfig.username ? `NUXT_PUBLIC_MQTT (${mqttConfig.username})` : 'NUXT_PUBLIC_MQTT'
+      default:
+        return 'none'
     }
   }
 
@@ -110,12 +126,15 @@
     for (const t of activeTopics) subscribeTopic(t)
   }
 
-  async function applyBrokerUrl() {
+  async function applyBrokerConfig() {
     brokerStatus = ''
     brokerBusy = true
     try {
       const nextUrl = brokerUrl.trim()
+      const nextUsername = brokerUsername.trim()
+      const nextPassword = brokerPassword.trim()
       await setMqttUrlOverride(nextUrl || undefined)
+      await setMqttAuthOverride(nextUsername || undefined, nextPassword || undefined)
       clearSubscriptions()
       if (nextUrl) {
         localStorage.setItem(brokerStorageKey, nextUrl)
@@ -125,7 +144,7 @@
       refreshMqttConfig()
       msgs = []
       await connectActiveTopics()
-      brokerStatus = nextUrl ? `Connected via ${brokerSourceLabel()}` : 'Connected via env default'
+      brokerStatus = `Connecting via ${brokerSourceLabel()} / auth ${brokerAuthLabel()}`
     } catch (err) {
       refreshMqttConfig()
       brokerStatus = (err as Error)?.message ?? String(err)
@@ -134,9 +153,11 @@
     }
   }
 
-  async function resetBrokerUrl() {
+  async function resetBrokerConfig() {
     brokerUrl = ''
-    await applyBrokerUrl()
+    brokerUsername = ''
+    brokerPassword = ''
+    await applyBrokerConfig()
   }
 
   async function publish() {
@@ -191,16 +212,39 @@
         <input
           class="form-control font-monospace"
           bind:value={brokerUrl}
-          onkeydown={(e) => e.key === 'Enter' && void applyBrokerUrl()}
+          onkeydown={(e) => e.key === 'Enter' && void applyBrokerConfig()}
           placeholder="wss://istio.k-lynx.com/mqtt"
           aria-label="MQTT broker URL"
         />
-        <button type="button" class="btn btn-outline-theme" disabled={brokerBusy} onclick={applyBrokerUrl}>
+        <button type="button" class="btn btn-outline-theme" disabled={brokerBusy} onclick={applyBrokerConfig}>
           <i class="bi bi-plug me-1"></i> Connect
         </button>
-        <button type="button" class="btn btn-outline-secondary" disabled={brokerBusy} onclick={resetBrokerUrl} title="Use env default">
+        <button type="button" class="btn btn-outline-secondary" disabled={brokerBusy} onclick={resetBrokerConfig} title="Use env default">
           <i class="bi bi-arrow-counterclockwise"></i>
         </button>
+      </div>
+      <div class="row g-2 mt-2">
+        <div class="col-md-6">
+          <input
+            class="form-control form-control-sm font-monospace"
+            bind:value={brokerUsername}
+            onkeydown={(e) => e.key === 'Enter' && void applyBrokerConfig()}
+            placeholder="username"
+            autocomplete="off"
+            aria-label="MQTT username"
+          />
+        </div>
+        <div class="col-md-6">
+          <input
+            class="form-control form-control-sm font-monospace"
+            type="password"
+            bind:value={brokerPassword}
+            onkeydown={(e) => e.key === 'Enter' && void applyBrokerConfig()}
+            placeholder="password"
+            autocomplete="new-password"
+            aria-label="MQTT password"
+          />
+        </div>
       </div>
       <div class="small text-body text-opacity-50 mt-2">
         Current:
@@ -210,6 +254,7 @@
         {:else}
           <span>PUBLIC_MQTT_URL / NUXT_PUBLIC_MQTT_URL not configured</span>
         {/if}
+        <span class="ms-2">Auth: {brokerAuthLabel()}</span>
       </div>
       {#if brokerStatus}
         <div class="small text-body text-opacity-75 mt-2">{brokerStatus}</div>

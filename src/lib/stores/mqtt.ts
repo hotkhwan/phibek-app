@@ -14,6 +14,7 @@ export type MqttConfig = {
   username?: string
   password?: string
   source?: 'runtime' | 'PUBLIC_MQTT_URL' | 'NUXT_PUBLIC_MQTT_URL'
+  authSource?: 'runtime' | 'PUBLIC_MQTT' | 'NUXT_PUBLIC_MQTT'
 }
 
 export type MessageHandler = (topic: string, payload: Uint8Array) => void
@@ -28,6 +29,8 @@ export const mqttConnected = derived(_status, ($s) => $s === 'connected')
 let client: MqttClient | null = null
 let connectingPromise: Promise<MqttClient | null> | null = null
 let runtimeUrlOverride: string | undefined
+let runtimeUsernameOverride: string | undefined
+let runtimePasswordOverride: string | undefined
 let configGeneration = 0
 
 const dynamicPublicEnv = env as Record<string, string | undefined>
@@ -40,6 +43,22 @@ function cleanEnv(value: string | undefined) {
 
 function firstPublicEnv(publicKey: string, nuxtKey: string) {
   return cleanEnv(dynamicPublicEnv[publicKey]) ?? cleanEnv(vitePublicEnv[publicKey]) ?? cleanEnv(vitePublicEnv[nuxtKey])
+}
+
+function publicAuthSource() {
+  const publicAuth =
+    cleanEnv(dynamicPublicEnv.PUBLIC_MQTT_USERNAME) ??
+    cleanEnv(vitePublicEnv.PUBLIC_MQTT_USERNAME) ??
+    cleanEnv(dynamicPublicEnv.PUBLIC_MQTT_PASSWORD) ??
+    cleanEnv(vitePublicEnv.PUBLIC_MQTT_PASSWORD)
+  if (publicAuth) {
+    return 'PUBLIC_MQTT' as const
+  }
+  const nuxtAuth = cleanEnv(vitePublicEnv.NUXT_PUBLIC_MQTT_USERNAME) ?? cleanEnv(vitePublicEnv.NUXT_PUBLIC_MQTT_PASSWORD)
+  if (nuxtAuth) {
+    return 'NUXT_PUBLIC_MQTT' as const
+  }
+  return undefined
 }
 
 export function normalizeMqttBrokerUrl(value: string): string {
@@ -65,15 +84,17 @@ export function normalizeMqttBrokerUrl(value: string): string {
 
 export function getMqttConfig(): MqttConfig {
   const runtimeUrl = runtimeUrlOverride
+  const runtimeAuth = runtimeUsernameOverride || runtimePasswordOverride
   const publicUrl = cleanEnv(dynamicPublicEnv.PUBLIC_MQTT_URL) ?? cleanEnv(vitePublicEnv.PUBLIC_MQTT_URL)
   const nuxtUrl = cleanEnv(vitePublicEnv.NUXT_PUBLIC_MQTT_URL)
   const url = runtimeUrl ?? publicUrl ?? nuxtUrl
 
   return {
     url,
-    username: firstPublicEnv('PUBLIC_MQTT_USERNAME', 'NUXT_PUBLIC_MQTT_USERNAME'),
-    password: firstPublicEnv('PUBLIC_MQTT_PASSWORD', 'NUXT_PUBLIC_MQTT_PASSWORD'),
-    source: runtimeUrl ? 'runtime' : publicUrl ? 'PUBLIC_MQTT_URL' : nuxtUrl ? 'NUXT_PUBLIC_MQTT_URL' : undefined
+    username: runtimeAuth ? runtimeUsernameOverride : firstPublicEnv('PUBLIC_MQTT_USERNAME', 'NUXT_PUBLIC_MQTT_USERNAME'),
+    password: runtimeAuth ? runtimePasswordOverride : firstPublicEnv('PUBLIC_MQTT_PASSWORD', 'NUXT_PUBLIC_MQTT_PASSWORD'),
+    source: runtimeUrl ? 'runtime' : publicUrl ? 'PUBLIC_MQTT_URL' : nuxtUrl ? 'NUXT_PUBLIC_MQTT_URL' : undefined,
+    authSource: runtimeAuth ? 'runtime' : publicAuthSource()
   }
 }
 
@@ -81,6 +102,16 @@ export async function setMqttUrlOverride(url: string | undefined): Promise<void>
   const next = url ? normalizeMqttBrokerUrl(url) : undefined
   if (runtimeUrlOverride === next) return
   runtimeUrlOverride = next
+  await disconnectMqtt()
+  _lastError.set('')
+}
+
+export async function setMqttAuthOverride(username: string | undefined, password: string | undefined): Promise<void> {
+  const nextUsername = cleanEnv(username)
+  const nextPassword = cleanEnv(password)
+  if (runtimeUsernameOverride === nextUsername && runtimePasswordOverride === nextPassword) return
+  runtimeUsernameOverride = nextUsername
+  runtimePasswordOverride = nextPassword
   await disconnectMqtt()
   _lastError.set('')
 }
