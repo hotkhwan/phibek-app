@@ -49,6 +49,60 @@ export type IotControlResource = {
   lastSeenAt?: string
 }
 
+export type KControlConfigSource = 'org' | 'default'
+
+export type KControlConfig = {
+  tempThresholdC: number
+  historySampleEveryN: number
+  historyTtlDays: number
+  source: {
+    tempThresholdC: KControlConfigSource
+    historySampleEveryN: KControlConfigSource
+    historyTtlDays: KControlConfigSource
+  }
+}
+
+export type KControlConfigPatch = {
+  tempThresholdC?: number | null
+  historySampleEveryN?: number | null
+}
+
+export type TemperatureSummaryItem = {
+  deviceId: string
+  hwId: string
+  name: string
+  current: number | null
+  avg: number | null
+  max: number | null
+  p95: number | null
+  sampleCount: number
+  countAboveThreshold: number
+  lastRecordedAt: string | null
+}
+
+export type TemperatureOrgRollup = {
+  totalDevices: number
+  devicesAboveThreshold: number
+  totalSamples: number
+  totalCountAboveThreshold: number
+}
+
+export type TemperatureHistoryItem = {
+  recordedAt: string
+  tempC: number
+}
+
+export type TemperatureSummaryDetails = {
+  items: TemperatureSummaryItem[]
+  orgRollup: TemperatureOrgRollup
+  threshold: number
+}
+
+export type TemperatureHistoryDetails = {
+  items: TemperatureHistoryItem[]
+  totalRecords?: number
+}
+
 export async function fetchOverview() {
   return apiSafe<ApiEnvelope<IotControlOverview>>('/kcontrol/dashboard')
 }
@@ -86,4 +140,44 @@ export async function resolveAlarm(alarmId: string, note?: string): Promise<void
     method: 'POST',
     body: note ? { note } : {}
   })
+}
+
+export async function getKControlConfig() {
+  return apiSafe<ApiEnvelope<KControlConfig>>('/orgs/kcontrol-config')
+}
+
+export async function patchKControlConfig(body: KControlConfigPatch) {
+  return apiSafe<ApiEnvelope<KControlConfig>, KControlConfigPatch>(
+    '/orgs/kcontrol-config',
+    { method: 'PATCH', body }
+  )
+}
+
+export async function getTemperatureSummary(params: {
+  from?: string
+  to?: string
+  page?: number
+  perPage?: number
+  sortField?: 'name' | 'current' | 'avg' | 'max' | 'p95' | 'countAboveThreshold'
+  sortOrder?: 'asc' | 'desc'
+} = {}) {
+  return apiSafe<ApiEnvelope<TemperatureSummaryDetails>>(
+    '/resources/kcontrol/temperature/summary',
+    { params }
+  )
+}
+
+export async function getTemperatureHistory(
+  id: string,
+  params: {
+    from?: string
+    to?: string
+    limit?: number
+    sortOrder?: 'asc' | 'desc'
+  } = {}
+) {
+  return apiSafe<ApiEnvelope<TemperatureHistoryDetails>>(
+    `/resources/kcontrol/${encodeURIComponent(id)}/temperature/history`,
+    { params }
+  )
 }

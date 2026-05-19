@@ -5,6 +5,14 @@
   import { appOptions } from '$lib/stores/appOptions'
   import { auth } from '$lib/stores/auth'
   import ViewerMapLibre from '$lib/components/dashboard/ViewerMapLibre.svelte'
+  import { WS_TOPICS } from '$lib/realtime/wsTopics'
+  import { liveBadgeClass, liveBadgeLabel } from '$lib/realtime/liveStatus'
+  import {
+    subscribeWsTopic,
+    wsHubLastError,
+    wsHubStatus
+  } from '$lib/stores/wsHub'
+  import type { WssIngestEventPayload } from '$lib/types/realtime'
   import {
     fetchAnalyticsOverview,
     type AnalyticsBarChart,
@@ -156,6 +164,11 @@
   let hasLoaded = $state(false)
   let dashboardRoot: HTMLDivElement | null = null
   const motionStops: Array<() => void> = []
+  let realtimeDenied = $state('')
+  let lastRealtimeAt = $state<string | null>(null)
+  let unsubscribeRealtime: (() => void) | null = null
+  let realtimeRefreshTimer: ReturnType<typeof setTimeout> | null = null
+  const seenRealtimeEvents = new Set<string>()
 
   const initialRange = buildDefaultRange()
   let dateTimeParam = $state(initialRange.dateTime)
@@ -480,17 +493,61 @@
     }
   }
 
+  function scheduleRealtimeRefresh() {
+    if (realtimeRefreshTimer) clearTimeout(realtimeRefreshTimer)
+    realtimeRefreshTimer = setTimeout(() => {
+      realtimeRefreshTimer = null
+      void loadDashboard()
+    }, 1000)
+  }
+
+  function applyRealtimeEvent(payload: WssIngestEventPayload) {
+    if (!payload?.eventId) return
+    if (seenRealtimeEvents.has(payload.eventId)) return
+    seenRealtimeEvents.add(payload.eventId)
+    if (seenRealtimeEvents.size > 500) {
+      const keep = Array.from(seenRealtimeEvents).slice(-250)
+      seenRealtimeEvents.clear()
+      for (const key of keep) seenRealtimeEvents.add(key)
+    }
+    lastRealtimeAt = payload.occurredAt ?? new Date().toISOString()
+    scheduleRealtimeRefresh()
+  }
+
+  function startRealtime() {
+    if (unsubscribeRealtime) return
+    realtimeDenied = ''
+    unsubscribeRealtime = subscribeWsTopic<WssIngestEventPayload>(
+      [WS_TOPICS.INGEST_EVENT],
+      (_topic, _ts, payload) => applyRealtimeEvent(payload),
+      {
+        onDenied: (topic, reason) => {
+          realtimeDenied = `${topic} denied: ${reason}`
+        }
+      }
+    )
+  }
+
+  function stopRealtime() {
+    unsubscribeRealtime?.()
+    unsubscribeRealtime = null
+    if (realtimeRefreshTimer) clearTimeout(realtimeRefreshTimer)
+    realtimeRefreshTimer = null
+  }
+
   onMount(() => {
     setPageTitle('Livestream Analytics')
     previousContentClass = $appOptions.appContentClass
     previousFooter = $appOptions.appFooter
     $appOptions.appContentClass = 'p-0 d-flex flex-column overflow-hidden phibek-analytics-content'
     $appOptions.appFooter = false
+    startRealtime()
     void loadDashboard()
     void runIntroMotion()
   })
 
   onDestroy(() => {
+    stopRealtime()
     for (const stop of motionStops.splice(0)) stop()
     $appOptions.appContentClass = previousContentClass
     $appOptions.appFooter = previousFooter
@@ -513,12 +570,22 @@
       <button type="button" class="control-button icon-only" title="Refresh analytics" onclick={loadDashboard} disabled={loading}>
         <i class={`bi ${loading ? 'bi-arrow-repeat spin' : 'bi-arrow-clockwise'}`}></i>
       </button>
+      <span class="control-button live-chip {liveBadgeClass($wsHubStatus)}" title={$wsHubLastError ?? ''}>
+        <i class="bi bi-broadcast"></i>
+        <span>{liveBadgeLabel($wsHubStatus)}</span>
+      </span>
       <button type="button" class="control-button" title="Filters">
         <i class="bi bi-funnel"></i>
         <span>Filters</span>
         <i class="bi bi-chevron-down"></i>
       </button>
     </div>
+
+    {#if realtimeDenied}
+      <div class="dashboard-realtime-warning">{realtimeDenied}</div>
+    {:else if lastRealtimeAt}
+      <div class="dashboard-realtime-warning dashboard-realtime-note">ingest.event {new Date(lastRealtimeAt).toLocaleTimeString()}</div>
+    {/if}
   </section>
 
   {#if errorMsg}
@@ -926,9 +993,25 @@
     padding: 0;
   }
 
+  .control-button.live-chip {
+    min-width: 92px;
+    color: #fff;
+  }
+
   .control-button:disabled {
     cursor: wait;
     opacity: .72;
+  }
+
+  .dashboard-realtime-warning {
+    flex-basis: 100%;
+    color: #f59e0b;
+    font-size: 12px;
+    text-align: right;
+  }
+
+  .dashboard-realtime-note {
+    color: var(--dash-muted);
   }
 
   .spin {

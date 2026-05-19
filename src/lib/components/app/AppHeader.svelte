@@ -7,7 +7,7 @@
   import { goto } from '$app/navigation'
   import { m } from '$lib/i18n/messages'
   import { listWorkspaces } from '$lib/api/workspace'
-  import { onMount } from 'svelte'
+  import { onMount, tick } from 'svelte'
 
   // Prefer user from server load (layout/+layout.server.ts) -> page.data.user
   const userEmail = $derived(
@@ -20,6 +20,7 @@
 
   let isLoggingOut = $state(false)
   let logoutError = $state('')
+  let searchInput: HTMLInputElement | undefined
 
   onMount(async () => {
     try {
@@ -75,8 +76,24 @@
     $appOptions.appSidebarMobileToggled = !$appOptions.appSidebarMobileToggled
   }
 
-  function searchHeaderSearchToggler() {
-    $appOptions.appHeaderSearchToggled = !$appOptions.appHeaderSearchToggled
+  async function openHeaderSearch() {
+    $appOptions.appHeaderSearchToggled = true
+    await tick()
+    searchInput?.focus()
+  }
+
+  function closeHeaderSearch() {
+    $appOptions.appHeaderSearchToggled = false
+  }
+
+  function handleSearchSubmit(event: Event) {
+    event.preventDefault()
+  }
+
+  function handleSearchKeydown(event: KeyboardEvent) {
+    if (event.key === 'Escape') {
+      closeHeaderSearch()
+    }
   }
 
   async function handleLogout(event?: Event) {
@@ -169,6 +186,17 @@
 
   <!-- BEGIN menu -->
   <div class="menu">
+    <div class="menu-item">
+      <button
+        type="button"
+        aria-label={m.headerAriaSearch()}
+        class="menu-link header-icon-button"
+        onclick={openHeaderSearch}
+      >
+        <div class="menu-icon"><i class="bi bi-search nav-icon"></i></div>
+      </button>
+    </div>
+
     <div class="menu-item dropdown dropdown-mobile-full">
       <a
         href="#/"
@@ -291,24 +319,32 @@
   <!-- END menu -->
 
   <!-- BEGIN menu-search -->
-  <form class="menu-search-mobile d-none" method="POST" name="header_search_form">
+  <form
+    class="menu-search-mobile"
+    method="POST"
+    name="header_search_form"
+    onsubmit={handleSearchSubmit}
+  >
     <div class="menu-search-container">
       <div class="menu-search-icon"><i class="bi bi-search"></i></div>
       <div class="menu-search-input">
         <input
+          bind:this={searchInput}
           type="text"
           class="form-control form-control-lg"
           placeholder={m.headerSearchPlaceholder()}
+          onkeydown={handleSearchKeydown}
         />
       </div>
       <div class="menu-search-icon">
-        <a
-          href="#/"
+        <button
+          type="button"
           aria-label={m.headerAriaCloseSearch()}
-          onclick={searchHeaderSearchToggler}
+          class="header-search-close"
+          onclick={closeHeaderSearch}
         >
           <i class="bi bi-x-lg"></i>
-        </a>
+        </button>
       </div>
     </div>
   </form>
@@ -378,5 +414,17 @@
     font-size: 0.625rem;
     letter-spacing: 0.05em;
     opacity: 0.62;
+  }
+  .header-icon-button {
+    border: 0;
+    background: transparent;
+    height: 100%;
+  }
+  .header-search-close {
+    border: 0;
+    background: transparent;
+    color: inherit;
+    line-height: 1;
+    padding: 0;
   }
 </style>

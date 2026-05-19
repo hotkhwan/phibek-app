@@ -8,27 +8,38 @@ export const appSidebarMenus = writable<SidebarMenu[]>([
   { kind: 'header', id: 'nav', textKey: 'navNavigation' },
 
   { kind: 'link', id: 'dashboard', menuId: 'dashboard', url: 'dashboard', icon: 'bi bi-ui-radios-grid', textKey: 'navDashboard' },
+  { kind: 'link', id: 'intDash', menuId: 'intDash', url: 'intDash', icon: 'bi bi-activity', textKey: 'navIntDash' },
   { kind: 'link', id: 'aiSearch', menuId: 'ksearch', url: 'aiSearch', icon: 'bi bi-search-heart', textKey: 'navAiSearch' },
-  { kind: 'link', id: 'iotWatch', menuId: 'kwatch', url: 'iotWatch', icon: 'bi bi-eye', textKey: 'navIotWatch' },
+  { kind: 'link', id: 'iotWatch', menuId: 'watchman', url: 'iotWatch', icon: 'bi bi-eye', textKey: 'navIotWatch' },
   {
     kind: 'link',
     id: 'iotControl',
-    menuId: 'kcontrol',
     icon: 'bi bi-cpu',
     textKey: 'navIotControl',
     children: [
       { id: 'iotControlOverview', menuId: 'kcontrolDevices', url: 'iotControl', textKey: 'navIotControlOverview' },
       { id: 'iotControlEvents', menuId: 'kcontrolEvents', url: 'iotControl/events', textKey: 'navIotControlEvents' },
       { id: 'iotControlLogs', menuId: 'kcontrolLogs', url: 'iotControl/logs', textKey: 'navIotControlLogs' },
+      { id: 'iotControlTemperature', menuId: 'kcontrolTemperature', url: 'iotControl/temperature', textKey: 'navIotControlTemperature' },
       { id: 'iotControlMap', menuId: 'kcontrolMap', url: 'iotControl/map', textKey: 'navIotControlMap' },
       { id: 'iotControlSop', menuId: 'kcontrolSop', url: 'iotControl/sop', textKey: 'navIotControlSop' }
     ]
   },
-  { kind: 'link', id: 'edgeAi', menuId: 'edgeAiSummaryReport', url: 'edge-ai', icon: 'bi bi-cpu-fill', textKey: 'navEdgeAi' },
+  {
+    kind: 'link',
+    id: 'edgeAi',
+    icon: 'bi bi-cpu-fill',
+    textKey: 'navEdgeAi',
+    children: [
+      { id: 'edgeAiSummaryReport', menuId: 'edgeAiSummaryReport', url: 'edge-ai/summary-report', textKey: 'navEdgeAiSummary' },
+      { id: 'edgeAiPeopleCounting', menuId: 'edgeAiPeopleCounting', url: 'edge-ai/summary/people-counting', textKey: 'navEdgeAiPeopleCounting' },
+      { id: 'edgeAiPeopleBlacklist', menuId: 'edgeAiPeopleBlacklist', url: 'edge-ai/summary/people-blacklist', textKey: 'navEdgeAiPeopleBlacklist' },
+      { id: 'edgeAiEventsNotification', menuId: 'edgeAiEventsNotification', url: 'edge-ai/summary/events-notification', textKey: 'navEdgeAiEventsNotification' }
+    ]
+  },
   {
     kind: 'link',
     id: 'ingest',
-    menuId: 'ingest',
     icon: 'bi bi-collection',
     textKey: 'navIngest',
     children: [
@@ -48,7 +59,7 @@ export const appSidebarMenus = writable<SidebarMenu[]>([
       { id: 'policeMode', url: 'polices', textKey: 'navPolicePoliceMode' }
     ]
   },
-  { kind: 'link', id: 'live', menuId: 'live', url: 'live', icon: 'bi bi-broadcast', textKey: 'navLive' },
+  { kind: 'link', id: 'live', url: 'live', icon: 'bi bi-broadcast', textKey: 'navLive' },
   { kind: 'link', id: 'map', menuId: 'map', url: 'map', icon: 'bi bi-globe-americas', textKey: 'navMap' },
   { kind: 'link', id: 'videoWall', menuId: 'videowall', url: 'videowall', icon: 'bi bi-grid-3x3-gap', textKey: 'navVideoWall' },
   { kind: 'link', id: 'biDash', menuId: 'map', url: 'biDash', icon: 'bi bi-bar-chart-line', textKey: 'navBiDash' },
@@ -57,7 +68,6 @@ export const appSidebarMenus = writable<SidebarMenu[]>([
   {
     kind: 'link',
     id: 'systemDevices',
-    menuId: 'systemDevices',
     icon: 'bi bi-hdd-network',
     textKey: 'navSystemDevices',
     children: [
@@ -69,7 +79,6 @@ export const appSidebarMenus = writable<SidebarMenu[]>([
   {
     kind: 'link',
     id: 'systemUsers',
-    menuId: 'systemUsers',
     icon: 'bi bi-people-fill',
     textKey: 'navSystemUsers',
     children: [

@@ -35,6 +35,16 @@ export type EdgeDevice = {
   lastSeenAt?: string
 }
 
+export type SystemEdgeDevice = {
+  id: string
+  type?: 'svms' | 'ata' | 'iboc' | string
+  name: string
+  url?: string
+  tls?: boolean
+  createdAt?: string
+  updatedAt?: string
+}
+
 export type ResourceGroup = {
   id: string
   name: string
@@ -72,6 +82,12 @@ export async function listEdgeDevices(params: ListParams = {}) {
   return apiSafe<
     ApiEnvelope<{ items: EdgeDevice[] }> & { pagination?: Pagination }
   >('/resources/edge', { params })
+}
+
+export async function listSystemEdgeDevices(params: ListParams = {}) {
+  return apiSafe<
+    ApiEnvelope<{ items: SystemEdgeDevice[] }> & { pagination?: Pagination }
+  >('/system/edge', { params })
 }
 
 export async function listResourceGroups(params: ListParams = {}) {

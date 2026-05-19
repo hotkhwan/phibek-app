@@ -56,7 +56,7 @@ export const effectiveAccess = {
 
   canAccessMenu(menuId: string) {
     const state = get(_effectiveAccess)
-    if (!state.isLoaded) return true
+    if (!state.isLoaded) return false
     return state.access.visibleMenuIds.includes(menuId)
   }
 }

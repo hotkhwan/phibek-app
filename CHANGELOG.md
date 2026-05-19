@@ -6,6 +6,35 @@ this project follows semantic versioning.
 
 ## [Unreleased]
 
+### Added
+- Added `/intDash` as the AI Event Intelligence surface and sidebar entry, backed by the existing
+  ingest dashboard/events APIs.
+- Added the contract-backed realtime WSS hub behind `PUBLIC_REALTIME_HUB_ENABLED`, with first live
+  bindings for camera status, IntDash ingest events, and the Ingest event feed.
+- Extended realtime WSS bindings across Dashboard, BI Dashboard, Video Wall, and kControl surfaces
+  (`status`, `alarm`, `event`, and `temperature`) using the shared contract-backed hub.
+- Added Edge AI summary route entries for `/edge-ai/summary-report` and the summary sub-pages, with
+  sidebar entries gated by the existing Edge AI menu IDs.
+- Added contract-gated dynamic Edge device links in the sidebar from `/system/edge`, opening only
+  documented `http(s)` device URLs while Edge SSO auto-login remains contract-blocked.
+- Added `/iotControl/temperature` with kControl temperature summary, per-device history, and org
+  threshold configuration from the documented kControl temperature REST contract.
+
+### Changed
+- Sidebar and protected app routes now consume `GET /kapi/orgs/effectiveAccess` before exposing
+  grant-controlled pages, including a safe redirect to Dashboard/Profile when a direct URL is not
+  allowed.
+- System Users permission trees now handle nested/list response shapes more defensively and include
+  clearer selected/partial-selected states plus expand/collapse controls.
+
+### Fixed
+- Header search now opens the Cyber Admin overlay correctly, focuses the search input, closes via
+  icon/ESC, and no longer relies on a hidden `d-none` form that defeated the shell toggle class.
+- Added the missing `/ingest/events` route entry so the sidebar's ingest event link resolves to the
+  already-ported event feed instead of depending on the collapsed `/ingest` path.
+- Cameras, edge devices, and org units now wait for an active organization before loading and tolerate
+  both tree and list response envelopes from the existing Klynx APIs.
+
 ## [0.9.3] — 2026-05-17
 
 ### Fixed

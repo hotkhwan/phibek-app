@@ -445,11 +445,21 @@ textarea {
 }
 
 .app-header .menu-search-mobile {
-  z-index: 2;
+  display: block !important;
+  z-index: 5;
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
   background:
     linear-gradient(rgba(var(--bs-body-bg-rgb), .94), rgba(var(--bs-body-bg-rgb), .94)),
     linear-gradient(90deg, rgba(var(--bs-theme-rgb), .18), rgba(var(--bs-theme-rgb), .04));
   backdrop-filter: blur(10px);
+}
+
+.app-header-menu-search-toggled .app-header .menu-search-mobile {
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
 }
 
 .app-header .menu .menu-item .menu-link .header-user-email {

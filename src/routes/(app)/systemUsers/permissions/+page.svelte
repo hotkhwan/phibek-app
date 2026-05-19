@@ -138,16 +138,30 @@
     return typeof fn === 'function' ? (fn as () => string)() : key
   }
 
-  function flattenUnits(items: OrgUnit[]): OrgUnit[] {
+  function itemsFrom<T>(value: unknown): T[] {
+    if (Array.isArray(value)) return value as T[]
+    if (!value || typeof value !== 'object') return []
+
+    const obj = value as Record<string, unknown>
+    for (const key of ['items', 'details', 'units', 'orgUnits', 'children']) {
+      const nested = obj[key]
+      const items = itemsFrom<T>(nested)
+      if (items.length) return items
+    }
+
+    return []
+  }
+
+  function flattenUnits(items: unknown): OrgUnit[] {
     const out: OrgUnit[] = []
     const walk = (list: OrgUnit[]) => {
       for (const item of list) {
         out.push(item)
-        const children = (item as OrgUnit & { children?: OrgUnit[] }).children ?? []
+        const children = itemsFrom<OrgUnit>((item as OrgUnit & { children?: unknown }).children)
         if (children.length) walk(children)
       }
     }
-    walk(items)
+    walk(itemsFrom<OrgUnit>(items))
     return out
   }
 
@@ -190,7 +204,7 @@
     const children = childNodes(child.children)
     if (!child.menuId && children.length === 0) return null
     return {
-      id: `menu:${child.menuId ?? child.id}`,
+      id: `menu:${child.id}:${child.menuId ?? child.url ?? 'group'}`,
       kind: 'menu',
       label: t(child.textKey),
       value: child.menuId,
@@ -206,7 +220,7 @@
     const children = childNodes(menu.children)
     if (!menu.menuId && children.length === 0) return null
     return {
-      id: `menu:${menu.menuId ?? menu.id}`,
+      id: `menu:${menu.id}:${menu.menuId ?? menu.url ?? 'group'}`,
       kind: 'menu',
       label: t(menu.textKey),
       value: menu.menuId,
@@ -471,6 +485,40 @@
     return pickerSearch ? 'No match' : 'No items'
   }
 
+  function iconClass(node: PermissionTreeNode, checked = false) {
+    const raw = node.icon ?? ((node.children?.length ?? 0) > 0 ? 'bi-folder2-open' : 'bi-file-earmark-text')
+    const normalized = raw.startsWith('bi ') || raw.startsWith('fa ') || raw.startsWith('far ') || raw.startsWith('fas ')
+      ? raw
+      : `bi ${raw}`
+    if (checked) return `${normalized} text-theme`
+    if ((node.children?.length ?? 0) > 0 || node.kind === 'section') return `${normalized} text-warning`
+    return `${normalized} text-body text-opacity-50`
+  }
+
+  function collectExpandableIds(nodes: PermissionTreeNode[]) {
+    const ids: string[] = []
+    const walk = (items: PermissionTreeNode[]) => {
+      for (const node of items) {
+        if (node.children?.length) {
+          ids.push(node.id)
+          walk(node.children)
+        }
+      }
+    }
+    walk(nodes)
+    return ids
+  }
+
+  function setTreeExpanded(nodes: PermissionTreeNode[], expanded: boolean) {
+    const affectedIds = new Set(collectExpandableIds(nodes))
+    const next = new Set(expandedNodes)
+    for (const id of affectedIds) {
+      if (expanded) next.add(id)
+      else next.delete(id)
+    }
+    expandedNodes = next
+  }
+
   function resetForm() {
     form = { name: '', description: '', status: true, relation: 'viewer' }
     selectedOrgUnits = new Set()
@@ -489,10 +537,15 @@
       listResourceGroups({ perPage: 500 }),
       listCameras({ perPage: 500 })
     ])
-    orgUnits = flattenUnits((unitsRes.data?.details as OrgUnit[] | undefined) ?? [])
-    members = membersRes.data?.details?.items ?? []
-    groups = groupsRes.data?.details?.items ?? []
-    cameras = camerasRes.data?.details?.items ?? []
+    orgUnits = flattenUnits(unitsRes.data?.details)
+    members = itemsFrom<KlynxUser & { userId?: string; orgRole?: string }>(membersRes.data?.details)
+    groups = itemsFrom<ResourceGroup>(groupsRes.data?.details)
+    cameras = itemsFrom<Camera>(camerasRes.data?.details)
+
+    const lookupError = unitsRes.error ?? membersRes.error ?? groupsRes.error ?? camerasRes.error
+    if (lookupError) {
+      notify.warning('Permission lookup partially loaded', lookupError.message)
+    }
   }
 
   async function load() {
@@ -566,6 +619,7 @@
   async function save() {
     if (!form.name.trim()) { notify.warning('Profile name required'); return }
     saving = true
+    let savedId = selectedId
     try {
       if (activeTab === 'resource') {
         let id = selectedId
@@ -573,6 +627,7 @@
           const created = await createResourcePermission({ name: form.name.trim(), description: form.description, status: form.status, relations: relations() })
           id = created.details.id
         }
+        savedId = id
         await updateResourcePermission(id, {
           name: form.name.trim(), description: form.description, status: form.status, relations: relations(),
           orgUnits: [...selectedOrgUnits], memberIds: [...selectedMembers], resourceGroups: [...selectedGroups], cameras: [...selectedCameras],
@@ -584,6 +639,7 @@
           const created = await createMenuPermission({ name: form.name.trim(), description: form.description, status: form.status, scopeType: 'orgUnit', menus: menuIds(), relations: relations() })
           id = created.details.id
         }
+        savedId = id
         await updateMenuPermission(id, {
           name: form.name.trim(), description: form.description, status: form.status, scopeType: 'orgUnit', menus: menuIds(), relations: relations(),
           orgUnits: [...selectedOrgUnits], userIds: [...selectedMembers], includeOrgUnitChildren
@@ -591,6 +647,7 @@
       }
       notify.success('Permission profile saved')
       createMode = false
+      selectedId = savedId
       await load()
     } catch (err) {
       notify.error('Save failed', (err as { message?: string })?.message ?? 'Unknown error')
@@ -648,15 +705,18 @@
   {@const hasChildren = !!node.children?.length}
   {@const checked = isNodeSelected(node)}
   {@const checkedChildren = selectedChildCount(node)}
+  {@const partial = checkedChildren > 0 && !checked}
   <div
     class="file-node permission-file-node"
     class:has-sub={hasChildren}
     class:expand={expandedNodes.has(node.id)}
     class:selected={checked}
+    class:partial-selected={partial}
   >
     <div
       class="file-link permission-tree-link"
       class:node-checked={checked}
+      class:node-partial={partial}
       class:node-muted={node.selectable === false}
       aria-expanded={hasChildren ? expandedNodes.has(node.id) : undefined}
     >
@@ -668,16 +728,22 @@
         onclick={() => toggleExpanded(node.id)}
       ></button>
       <button type="button" class="file-info permission-tree-hit" onclick={() => onTreeNodeClick(node)}>
+        <span class="permission-check" class:checked class:partial>
+          {#if checked}
+            <i class="bi bi-check2"></i>
+          {:else if partial}
+            <i class="bi bi-dash"></i>
+          {/if}
+        </span>
         <span class="file-icon">
-          <i class={`bi ${node.icon ?? 'bi-file-earmark-text'} ${checked ? 'text-theme' : ''}`}></i>
+          <i class={iconClass(node, checked)}></i>
         </span>
         <span class="file-text min-w-0">
           <span class="file-label text-truncate">{node.label}</span>
           {#if node.description}<small class="file-description text-truncate">{node.description}</small>{/if}
         </span>
         <span class="permission-mini-badges">
-          {#if checked}<span class="permission-node-badge"><i class="bi bi-check2"></i></span>{/if}
-          {#if checkedChildren && !checked}<span class="permission-node-badge muted">{checkedChildren}</span>{/if}
+          {#if partial}<span class="permission-node-badge muted">{checkedChildren}</span>{/if}
           {#if node.count !== undefined}<span class="permission-node-badge soft">{node.count}</span>{/if}
         </span>
       </button>
@@ -771,7 +837,11 @@
               <section class="permission-tree-panel primary-tree-panel">
                 <header>
                   <span><i class="bi bi-list text-theme me-2"></i>Menu tree</span>
-                  <span class="permission-node-badge">{selectedMenus.size}</span>
+                  <span class="permission-tree-tools">
+                    <button type="button" title="Expand tree" onclick={() => setTreeExpanded(menuTree, true)}><i class="bi bi-arrows-expand"></i></button>
+                    <button type="button" title="Collapse tree" onclick={() => setTreeExpanded(menuTree, false)}><i class="bi bi-arrows-collapse"></i></button>
+                    <span class="permission-node-badge">{selectedMenus.size}</span>
+                  </span>
                 </header>
                 <div class="permission-tree-body">
                   {@render treeView(menuTree, treeEmptyText())}
@@ -781,10 +851,14 @@
               <section class="permission-tree-panel">
                 <header>
                   <span><i class="bi bi-diagram-3 text-theme me-2"></i>Scope tree</span>
-                  <label class="form-check tree-toggle">
-                    <input class="form-check-input" type="checkbox" bind:checked={includeOrgUnitChildren} />
-                    <span>Child units</span>
-                  </label>
+                  <span class="permission-tree-tools">
+                    <button type="button" title="Expand tree" onclick={() => setTreeExpanded(audienceTree, true)}><i class="bi bi-arrows-expand"></i></button>
+                    <button type="button" title="Collapse tree" onclick={() => setTreeExpanded(audienceTree, false)}><i class="bi bi-arrows-collapse"></i></button>
+                    <label class="form-check tree-toggle">
+                      <input class="form-check-input" type="checkbox" bind:checked={includeOrgUnitChildren} />
+                      <span>Child units</span>
+                    </label>
+                  </span>
                 </header>
                 <div class="permission-tree-body">
                   {@render treeView(audienceTree, treeEmptyText())}
@@ -796,10 +870,14 @@
               <section class="permission-tree-panel">
                 <header>
                   <span><i class="bi bi-diagram-3 text-theme me-2"></i>Source tree</span>
-                  <label class="form-check tree-toggle">
-                    <input class="form-check-input" type="checkbox" bind:checked={includeOrgUnitChildren} />
-                    <span>Child units</span>
-                  </label>
+                  <span class="permission-tree-tools">
+                    <button type="button" title="Expand tree" onclick={() => setTreeExpanded(audienceTree, true)}><i class="bi bi-arrows-expand"></i></button>
+                    <button type="button" title="Collapse tree" onclick={() => setTreeExpanded(audienceTree, false)}><i class="bi bi-arrows-collapse"></i></button>
+                    <label class="form-check tree-toggle">
+                      <input class="form-check-input" type="checkbox" bind:checked={includeOrgUnitChildren} />
+                      <span>Child units</span>
+                    </label>
+                  </span>
                 </header>
                 <div class="permission-tree-body">
                   {@render treeView(audienceTree, treeEmptyText())}
@@ -809,10 +887,14 @@
               <section class="permission-tree-panel primary-tree-panel">
                 <header>
                   <span><i class="bi bi-folder2-open text-theme me-2"></i>Resource tree</span>
-                  <label class="form-check tree-toggle">
-                    <input class="form-check-input" type="checkbox" bind:checked={includeResourceGroupChildren} />
-                    <span>Child groups</span>
-                  </label>
+                  <span class="permission-tree-tools">
+                    <button type="button" title="Expand tree" onclick={() => setTreeExpanded(resourceTree, true)}><i class="bi bi-arrows-expand"></i></button>
+                    <button type="button" title="Collapse tree" onclick={() => setTreeExpanded(resourceTree, false)}><i class="bi bi-arrows-collapse"></i></button>
+                    <label class="form-check tree-toggle">
+                      <input class="form-check-input" type="checkbox" bind:checked={includeResourceGroupChildren} />
+                      <span>Child groups</span>
+                    </label>
+                  </span>
                 </header>
                 <div class="permission-tree-body">
                   {@render treeView(resourceTree, treeEmptyText())}
@@ -824,7 +906,11 @@
               <section class="permission-tree-panel primary-tree-panel">
                 <header>
                   <span><i class="bi bi-hdd-stack text-theme me-2"></i>API tree</span>
-                  <span class="permission-node-badge">read-only</span>
+                  <span class="permission-tree-tools">
+                    <button type="button" title="Expand tree" onclick={() => setTreeExpanded(apiTree, true)}><i class="bi bi-arrows-expand"></i></button>
+                    <button type="button" title="Collapse tree" onclick={() => setTreeExpanded(apiTree, false)}><i class="bi bi-arrows-collapse"></i></button>
+                    <span class="permission-node-badge">read-only</span>
+                  </span>
                 </header>
                 <div class="permission-tree-body">
                   {@render treeView(apiTree, treeEmptyText())}
@@ -974,6 +1060,31 @@
     font-weight: 600;
   }
 
+  .permission-tree-tools {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: .35rem;
+    min-width: 0;
+  }
+
+  .permission-tree-tools > button {
+    width: 1.65rem;
+    height: 1.65rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(var(--bs-border-color-rgb), .5);
+    border-radius: .25rem;
+    background: rgba(255, 255, 255, .035);
+    color: rgba(var(--bs-body-color-rgb), .72);
+  }
+
+  .permission-tree-tools > button:hover {
+    border-color: rgba(var(--bs-theme-rgb), .5);
+    color: var(--bs-theme);
+  }
+
   .empty-panel { border: 1px dashed rgba(var(--bs-border-color-rgb), .8); border-radius: .35rem; color: rgba(var(--bs-body-color-rgb), .55); padding: 1rem; text-align: center; }
   .permission-summary { border-top: 1px solid rgba(var(--bs-theme-rgb), .24); margin-top: 1rem; padding-top: .85rem; color: rgba(var(--bs-body-color-rgb), .7); }
   .permission-mini-badges {
@@ -1019,8 +1130,9 @@
     background: transparent;
     color: rgba(var(--bs-body-color-rgb), .84);
     text-align: left;
-    align-items: flex-start;
-    padding: .28rem .35rem;
+    align-items: center;
+    min-height: 2.15rem;
+    padding: .2rem .35rem;
     border-radius: .25rem;
   }
 
@@ -1035,15 +1147,18 @@
   .permission-tree .permission-tree-hit {
     display: flex;
     flex: 1;
-    gap: .3rem;
+    align-items: center;
+    gap: .45rem;
     min-width: 0;
     text-align: left;
+    min-height: 1.85rem;
   }
 
   .permission-tree .file-arrow {
     width: 1rem;
     min-width: 1rem;
-    align-self: stretch;
+    align-self: center;
+    height: 1.85rem;
   }
 
   .permission-tree .file-arrow:disabled {
@@ -1062,17 +1177,22 @@
     font-weight: 700;
   }
 
+  .permission-tree .file-link.node-partial {
+    background: rgba(var(--bs-theme-rgb), .06);
+    box-shadow: inset 3px 0 0 rgba(var(--bs-theme-rgb), .35);
+  }
+
   .permission-tree .file-link.node-muted {
     color: rgba(var(--bs-body-color-rgb), .7);
   }
 
   .permission-tree .file-info {
     min-width: 0;
-    align-items: flex-start;
+    align-items: center;
   }
 
   .permission-tree .file-icon {
-    margin-top: .05rem;
+    margin-top: 0;
   }
 
   .permission-tree .file-text {
@@ -1089,6 +1209,30 @@
     color: rgba(var(--bs-body-color-rgb), .46);
     font-size: .72rem;
     font-weight: 500;
+  }
+
+  .permission-check {
+    width: 1rem;
+    height: 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    border: 1px solid rgba(var(--bs-border-color-rgb), .75);
+    border-radius: .25rem;
+    background: rgba(255, 255, 255, .035);
+    color: var(--bs-theme);
+    font-size: .8rem;
+  }
+
+  .permission-check.checked {
+    border-color: rgba(var(--bs-theme-rgb), .8);
+    background: rgba(var(--bs-theme-rgb), .18);
+  }
+
+  .permission-check.partial {
+    border-color: rgba(var(--bs-theme-rgb), .52);
+    background: rgba(var(--bs-theme-rgb), .08);
   }
 
   .permission-shell .permission-tabs {

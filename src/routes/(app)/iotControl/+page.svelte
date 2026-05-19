@@ -1,6 +1,6 @@
 <!-- src/routes/(app)/iotControl/+page.svelte -->
 <script lang="ts">
-  import { onMount } from 'svelte'
+  import { onDestroy, onMount } from 'svelte'
   import { setPageTitle } from '$lib/utils/title'
   import DomainStarter from '$lib/components/shared/DomainStarter.svelte'
   import DataTableStarter from '$lib/components/shared/DataTableStarter.svelte'
@@ -10,12 +10,14 @@
     type IotControlOverview,
     type IotControlResource
   } from '$lib/api/iotControl'
+  import { WS_TOPICS, type WsTopic } from '$lib/realtime/wsTopics'
+  import { liveBadgeClass, liveBadgeLabel } from '$lib/realtime/liveStatus'
   import {
-    subscribeMqtt,
-    decodeJson,
-    mqttStatus,
-    getMqttClient
-  } from '$lib/stores/mqtt'
+    subscribeWsTopic,
+    wsHubLastError,
+    wsHubStatus
+  } from '$lib/stores/wsHub'
+  import type { KControlStatusPayload } from '$lib/types/realtime'
   import { m } from '$lib/i18n/messages'
 
   let overview = $state<IotControlOverview | null>(null)
@@ -31,8 +33,11 @@
     { key: 'alarms',  label: 'Alarms (24h)',value: overview?.alarms24h ?? 0,     icon: 'bi-bell-fill text-theme' }
   ])
 
-  let recent = $state<Array<{ t: number; topic: string; preview: string }>>([])
+  let recent = $state<Array<{ key: string; t: number; topic: string; preview: string }>>([])
+  let realtimeDenied = $state('')
   let unsub = $state<(() => void) | null>(null)
+  let realtimeReloadTimer: ReturnType<typeof setTimeout> | null = null
+  const seenStatus = new Set<string>()
 
   async function load() {
     loading = true
@@ -48,23 +53,76 @@
     else if (rErr) errorMsg = rErr.message
   }
 
+  function scheduleRealtimeReload() {
+    if (realtimeReloadTimer) clearTimeout(realtimeReloadTimer)
+    realtimeReloadTimer = setTimeout(() => {
+      realtimeReloadTimer = null
+      void load()
+    }, 1200)
+  }
+
+  function applyStatus(payload: KControlStatusPayload) {
+    if (!payload?.deviceId || !payload.evaluatedAt) return
+    const key = `${payload.deviceId}:${payload.evaluatedAt}`
+    if (seenStatus.has(key)) return
+    seenStatus.add(key)
+    if (seenStatus.size > 250) {
+      const keep = Array.from(seenStatus).slice(-120)
+      seenStatus.clear()
+      for (const item of keep) seenStatus.add(item)
+    }
+
+    resources = resources.map((row) => {
+      if (row.id !== payload.deviceId) return row
+      return {
+        ...row,
+        name: payload.name || row.name,
+        online: payload.status === 'online',
+        lastSeenAt: payload.evaluatedAt
+      }
+    })
+
+    if (overview && payload.prevStatus && payload.prevStatus !== payload.status) {
+      const next = { ...overview }
+      if (payload.status === 'online') next.online = (next.online ?? 0) + 1
+      if (payload.status === 'offline') next.offline = (next.offline ?? 0) + 1
+      if (payload.prevStatus === 'online') next.online = Math.max(0, (next.online ?? 0) - 1)
+      if (payload.prevStatus === 'offline') next.offline = Math.max(0, (next.offline ?? 0) - 1)
+      overview = next
+    }
+
+    recent = [{
+      key,
+      t: Date.now(),
+      topic: WS_TOPICS.KCONTROL_STATUS,
+      preview: `${payload.name || payload.hwId || payload.deviceId} ${payload.prevStatus ?? 'unknown'} → ${payload.status}`
+    }, ...recent].slice(0, 10)
+    scheduleRealtimeReload()
+  }
+
   function startSubscribe() {
     if (unsub) unsub()
-    unsub = subscribeMqtt(['kcontrol.alarms', 'kcontrol.health'], (topic, payload) => {
-      const json = decodeJson(payload)
-      const preview = json
-        ? JSON.stringify(json).slice(0, 120)
-        : new TextDecoder().decode(payload).slice(0, 120)
-      recent = [{ t: Date.now(), topic, preview }, ...recent].slice(0, 10)
-    })
+    realtimeDenied = ''
+    unsub = subscribeWsTopic<KControlStatusPayload>(
+      [WS_TOPICS.KCONTROL_STATUS],
+      (_topic: WsTopic, _ts: string, payload: KControlStatusPayload) => applyStatus(payload),
+      {
+        onDenied: (topic, reason) => {
+          realtimeDenied = `${topic} denied: ${reason}`
+        }
+      }
+    )
   }
 
   onMount(() => {
     setPageTitle(m.navIotControl())
     load()
-    void getMqttClient()
     startSubscribe()
-    return () => unsub?.()
+  })
+
+  onDestroy(() => {
+    unsub?.()
+    if (realtimeReloadTimer) clearTimeout(realtimeReloadTimer)
   })
 
   const columns = [
@@ -126,18 +184,23 @@
     <div class="col-lg-5">
       <div class="card h-100">
         <div class="card-header fw-bold d-flex justify-content-between align-items-center">
-          <span>Live MQTT</span>
-          <span class="badge bg-secondary">{$mqttStatus}</span>
+          <span>Live WSS status</span>
+          <span class="badge {liveBadgeClass($wsHubStatus)}" title={$wsHubLastError ?? ''}>
+            {liveBadgeLabel($wsHubStatus)}
+          </span>
         </div>
         <div class="card-body">
+          {#if realtimeDenied}
+            <div class="alert alert-warning small py-2">{realtimeDenied}</div>
+          {/if}
           <div class="text-body text-opacity-50 small mb-1">
-            Topics: <code>kcontrol.alarms</code> · <code>kcontrol.health</code>
+            Topic: <code>kcontrol.status</code>
           </div>
           <div class="border rounded bg-black bg-opacity-25 p-2" style="max-height: 320px; overflow-y: auto; font-family: var(--bs-font-monospace); font-size: 0.75rem;">
             {#if recent.length === 0}
               <div class="text-body text-opacity-50">— waiting for messages —</div>
             {:else}
-              {#each recent as r (r.t)}
+              {#each recent as r (r.key)}
                 <div class="mb-1">
                   <span class="text-body text-opacity-50">[{new Date(r.t).toLocaleTimeString()}]</span>
                   <span class="text-theme">{r.topic}</span>

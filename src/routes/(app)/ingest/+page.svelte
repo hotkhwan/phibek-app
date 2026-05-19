@@ -17,6 +17,14 @@
   } from '$lib/api/klynxIngest'
   import { notify } from '$lib/stores/notify'
   import { m } from '$lib/i18n/messages'
+  import { WS_TOPICS } from '$lib/realtime/wsTopics'
+  import {
+    subscribeWsTopic,
+    wsHubLastError,
+    wsHubStatus,
+    type LiveStatus
+  } from '$lib/stores/wsHub'
+  import type { WssIngestEventPayload } from '$lib/types/realtime'
 
   type Detail = Awaited<ReturnType<typeof getIngestEventDetail>>['data'] extends infer T
     ? T extends { details: infer D } ? D : never
@@ -43,6 +51,11 @@
   let zoomImage = $state<{ src: string; alt: string; bbox?: IngestPictureCoordinate | null; source?: 'list' | 'detail' } | null>(null)
   let zoomOpen = $state(false)
   let zoomIndex = $state(-1)
+  let realtimeDenied = $state('')
+  let lastRealtimeAt = $state<string | null>(null)
+  let unsubscribeRealtime: (() => void) | null = null
+  let realtimeReloadTimer: ReturnType<typeof setTimeout> | null = null
+  const seenRealtimeEvents = new Set<string>()
 
   function toIso(input: string): string | undefined {
     if (!input) return undefined
@@ -217,13 +230,105 @@
     }
   }
 
+  function hasActiveFilters() {
+    return Boolean(typeFilter || sourceFilter || deviceFilter || fromInput || toInput)
+  }
+
+  function pruneSeenEvents() {
+    if (seenRealtimeEvents.size <= 500) return
+    const keep = Array.from(seenRealtimeEvents).slice(-250)
+    seenRealtimeEvents.clear()
+    for (const key of keep) seenRealtimeEvents.add(key)
+  }
+
+  function wssEventToIngestEvent(data: WssIngestEventPayload): IngestEvent | null {
+    if (!data?.eventId) return null
+    return {
+      id: data.eventId,
+      eventId: data.eventId,
+      type: data.eventType,
+      eventType: data.eventType,
+      eventCategory: data.eventCategory,
+      eventAction: data.eventAction,
+      source: data.sourceFamily,
+      sourceFamily: data.sourceFamily,
+      deviceId: data.deviceId,
+      occurredAt: data.occurredAt,
+      severity: data.severity,
+      eventClass: data.eventClass,
+      location: data.location
+    }
+  }
+
+  function scheduleRealtimeReload() {
+    if (realtimeReloadTimer) clearTimeout(realtimeReloadTimer)
+    realtimeReloadTimer = setTimeout(() => {
+      realtimeReloadTimer = null
+      void load()
+    }, 1200)
+  }
+
+  function applyRealtimeEvent(data: WssIngestEventPayload) {
+    const event = wssEventToIngestEvent(data)
+    if (!event?.eventId) return
+    if (seenRealtimeEvents.has(event.eventId)) return
+    seenRealtimeEvents.add(event.eventId)
+    pruneSeenEvents()
+
+    lastRealtimeAt = event.occurredAt ?? new Date().toISOString()
+    if (pageNumber === 1 && !hasActiveFilters()) {
+      rows = [
+        event,
+        ...rows.filter((item) => (item.eventId ?? item.id) !== event.eventId)
+      ].slice(0, PER_PAGE)
+    }
+    scheduleRealtimeReload()
+  }
+
+  function startRealtime() {
+    if (unsubscribeRealtime) return
+    realtimeDenied = ''
+    unsubscribeRealtime = subscribeWsTopic<WssIngestEventPayload>(
+      [WS_TOPICS.INGEST_EVENT],
+      (_topic, _ts, payload) => applyRealtimeEvent(payload),
+      {
+        onDenied: (topic, reason) => {
+          realtimeDenied = `${topic} denied: ${reason}`
+        }
+      }
+    )
+  }
+
+  function stopRealtime() {
+    unsubscribeRealtime?.()
+    unsubscribeRealtime = null
+    if (realtimeReloadTimer) clearTimeout(realtimeReloadTimer)
+    realtimeReloadTimer = null
+  }
+
+  function liveBadgeClass(status: LiveStatus) {
+    if (status === 'on') return 'bg-success bg-opacity-25 text-success'
+    if (status === 'reconnecting') return 'bg-warning text-dark'
+    if (status === 'error') return 'bg-danger'
+    return 'bg-secondary'
+  }
+
+  function liveBadgeLabel(status: LiveStatus) {
+    if (status === 'on') return 'LIVE'
+    if (status === 'reconnecting') return 'Syncing'
+    if (status === 'error') return 'WSS error'
+    return 'REST'
+  }
+
   onMount(() => {
     setPageTitle(`${m.navIngest()} · ${m.navIngestEvents()}`)
     $appOptions.appContentClass = 'p-0 d-flex flex-column'
+    startRealtime()
     load()
   })
 
   onDestroy(() => {
+    stopRealtime()
     $appOptions.appContentClass = ''
   })
 </script>
@@ -278,6 +383,14 @@
       </div>
 
       <div class="d-flex justify-content-end gap-2 mt-3">
+        <span class="badge align-self-center {liveBadgeClass($wsHubStatus)}" title={$wsHubLastError ?? ''}>
+          <i class="bi bi-broadcast me-1"></i>{liveBadgeLabel($wsHubStatus)}
+        </span>
+        {#if lastRealtimeAt}
+          <span class="text-body text-opacity-50 small align-self-center">
+            live {new Date(lastRealtimeAt).toLocaleTimeString()}
+          </span>
+        {/if}
         <button type="button" class="btn btn-outline-secondary btn-sm" onclick={clearFilters}>
           <i class="bi bi-x-lg me-1"></i>Clear
         </button>
@@ -298,6 +411,9 @@
   <!-- Events table -->
   {#if errorMsg}
     <div class="alert alert-danger small mb-3">{errorMsg}</div>
+  {/if}
+  {#if realtimeDenied}
+    <div class="alert alert-warning small mb-3">{realtimeDenied}</div>
   {/if}
 
   <div class="card ingest-table-card">
