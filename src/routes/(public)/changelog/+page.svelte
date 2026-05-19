@@ -54,7 +54,7 @@
       version: '0.6.0',
       date: '2026-05-06',
       bullets: [
-        'Phase 6: live/map/videowall/biDash/mqtt/watchman + subscription/pricing + public landing/changelog/docs surfaces.'
+        'Phase 6: live/map/videowall/biDash/mqtt + subscription/pricing + public landing/changelog/docs surfaces.'
       ]
     },
     {
@@ -69,7 +69,7 @@
       version: '0.4.0',
       date: '2026-05-06',
       bullets: [
-        'Phase 4: aiSearch · iotWatch · iotControl · systemDevices · systemUsers (14 starter pages, 5 lib/api modules).',
+        'Phase 4: aiSearch · iotControl · systemDevices · systemUsers (watchlist now lives at /police).',
         'PHIBEK navigation replaces gateway-portal Events/Delivery/Workspaces menus.'
       ]
     },

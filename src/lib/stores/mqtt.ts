@@ -9,6 +9,12 @@ import { writable, derived, get } from 'svelte/store'
 import type { MqttClient } from 'mqtt'
 
 export type MqttStatus = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'offline' | 'error' | 'closed'
+export type MqttConfig = {
+  url?: string
+  username?: string
+  password?: string
+  source?: 'PUBLIC_MQTT_URL' | 'NUXT_PUBLIC_MQTT_URL'
+}
 
 export type MessageHandler = (topic: string, payload: Uint8Array) => void
 
@@ -22,6 +28,25 @@ export const mqttConnected = derived(_status, ($s) => $s === 'connected')
 let client: MqttClient | null = null
 let connectingPromise: Promise<MqttClient | null> | null = null
 
+const dynamicPublicEnv = env as Record<string, string | undefined>
+const vitePublicEnv = import.meta.env as Record<string, string | undefined>
+
+function firstPublicEnv(publicKey: string, nuxtKey: string) {
+  return dynamicPublicEnv[publicKey] ?? vitePublicEnv[publicKey] ?? vitePublicEnv[nuxtKey]
+}
+
+export function getMqttConfig(): MqttConfig {
+  const publicUrl = dynamicPublicEnv.PUBLIC_MQTT_URL ?? vitePublicEnv.PUBLIC_MQTT_URL
+  const nuxtUrl = vitePublicEnv.NUXT_PUBLIC_MQTT_URL
+
+  return {
+    url: publicUrl ?? nuxtUrl,
+    username: firstPublicEnv('PUBLIC_MQTT_USERNAME', 'NUXT_PUBLIC_MQTT_USERNAME'),
+    password: firstPublicEnv('PUBLIC_MQTT_PASSWORD', 'NUXT_PUBLIC_MQTT_PASSWORD'),
+    source: publicUrl ? 'PUBLIC_MQTT_URL' : nuxtUrl ? 'NUXT_PUBLIC_MQTT_URL' : undefined
+  }
+}
+
 /**
  * Get the singleton client, lazy-connecting on first call.
  * Returns null when called from SSR or env vars are missing.
@@ -31,9 +56,10 @@ export async function getMqttClient(): Promise<MqttClient | null> {
   if (client) return client
   if (connectingPromise) return connectingPromise
 
-  const url = env.PUBLIC_MQTT_URL
+  const config = getMqttConfig()
+  const url = config.url
   if (!url) {
-    console.warn('[mqtt] PUBLIC_MQTT_URL not set — skipping connect')
+    console.warn('[mqtt] PUBLIC_MQTT_URL / NUXT_PUBLIC_MQTT_URL not set — skipping connect')
     return null
   }
 
@@ -43,8 +69,8 @@ export async function getMqttClient(): Promise<MqttClient | null> {
       const mqtt = await import('mqtt')
       const c = mqtt.default.connect(url, {
         clientId: 'phibek-app_' + Math.random().toString(16).slice(2, 8),
-        username: env.PUBLIC_MQTT_USERNAME,
-        password: env.PUBLIC_MQTT_PASSWORD,
+        username: config.username,
+        password: config.password,
         protocolVersion: 5,
         clean: true,
         keepalive: 30,

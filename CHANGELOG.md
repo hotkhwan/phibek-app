@@ -26,6 +26,8 @@ this project follows semantic versioning.
   allowed.
 - System Users permission trees now handle nested/list response shapes more defensively and include
   clearer selected/partial-selected states plus expand/collapse controls.
+- Replaced the Police/Watchman navigation split with a single Watchlist menu backed by the existing
+  `police` permission, and removed the external Watchman/iotWatch frontend surface and env wiring.
 
 ### Fixed
 - Header search now opens the Cyber Admin overlay correctly, focuses the search input, closes via
@@ -34,6 +36,8 @@ this project follows semantic versioning.
   already-ported event feed instead of depending on the collapsed `/ingest` path.
 - Cameras, edge devices, and org units now wait for an active organization before loading and tolerate
   both tree and list response envelopes from the existing Klynx APIs.
+- MQTT console/live smoke can now use either `PUBLIC_MQTT_*` or `NUXT_PUBLIC_MQTT_*` broker env vars,
+  and the console shows which URL source is compiled into the client.
 
 ## [0.9.3] — 2026-05-17
 

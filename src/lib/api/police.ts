@@ -1,6 +1,5 @@
 // src/lib/api/police.ts
-// klynx police domain — kwatch-backed watchlist alarms (`/kapi/kwatch/watchlist`)
-// rendered in the police-mode dashboard.
+// klynx watchlist domain — kwatch-backed face/license plate entries.
 import { api, apiSafe } from '$lib/utils/fetch'
 
 type ApiEnvelope<T> = { status?: boolean; code?: string; message?: string; details: T }

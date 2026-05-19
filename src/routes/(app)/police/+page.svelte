@@ -27,7 +27,7 @@
   }
 
   onMount(() => {
-    setPageTitle(m.navPoliceWatchlist())
+    setPageTitle(m.navPolice())
     load()
   })
 
@@ -36,12 +36,12 @@
     { key: 'lname', label: 'Last Name' },
     { key: 'nickname', label: 'Nickname' },
     { key: 'age', label: 'Age' },
-    { key: 'policeStation', label: 'Station' },
+    { key: 'policeStation', label: 'Source / station' },
     { key: 'status', label: 'Status' }
   ]
 </script>
 
-<DomainStarter title={m.navPoliceWatchlist()} subtitle="kwatch watchlist (police-mode)" icon="bi-shield-shaded" legacyName="police">
+<DomainStarter title={m.navPolice()} subtitle="Face and license plate watchlist" icon="bi-person-bounding-box" legacyName="watchlist">
   <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
     <div class="d-flex gap-2 flex-wrap">
       <div class="input-group input-group-sm" style="max-width: 280px">
@@ -56,7 +56,7 @@
       <input
         class="form-control form-control-sm"
         style="max-width: 180px"
-        placeholder="Station"
+        placeholder="Source / station"
         bind:value={stationFilter}
         onkeydown={(e) => e.key === 'Enter' && load()}
       />

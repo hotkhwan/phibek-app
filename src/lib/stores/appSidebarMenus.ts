@@ -10,7 +10,6 @@ export const appSidebarMenus = writable<SidebarMenu[]>([
   { kind: 'link', id: 'dashboard', menuId: 'dashboard', url: 'dashboard', icon: 'bi bi-ui-radios-grid', textKey: 'navDashboard' },
   { kind: 'link', id: 'intDash', menuId: 'intDash', url: 'intDash', icon: 'bi bi-activity', textKey: 'navIntDash' },
   { kind: 'link', id: 'aiSearch', menuId: 'ksearch', url: 'aiSearch', icon: 'bi bi-search-heart', textKey: 'navAiSearch' },
-  { kind: 'link', id: 'iotWatch', menuId: 'watchman', url: 'iotWatch', icon: 'bi bi-eye', textKey: 'navIotWatch' },
   {
     kind: 'link',
     id: 'iotControl',
@@ -48,23 +47,12 @@ export const appSidebarMenus = writable<SidebarMenu[]>([
     ]
   },
   { kind: 'link', id: 'floorPlans', menuId: 'floor-plans-menu', url: 'floorPlans', icon: 'bi bi-bounding-box', textKey: 'navFloorPlans' },
-  {
-    kind: 'link',
-    id: 'police',
-    menuId: 'police',
-    icon: 'bi bi-shield-shaded',
-    textKey: 'navPolice',
-    children: [
-      { id: 'policeWatchlist', url: 'police', textKey: 'navPoliceWatchlist' },
-      { id: 'policeMode', url: 'polices', textKey: 'navPolicePoliceMode' }
-    ]
-  },
+  { kind: 'link', id: 'watchlist', menuId: 'police', url: 'police', icon: 'bi bi-person-bounding-box', textKey: 'navPolice' },
   { kind: 'link', id: 'live', url: 'live', icon: 'bi bi-broadcast', textKey: 'navLive' },
   { kind: 'link', id: 'map', menuId: 'map', url: 'map', icon: 'bi bi-globe-americas', textKey: 'navMap' },
   { kind: 'link', id: 'videoWall', menuId: 'videowall', url: 'videowall', icon: 'bi bi-grid-3x3-gap', textKey: 'navVideoWall' },
   { kind: 'link', id: 'biDash', menuId: 'map', url: 'biDash', icon: 'bi bi-bar-chart-line', textKey: 'navBiDash' },
   { kind: 'link', id: 'mqtt', url: 'mqtt', icon: 'bi bi-router', textKey: 'navMqttConsole' },
-  { kind: 'link', id: 'watchman', url: 'watchman', icon: 'bi bi-display', textKey: 'navWatchmanIframe' },
   {
     kind: 'link',
     id: 'systemDevices',
