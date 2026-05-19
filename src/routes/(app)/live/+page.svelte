@@ -43,7 +43,7 @@
   async function connectMqtt() {
     const c = await getMqttClient()
     if (!c) {
-      notify.warning('MQTT', 'PUBLIC_MQTT_URL not configured')
+      notify.warning('MQTT', 'PUBLIC_MQTT_URL / NUXT_PUBLIC_MQTT_URL not configured')
     }
   }
 

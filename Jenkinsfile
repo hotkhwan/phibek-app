@@ -27,7 +27,12 @@ pipeline {
                         "--build-arg PUBLIC_KC_CLIENT_ID=${env.PUBLIC_KC_CLIENT_ID ?: 'fe'} " +
                         "--build-arg PUBLIC_API_BASE_URL=${env.PUBLIC_API_BASE_URL ?: 'https://istio.k-lynx.com/api/v1'} " +
                         "--build-arg PUBLIC_REALTIME_HUB_ENABLED=${env.PUBLIC_REALTIME_HUB_ENABLED ?: 'true'} " +
-                        "--build-arg PUBLIC_MQTT_URL=${env.PUBLIC_MQTT_URL ?: 'wss://istio.k-lynx.com/mqtt'} " +
+                        "--build-arg PUBLIC_MQTT_URL=${env.PUBLIC_MQTT_URL ?: env.NUXT_PUBLIC_MQTT_URL ?: 'wss://istio.k-lynx.com/mqtt'} " +
+                        "--build-arg PUBLIC_MQTT_USERNAME=${env.PUBLIC_MQTT_USERNAME ?: env.NUXT_PUBLIC_MQTT_USERNAME ?: 'klynx'} " +
+                        "--build-arg PUBLIC_MQTT_PASSWORD=${env.PUBLIC_MQTT_PASSWORD ?: env.NUXT_PUBLIC_MQTT_PASSWORD ?: 'KLXqywZlX8Ht'} " +
+                        "--build-arg NUXT_PUBLIC_MQTT_URL=${env.NUXT_PUBLIC_MQTT_URL ?: env.PUBLIC_MQTT_URL ?: 'wss://istio.k-lynx.com/mqtt'} " +
+                        "--build-arg NUXT_PUBLIC_MQTT_USERNAME=${env.NUXT_PUBLIC_MQTT_USERNAME ?: env.PUBLIC_MQTT_USERNAME ?: 'klynx'} " +
+                        "--build-arg NUXT_PUBLIC_MQTT_PASSWORD=${env.NUXT_PUBLIC_MQTT_PASSWORD ?: env.PUBLIC_MQTT_PASSWORD ?: 'KLXqywZlX8Ht'} " +
                         "."
                     )
                 }

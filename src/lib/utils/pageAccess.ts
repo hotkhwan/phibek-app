@@ -36,6 +36,7 @@ const pageAccessRules: PageAccessRule[] = [
   { path: '/docs', authOnly: true },
   { path: '/pricing', authOnly: true },
   { path: '/live', authOnly: true },
+  { path: '/mqtt', exact: true, authOnly: true },
 
   { path: '/admin', requirePlatformAdmin: true },
 
@@ -78,9 +79,7 @@ const pageAccessRules: PageAccessRule[] = [
 
   { path: '/polices', menuIds: ['police'] },
   { path: '/police', menuIds: ['police'] },
-  { path: '/kwatch', menuIds: ['police', 'watchman'] },
-  { path: '/iotWatch', menuIds: ['police', 'watchman'] },
-  { path: '/watchman', exact: true, menuIds: ['watchman'] },
+  { path: '/kwatch', menuIds: ['police'] },
 
   {
     path: '/systemUsers/organizations',

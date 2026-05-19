@@ -10,6 +10,7 @@ export default defineConfig(({ mode }) => {
 	const port = Number(env.PUBLIC_APP_BASE_PORT || env.PORT || 5173)
 
 	return {
+		envPrefix: ['PUBLIC_', 'NUXT_PUBLIC_'],
 		define: {
 			__APP_VERSION__: JSON.stringify(pkg.version)
 		},

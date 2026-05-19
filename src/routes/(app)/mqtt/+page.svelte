@@ -7,6 +7,7 @@
   import DomainStarter from '$lib/components/shared/DomainStarter.svelte'
   import {
     getMqttClient,
+    getMqttConfig,
     subscribeMqtt,
     mqttStatus,
     mqttLastError,
@@ -42,6 +43,7 @@
   let publishStatus = $state('')
 
   const subscriptions = new Map<string, () => void>()
+  const mqttConfig = getMqttConfig()
 
   function handleMessage(topic: string, payload: Uint8Array) {
     const text = new TextDecoder().decode(payload)
@@ -104,6 +106,16 @@
 </script>
 
 <DomainStarter title={m.navMqttConsole()} subtitle="Subscribe + publish test console" icon="bi-broadcast-pin" legacyName="mqtt">
+  <div class="small text-body text-opacity-50 mb-3">
+    Broker:
+    {#if mqttConfig.url}
+      <code>{mqttConfig.url}</code>
+      <span class="ms-1">via {mqttConfig.source}</span>
+    {:else}
+      <span>PUBLIC_MQTT_URL / NUXT_PUBLIC_MQTT_URL not configured</span>
+    {/if}
+  </div>
+
   {#if $mqttLastError}
     <div class="alert alert-danger small mb-3">{$mqttLastError}</div>
   {/if}

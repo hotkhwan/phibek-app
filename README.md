@@ -56,10 +56,10 @@ src/
 │   ├── types/         shared TS types
 │   └── utils/         fetch · streamUrl · sse · asset · title · logger
 ├── routes/
-│   ├── (app)/         protected routes (dashboard / aiSearch / iotWatch /
+│   ├── (app)/         protected routes (dashboard / aiSearch /
 │   │                  iotControl / systemDevices / systemUsers / edge-ai /
-│   │                  ingest / floorPlans / police / polices / admin /
-│   │                  live / map / videowall / biDash / mqtt / watchman /
+│   │                  ingest / floorPlans / watchlist / polices / admin /
+│   │                  live / map / videowall / biDash / mqtt /
 │   │                  subscription / pricing / profile / settings)
 │   ├── (base)/        auth + API endpoints
 │   └── (public)/      landing · changelog · docs · error · comingsoon
@@ -98,7 +98,7 @@ topic names stay original.
 | klynx | phibek-app |
 |---|---|
 | `ksearch` | `aiSearch` |
-| `kwatch` | `iotWatch` |
+| `kwatch` | `watchlist` (`/police`) |
 | `kcontrol` | `iotControl` |
 
 ## Phase history
