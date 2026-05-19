@@ -38,6 +38,9 @@ this project follows semantic versioning.
   both tree and list response envelopes from the existing Klynx APIs.
 - MQTT console/live smoke can now use either `PUBLIC_MQTT_*` or `NUXT_PUBLIC_MQTT_*` broker env vars,
   and the console shows which URL source is compiled into the client.
+- MQTT browser connections keep broker credentials out of the WebSocket request URL and use
+  MQTT CONNECT username/password only; HTTP Basic WebSocket auth must be handled by a server-side
+  proxy or the contracted realtime WSS hub, not by `user:pass@host` client URLs.
 
 ## [0.9.3] — 2026-05-17
 
