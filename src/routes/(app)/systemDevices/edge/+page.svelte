@@ -1,27 +1,45 @@
 <!-- src/routes/(app)/systemDevices/edge/+page.svelte -->
 <script lang="ts">
-  import { onMount } from 'svelte'
+  import { onDestroy, onMount } from 'svelte'
   import { setPageTitle } from '$lib/utils/title'
   import DomainStarter from '$lib/components/shared/DomainStarter.svelte'
   import DataTableStarter from '$lib/components/shared/DataTableStarter.svelte'
   import { listEdgeDevices, type EdgeDevice } from '$lib/api/devices'
+  import { activeWorkspaceId } from '$lib/stores/activeWorkspace'
   import { m } from '$lib/i18n/messages'
+  import { itemsFrom } from '$lib/utils/apiShape'
 
   let rows = $state<EdgeDevice[]>([])
   let loading = $state(false)
   let errorMsg = $state('')
+  let unsubscribeWorkspace: (() => void) | null = null
+  let loadSeq = 0
 
   async function load() {
+    const seq = ++loadSeq
     loading = true
+    errorMsg = ''
     const { data, error } = await listEdgeDevices({ perPage: 50 })
+    if (seq !== loadSeq) return
     loading = false
     if (error) errorMsg = error.message
-    rows = data?.details?.items ?? []
+    rows = itemsFrom<EdgeDevice>(data?.details)
   }
 
   onMount(() => {
     setPageTitle(`${m.navSystemDevices()} · ${m.navSystemDevicesEdge()}`)
-    load()
+    unsubscribeWorkspace = activeWorkspaceId.subscribe((orgId) => {
+      if (!orgId) {
+        rows = []
+        errorMsg = 'Select an organization to load edge devices.'
+        return
+      }
+      void load()
+    })
+  })
+
+  onDestroy(() => {
+    unsubscribeWorkspace?.()
   })
 
   const columns = [

@@ -7,7 +7,9 @@ export type SidebarChild = {
     id: string
     menuId?: string
     textKey: MenuTextKey
+    text?: string
     url?: string
+    external?: boolean
     children?: SidebarChild[]
 }
 

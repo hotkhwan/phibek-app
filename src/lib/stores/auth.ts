@@ -39,7 +39,7 @@ export const auth = {
   setAuthenticated: (value: boolean) =>
     _auth.update((s) => ({ ...s, isAuthenticated: value, ready: true })),
   setUser: (user: UserData | null) =>
-    _auth.update((s) => ({ ...s, user, isAuthenticated: !!user })),
+    _auth.update((s) => ({ ...s, user, isAuthenticated: !!user, ready: true })),
   updateUser: (partial: Partial<UserData>) =>
     _auth.update((s) => ({
       ...s,

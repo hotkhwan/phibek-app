@@ -87,20 +87,6 @@ textarea {
   text-transform: uppercase;
 }
 
-// menu-profile (top of sidebar) — slight tightening
-.menu-profile .menu-profile-info {
-  font-size: 0.8125rem;
-  letter-spacing: 0.04em;
-}
-.menu-profile .menu-profile-info small {
-  font-size: 0.6875rem;
-  letter-spacing: 0.08em;
-  opacity: 0.7;
-}
-.menu-profile .menu-profile-image {
-  font-size: 1.5rem;
-}
-
 // PHIBEK brand mark in header — keep gold accent crisp on dark bg
 .phibek-brand-name {
   letter-spacing: 0.18em !important;
@@ -194,8 +180,77 @@ textarea {
   overflow: hidden;
 }
 
-.app-sidebar .menu .menu-profile {
-  padding-bottom: .65rem;
+.app-sidebar .menu-org-selector {
+  padding: .4rem .9rem .8rem .9rem;
+}
+
+.app-sidebar .menu-org-selector-btn {
+  width: 100%;
+  min-width: 0;
+  min-height: 3.25rem;
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .55rem;
+  color: rgba(var(--bs-body-color-rgb), .86);
+  background: rgba(var(--bs-body-bg-rgb), .18);
+  border: 1px solid rgba(var(--bs-theme-rgb), .28);
+  padding: .45rem .6rem;
+  text-align: left;
+}
+
+.app-sidebar .menu-org-selector-icon {
+  width: 2rem;
+  height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(var(--bs-body-color-rgb), .58);
+  border: 1px solid rgba(var(--bs-body-color-rgb), .32);
+  font-size: 1.25rem;
+}
+
+.app-sidebar .menu-org-selector-copy {
+  min-width: 0;
+  display: grid;
+  gap: .1rem;
+}
+
+.app-sidebar .menu-org-selector-btn:hover,
+.app-sidebar .menu-org-selector-btn[aria-expanded="true"] {
+  color: var(--bs-theme);
+  border-color: rgba(var(--bs-theme-rgb), .7);
+  background: rgba(var(--bs-theme-rgb), .12);
+}
+
+.app-sidebar .menu-org-selector-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: .8125rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.app-sidebar .menu-org-selector-copy small {
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(var(--bs-body-color-rgb), .58);
+  font-size: .625rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.app-sidebar .menu-org-selector .dropdown-menu {
+  min-width: 13rem;
+  max-width: 18rem;
 }
 
 .app-sidebar .menu .menu-header + .menu-item,
@@ -390,11 +445,21 @@ textarea {
 }
 
 .app-header .menu-search-mobile {
-  z-index: 2;
+  display: block !important;
+  z-index: 5;
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
   background:
     linear-gradient(rgba(var(--bs-body-bg-rgb), .94), rgba(var(--bs-body-bg-rgb), .94)),
     linear-gradient(90deg, rgba(var(--bs-theme-rgb), .18), rgba(var(--bs-theme-rgb), .04));
   backdrop-filter: blur(10px);
+}
+
+.app-header-menu-search-toggled .app-header .menu-search-mobile {
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
 }
 
 .app-header .menu .menu-item .menu-link .header-user-email {
@@ -509,10 +574,25 @@ textarea {
 
 [data-bs-theme="light"] .app-sidebar .menu .menu-item .menu-link,
 [data-bs-theme="light"] .app-sidebar .menu .menu-item .menu-link .menu-text,
-[data-bs-theme="light"] .app-sidebar .menu .menu-profile-link,
 [data-bs-theme="light"] .app-sidebar .mt-auto {
   color: rgba(15, 28, 63, .82) !important;
   text-shadow: 0 1px 2px rgba(245, 243, 238, .65);
+}
+
+[data-bs-theme="light"] .app-sidebar .menu-org-selector-btn {
+  color: rgba(15, 28, 63, .86);
+  background: rgba(248, 247, 242, .52);
+  border-color: rgba(var(--bs-theme-rgb), .4);
+  text-shadow: 0 1px 2px rgba(245, 243, 238, .72);
+}
+
+[data-bs-theme="light"] .app-sidebar .menu-org-selector-icon {
+  color: rgba(15, 28, 63, .62);
+  border-color: rgba(15, 28, 63, .3);
+}
+
+[data-bs-theme="light"] .app-sidebar .menu-org-selector-copy small {
+  color: rgba(15, 28, 63, .58);
 }
 
 [data-bs-theme="light"] .app-sidebar .menu .menu-item.active > .menu-link,

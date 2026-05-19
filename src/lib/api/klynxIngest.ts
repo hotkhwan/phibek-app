@@ -42,6 +42,9 @@ export type IngestEvent = {
   deviceId?: string
   deviceName?: string
   occurredAt?: string
+  severity?: string
+  eventClass?: string
+  location?: { lat: number; lng: number }
   payload?: Record<string, unknown> & { pictureCoordinates?: IngestPictureCoordinate[] }
   binaryRefs?: IngestBinaryRef[]
   detail?: {

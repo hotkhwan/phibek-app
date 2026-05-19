@@ -24,6 +24,7 @@ declare global {
   interface ImportMetaEnv {
     readonly PUBLIC_APP_BASE_PATH?: string
     readonly PUBLIC_APP_BASE_PORT?: string
+    readonly PUBLIC_REALTIME_HUB_ENABLED?: string
   }
 
   interface ImportMeta {

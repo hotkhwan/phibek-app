@@ -7,8 +7,18 @@
   import { appOptions } from '$lib/stores/appOptions'
   import { appSidebarMenus } from '$lib/stores/appSidebarMenus'
   import { auth } from '$lib/stores/auth'
+  import {
+    activeWorkspace,
+    activeWorkspaceId,
+    setActiveWorkspace,
+    setWorkspaceList,
+    workspaceList
+  } from '$lib/stores/activeWorkspace'
   import { effectiveAccess } from '$lib/stores/effectiveAccess'
-  import { logout as kcLogout } from '$lib/client/keycloak'
+  import { listSystemEdgeDevices, type SystemEdgeDevice } from '$lib/api/devices'
+  import { listWorkspaces } from '$lib/api/workspace'
+  import { evaluatePageAccess, menuPath } from '$lib/utils/pageAccess'
+  import { itemsFrom } from '$lib/utils/apiShape'
   import pkg from '../../../../package.json'
 
   import { page } from '$app/state'
@@ -22,8 +32,15 @@
     SidebarMenuLink
   } from '$lib/types/navigation'
 
-  onMount(() => {
+  onMount(async () => {
     document.body.classList.add('app-init')
+    if ($workspaceList.length > 0) return
+    try {
+      const workspaces = await listWorkspaces()
+      setWorkspaceList(workspaces)
+    } catch (err) {
+      console.warn('[AppSidebar] failed to load organizations', err)
+    }
   })
 
   function isLinkMenu(menu: SidebarMenu): menu is SidebarMenuLink {
@@ -40,29 +57,131 @@
 
   function hasActiveChild(children?: SidebarChild[]) {
     const pathname = page.url.pathname
-    return children?.some((c) => (c.url ? withBase(c.url) === pathname : false)) ?? false
+    return children?.some((c) => (c.url ? menuHref(c.url) === pathname : false)) ?? false
+  }
+
+  function accessInput() {
+    return {
+      access: $effectiveAccess.access,
+      accessLoaded: $effectiveAccess.isLoaded,
+      hasActiveOrg: Boolean($activeWorkspaceId),
+      user: $auth.user
+    }
   }
 
   function canSeeMenu(menu: SidebarMenuLink | SidebarChild) {
-    return !menu.menuId || $effectiveAccess.access.visibleMenuIds.includes(menu.menuId)
+    if (menu.url) {
+      return evaluatePageAccess(menuPath(menu.url), accessInput()).allowed
+    }
+
+    if (menu.menuId) {
+      return $effectiveAccess.isLoaded && $effectiveAccess.access.visibleMenuIds.includes(menu.menuId)
+    }
+
+    return false
   }
 
   function visibleChildren(children?: SidebarChild[]) {
     return children?.filter((child) => canSeeMenu(child)) ?? []
   }
 
+  function canLoadEdgeDeviceMenu() {
+    return (
+      Boolean($activeWorkspaceId) &&
+      $effectiveAccess.isLoaded &&
+      $effectiveAccess.access.visibleMenuIds.includes('systemDevicesEdge')
+    )
+  }
+
+  let edgeMenuDevices = $state<SystemEdgeDevice[]>([])
+  let edgeMenuLoadKey = $state('')
+  let edgeMenuSeq = 0
+
+  async function loadEdgeDeviceMenu(orgId: string) {
+    const seq = ++edgeMenuSeq
+    const { data, error } = await listSystemEdgeDevices({ perPage: 100 })
+    if (seq !== edgeMenuSeq || orgId !== $activeWorkspaceId) return
+
+    if (error) {
+      console.warn('[AppSidebar] failed to load edge device menu', error.message)
+      edgeMenuDevices = []
+      return
+    }
+
+    edgeMenuDevices = itemsFrom<SystemEdgeDevice>(data?.details).filter(
+      (device) => Boolean(device.id && device.name && isExternalUrl(device.url))
+    )
+  }
+
+  $effect(() => {
+    const orgId = $activeWorkspaceId
+    const key = orgId && canLoadEdgeDeviceMenu() ? orgId : ''
+
+    if (!key) {
+      edgeMenuLoadKey = ''
+      edgeMenuDevices = []
+      return
+    }
+
+    if (edgeMenuLoadKey === key) return
+    edgeMenuLoadKey = key
+    void loadEdgeDeviceMenu(key)
+  })
+
+  const edgeDeviceChildren = $derived.by<SidebarChild[]>(() => {
+    if (!canLoadEdgeDeviceMenu()) return []
+
+    return edgeMenuDevices.map((device) => ({
+      id: `systemDevicesEdge:${device.id}`,
+      textKey: 'navSystemDevicesEdge',
+      text: device.type ? `${device.name} · ${device.type.toUpperCase()}` : device.name,
+      url: device.url,
+      external: true
+    }))
+  })
+
+  function renderedChildren(menu: SidebarMenuLink) {
+    const children = visibleChildren(menu.children)
+    if (menu.id === 'systemDevices' && edgeDeviceChildren.length > 0) {
+      return [...children, ...edgeDeviceChildren]
+    }
+    return children
+  }
+
+  function hasRenderedChildren(menu: SidebarMenuLink) {
+    return renderedChildren(menu).length > 0
+  }
+
+  function childLabel(child: SidebarChild) {
+    return child.text ?? t(child.textKey)
+  }
+
+  function isExternalUrl(url?: string) {
+    return /^https?:\/\//i.test(url ?? '')
+  }
+
+  function menuHref(url?: string) {
+    if (!url) return '#'
+    if (isExternalUrl(url)) return url
+    return withBase(url)
+  }
+
+  function linkTarget(child: SidebarChild) {
+    return child.external || isExternalUrl(child.url) ? '_blank' : undefined
+  }
+
+  function linkRel(child: SidebarChild) {
+    return child.external || isExternalUrl(child.url) ? 'noreferrer' : undefined
+  }
+
   function isVisibleMenu(menu: SidebarMenu) {
     if (menu.kind !== 'link') return true
-    const children = visibleChildren(menu.children)
-    if (menu.children?.length) return canSeeMenu(menu) || children.length > 0
+    const children = renderedChildren(menu)
+    if (menu.children?.length) return children.length > 0 || canSeeMenu(menu)
     return canSeeMenu(menu)
   }
 
-  const visibleSidebarMenus = $derived(
-    !$effectiveAccess.isLoaded
-      ? $appSidebarMenus
-      : $appSidebarMenus.filter(isVisibleMenu)
-  )
+  const visibleSidebarMenus = $derived($appSidebarMenus.filter(isVisibleMenu))
   const navigationMenus = $derived.by(() => {
     const userPortalIndex = visibleSidebarMenus.findIndex((menu) => menu.kind === 'header' && menu.id === 'userPortal')
     return userPortalIndex >= 0 ? visibleSidebarMenus.slice(0, userPortalIndex) : visibleSidebarMenus
@@ -88,14 +207,14 @@
   let openedMenuId = $state<string | null>(null)
 
   async function toggleMenu(menu: SidebarMenu) {
-    if (!isLinkMenu(menu) || !menu.children?.length) return
+    if (!isLinkMenu(menu) || !hasRenderedChildren(menu)) return
     openedMenuId = openedMenuId === menu.id ? null : menu.id
     await tick()
     window.dispatchEvent(new Event('resize'))
   }
 
   function onParentClick(e: MouseEvent, menu: SidebarMenu) {
-    if (isLinkMenu(menu) && menu.children?.length) {
+    if (isLinkMenu(menu) && hasRenderedChildren(menu)) {
       e.preventDefault()
       toggleMenu(menu)
       return
@@ -123,55 +242,63 @@
     ($auth.user?.role || 'member').toUpperCase()
   )
 
-  async function onLogout(e: MouseEvent) {
-    e.preventDefault()
-    await kcLogout()
+  async function chooseWorkspace(id: string) {
+    await setActiveWorkspace(id)
   }
 </script>
 
 <!-- BEGIN #appSidebar -->
 <div id="sidebar" class="app-sidebar">
   <div class="app-sidebar-content">
-    <!-- BEGIN menu-profile (cyber_admin pattern) -->
+    <!-- BEGIN organization selector -->
     <div class="menu menu-profile-shell">
-      <div class="menu-profile">
-      <a
-        href="#/"
-        class="menu-profile-link"
-        data-bs-toggle="dropdown"
-        data-bs-display="static"
-        aria-expanded="false"
-        onclick={(e) => e.preventDefault()}
-      >
-        <div class="menu-profile-image text-body text-opacity-50">
-          <i class="bi bi-shield-check"></i>
+      <div class="menu-org-selector dropdown">
+        <button
+          type="button"
+          class="menu-org-selector-btn"
+          data-bs-toggle="dropdown"
+          data-bs-display="static"
+          aria-expanded="false"
+          title={$activeWorkspace?.name ?? 'Select organization'}
+        >
+          <span class="menu-org-selector-icon">
+            <i class="bi bi-building"></i>
+          </span>
+          <span class="menu-org-selector-copy">
+            <span class="menu-org-selector-text">{$activeWorkspace?.name ?? 'Select organization'}</span>
+            <small>{profileName} · {profileRole}</small>
+          </span>
+          <b class="caret"></b>
+        </button>
+        <div class="dropdown-menu dropdown-menu-end me-2">
+          {#if $workspaceList.length > 0}
+            {#each $workspaceList as workspace (workspace.id)}
+              <button
+                type="button"
+                class="dropdown-item d-flex align-items-center"
+                class:active={$activeWorkspace?.id === workspace.id}
+                onclick={() => chooseWorkspace(workspace.id)}
+              >
+                <i class="bi bi-building me-2"></i>
+                <span class="text-truncate">{workspace.name}</span>
+                {#if $activeWorkspace?.id === workspace.id}
+                  <i class="bi bi-check-lg ms-auto"></i>
+                {/if}
+              </button>
+            {/each}
+          {:else}
+            <a class="dropdown-item d-flex align-items-center" href={withBase('systemUsers/organizations')}>
+              <i class="bi bi-plus-lg me-2"></i> Add organization
+            </a>
+          {/if}
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item d-flex align-items-center" href={withBase('systemUsers/organizations')}>
+            <i class="bi bi-gear me-2"></i> Manage organizations
+          </a>
         </div>
-        <div class="menu-profile-info">
-          <div class="d-flex align-items-center">
-            <div class="flex-1 fw-bold text-uppercase">{profileName}</div>
-            <div class="d-flex opacity-5"><b class="caret"></b></div>
-          </div>
-          <small>{profileRole}</small>
-        </div>
-      </a>
-      <div class="dropdown-menu dropdown-menu-end me-2">
-        <a class="dropdown-item d-flex align-items-center" href={withBase('profile')}>
-          <i class="bi bi-person-circle me-2"></i> {m.navProfile()}
-        </a>
-        <a class="dropdown-item d-flex align-items-center" href={withBase('settings')}>
-          <i class="bi bi-gear me-2"></i> {m.navSettings()}
-        </a>
-        <a class="dropdown-item d-flex align-items-center" href={withBase('subscription')}>
-          <i class="bi bi-gem me-2"></i> {m.navSubscription()}
-        </a>
-        <div class="dropdown-divider"></div>
-        <a class="dropdown-item d-flex align-items-center" href="#/" onclick={onLogout}>
-          <i class="bi bi-box-arrow-right me-2"></i> {m.authPageSignOut()}
-        </a>
-      </div>
       </div>
     </div>
-    <!-- END menu-profile -->
+    <!-- END organization selector -->
 
     <!-- BEGIN navigation menu -->
     <div class="menu sidebar-menu-section sidebar-menu-navigation">
@@ -195,14 +322,14 @@
         {:else if isLinkMenu(menu)}
           <div
             class="menu-item"
-            class:has-sub={!!menu.children?.length}
+            class:has-sub={hasRenderedChildren(menu)}
             class:expand={openedMenuId === menu.id}
             class:active={(menu.url ? withBase(menu.url) === page.url.pathname : false) ||
-              hasActiveChild(menu.children)}
+              hasActiveChild(renderedChildren(menu))}
           >
             <a
               class="menu-link"
-              href={menu.url ? withBase(menu.url) : '#'}
+              href={menuHref(menu.url)}
               onclick={(e) => onParentClick(e, menu)}
             >
               {#if menu.icon}
@@ -214,24 +341,26 @@
                 </span>
               {/if}
               <span class="menu-text">{t(menu.textKey)}</span>
-              {#if menu.children?.length}
+              {#if hasRenderedChildren(menu)}
                 <span class="menu-caret"><b class="caret"></b></span>
               {/if}
             </a>
 
-            {#if menu.children?.length}
+            {#if hasRenderedChildren(menu)}
               <div class="menu-submenu">
-                {#each ($effectiveAccess.isLoaded ? visibleChildren(menu.children) : (menu.children ?? [])) as child (child.id)}
+                {#each renderedChildren(menu) as child (child.id)}
                   <div
                     class="menu-item"
-                    class:active={child.url ? withBase(child.url) === page.url.pathname : false}
+                    class:active={child.url ? menuHref(child.url) === page.url.pathname : false}
                   >
                     <a
                       class="menu-link"
-                      href={withBase(child.url)}
+                      href={menuHref(child.url)}
+                      target={linkTarget(child)}
+                      rel={linkRel(child)}
                       onclick={hideMobileSidebar}
                     >
-                      <span class="menu-text">{t(child.textKey)}</span>
+                      <span class="menu-text">{childLabel(child)}</span>
                     </a>
                   </div>
                 {/each}
@@ -265,14 +394,14 @@
         {:else if isLinkMenu(menu)}
           <div
             class="menu-item"
-            class:has-sub={!!menu.children?.length}
+            class:has-sub={hasRenderedChildren(menu)}
             class:expand={openedMenuId === menu.id}
             class:active={(menu.url ? withBase(menu.url) === page.url.pathname : false) ||
-              hasActiveChild(menu.children)}
+              hasActiveChild(renderedChildren(menu))}
           >
             <a
               class="menu-link"
-              href={menu.url ? withBase(menu.url) : '#'}
+              href={menuHref(menu.url)}
               onclick={(e) => onParentClick(e, menu)}
             >
               {#if menu.icon}
@@ -284,24 +413,26 @@
                 </span>
               {/if}
               <span class="menu-text">{t(menu.textKey)}</span>
-              {#if menu.children?.length}
+              {#if hasRenderedChildren(menu)}
                 <span class="menu-caret"><b class="caret"></b></span>
               {/if}
             </a>
 
-            {#if menu.children?.length}
+            {#if hasRenderedChildren(menu)}
               <div class="menu-submenu">
-                {#each ($effectiveAccess.isLoaded ? visibleChildren(menu.children) : (menu.children ?? [])) as child (child.id)}
+                {#each renderedChildren(menu) as child (child.id)}
                   <div
                     class="menu-item"
-                    class:active={child.url ? withBase(child.url) === page.url.pathname : false}
+                    class:active={child.url ? menuHref(child.url) === page.url.pathname : false}
                   >
                     <a
                       class="menu-link"
-                      href={withBase(child.url)}
+                      href={menuHref(child.url)}
+                      target={linkTarget(child)}
+                      rel={linkRel(child)}
                       onclick={hideMobileSidebar}
                     >
-                      <span class="menu-text">{t(child.textKey)}</span>
+                      <span class="menu-text">{childLabel(child)}</span>
                     </a>
                   </div>
                 {/each}

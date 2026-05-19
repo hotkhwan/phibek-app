@@ -75,6 +75,9 @@ export type OrgUnit = {
   parentId?: string
   description?: string
   childCount?: number
+  totalUnit?: number
+  memberCount?: number
+  children?: OrgUnit[]
 }
 
 export type MenuPermission = {
@@ -260,11 +263,11 @@ export async function listOrgUnits(params: ListParams = {}) {
 }
 
 export async function getOrgUnitTree() {
-  return apiSafe<ApiEnvelope<OrgUnit[]>>('/orgs/units/tree/')
+  return apiSafe<ApiEnvelope<OrgUnit[] | { items?: OrgUnit[]; children?: OrgUnit[] }>>('/orgs/units/tree')
 }
 
 export async function getOrgUnitsAll() {
-  return apiSafe<ApiEnvelope<OrgUnit[]>>('/orgs/units/all')
+  return apiSafe<ApiEnvelope<OrgUnit[] | { items?: OrgUnit[]; children?: OrgUnit[] }>>('/orgs/units/all')
 }
 
 export async function bulkDeleteOrgUnits(ids: string[]) {

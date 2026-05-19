@@ -5,13 +5,19 @@
   import { appOptions } from '$lib/stores/appOptions'
   import { auth } from '$lib/stores/auth'
   import ViewerMapLibre from '$lib/components/dashboard/ViewerMapLibre.svelte'
+  import { WS_TOPICS } from '$lib/realtime/wsTopics'
+  import { liveBadgeClass, liveBadgeLabel } from '$lib/realtime/liveStatus'
   import {
-    fetchAnalyticsEvents,
+    subscribeWsTopic,
+    wsHubLastError,
+    wsHubStatus
+  } from '$lib/stores/wsHub'
+  import type { WssIngestEventPayload } from '$lib/types/realtime'
+  import {
     fetchAnalyticsOverview,
     type AnalyticsBarChart,
     type AnalyticsChartSeries,
     type AnalyticsDonutChart,
-    type AnalyticsEventItem,
     type AnalyticsGeoMapPoint,
     type AnalyticsOverviewDetails,
     type AnalyticsTopCamera
@@ -71,37 +77,14 @@
     points: number[]
   }
 
-  type PhaseCard = {
-    phase: string
-    title: string
-    meta: string
-    active: boolean
-    icon: string
-  }
-
-  type EventActivity = {
-    event: string
-    count: string
-    meta: string
-    icon: string
-    tone: string
-  }
-
   const TZ = 'Asia/Bangkok'
   const chartPalette = ['#2de67f', '#0ba6df', '#8b5cf6', '#f97316', '#06b6d4', '#a3e635', '#6366f1', '#ef4444']
-
-  const phaseCards: PhaseCard[] = [
-    { phase: 'Phase 1', title: 'Livestream Analytics', meta: 'Usage, viewers, sessions', active: true, icon: 'bi-play-circle-fill' },
-    { phase: 'Phase 2', title: 'AI Event Intelligence', meta: 'Detections and incidents', active: false, icon: 'bi-cpu' },
-    { phase: 'Phase 3', title: 'AI Command Center', meta: 'Digital twin operations', active: false, icon: 'bi-radar' }
-  ]
 
   const demoStatusTiles: StatusTile[] = [
     { label: 'TOTAL VIEWS', value: '10,245', unit: 'plays', icon: 'bi-play-circle-fill', color: '#2ef27d' },
     { label: 'VIEWING SESSIONS', value: '3,456', unit: 'sessions', icon: 'bi-display', color: '#53a6ff' },
     { label: 'UNIQUE VIEWERS', value: '1,234', unit: 'viewers', icon: 'bi-people', color: '#ff9f1c' },
-    { label: 'ACTIVE STREAMS', value: '156', unit: '/ 256 live', icon: 'bi-camera-video-fill', color: '#8b5cf6' },
-    { label: 'EVENT TYPES', value: '89', unit: 'events', icon: 'bi-activity', color: '#16d9e3' }
+    { label: 'ACTIVE STREAMS', value: '156', unit: '/ 256 live', icon: 'bi-camera-video-fill', color: '#8b5cf6' }
   ]
 
   const demoSideStats: SparkStat[] = [
@@ -173,28 +156,24 @@
     { lat: 12.6814, lon: 101.2816, count: 2, label: 'Rayong' }
   ]
 
-  const demoEventActivity: EventActivity[] = [
-    { event: 'klive.play.started', count: '102', meta: 'stream started', icon: 'bi-play-circle-fill', tone: 'success' },
-    { event: 'klive.play.ended', count: '84', meta: 'stream ended', icon: 'bi-stop-circle', tone: 'violet' },
-    { event: 'klive.viewer.joined', count: '61', meta: 'user joined', icon: 'bi-person-plus', tone: 'cyan' },
-    { event: 'klive.viewer.disconnected', count: '18', meta: 'user disconnected', icon: 'bi-person-dash', tone: 'warning' }
-  ]
-
   let previousContentClass = ''
   let previousFooter = false
   let overview = $state<AnalyticsOverviewDetails | null>(null)
-  let eventItems = $state<AnalyticsEventItem[]>([])
   let loading = $state(false)
   let errorMsg = $state('')
   let hasLoaded = $state(false)
   let dashboardRoot: HTMLDivElement | null = null
   const motionStops: Array<() => void> = []
+  let realtimeDenied = $state('')
+  let lastRealtimeAt = $state<string | null>(null)
+  let unsubscribeRealtime: (() => void) | null = null
+  let realtimeRefreshTimer: ReturnType<typeof setTimeout> | null = null
+  const seenRealtimeEvents = new Set<string>()
 
   const initialRange = buildDefaultRange()
   let dateTimeParam = $state(initialRange.dateTime)
   let fallbackRangeLabel = $state(initialRange.label)
   const usingFallback = $derived(!hasLoaded || !!errorMsg)
-  const eventTotal = $derived(eventItems.reduce((sum, item) => sum + (item.count || 0), 0))
   const playsData = $derived(seriesData(overview?.charts?.playsSeries?.series?.[0]))
   const activeStreamData = $derived(seriesData(overview?.charts?.activeStreamsSeries?.series?.[0]))
   const latestPlayCount = $derived(lastNumber(playsData))
@@ -208,7 +187,7 @@
 
   const statusTiles = $derived(usingFallback
     ? demoStatusTiles
-    : buildStatusTiles(overview, eventTotal))
+    : buildStatusTiles(overview))
   const sideStats = $derived(usingFallback
     ? demoSideStats
     : buildLocationRows(actualGeoPoints))
@@ -237,9 +216,6 @@
   const resourceGroupLines = $derived(usingFallback
     ? demoResourceGroupLines
     : resourceGroupRows(overview?.charts?.byResourceGroupSeries?.series ?? []))
-  const eventActivityRows = $derived(usingFallback
-    ? demoEventActivity
-    : eventActivity(eventItems))
 
   function fmt(n: number | undefined | null): string {
     return Number(n ?? 0).toLocaleString('en-US')
@@ -310,14 +286,13 @@
     return Array.from({ length: 12 }, (_, i) => Math.max(1, Math.round(base * (.45 + (i + seed + 1) / 16))))
   }
 
-  function buildStatusTiles(data: AnalyticsOverviewDetails | null, events: number): StatusTile[] {
+  function buildStatusTiles(data: AnalyticsOverviewDetails | null): StatusTile[] {
     const kpis = data?.kpis
     return [
       { label: 'TOTAL VIEWS', value: fmt(kpis?.plays), unit: 'plays', icon: 'bi-play-circle-fill', color: '#2ef27d' },
       { label: 'VIEWING SESSIONS', value: fmt(kpis?.uniqueSessions), unit: 'sessions', icon: 'bi-display', color: '#53a6ff' },
       { label: 'UNIQUE VIEWERS', value: fmt(kpis?.uniqueViewersApprox), unit: 'viewers', icon: 'bi-people', color: '#ff9f1c' },
-      { label: 'ACTIVE STREAMS', value: fmt(kpis?.activeStreamsApprox), unit: 'live', icon: 'bi-camera-video-fill', color: '#8b5cf6' },
-      { label: 'EVENT TYPES', value: fmt(events), unit: 'events', icon: 'bi-activity', color: '#16d9e3' }
+      { label: 'ACTIVE STREAMS', value: fmt(kpis?.activeStreamsApprox), unit: 'live', icon: 'bi-camera-video-fill', color: '#8b5cf6' }
     ]
   }
 
@@ -460,34 +435,6 @@
     }))
   }
 
-  function eventActivity(items: AnalyticsEventItem[]): EventActivity[] {
-    return items.slice(0, 5).map((item, index) => ({
-      event: item.event || 'unknown.event',
-      count: fmt(item.count),
-      meta: eventMeta(item.event),
-      icon: eventIcon(item.event),
-      tone: ['success', 'violet', 'cyan', 'warning', 'blue'][index % 5] ?? 'success'
-    }))
-  }
-
-  function eventMeta(event: string): string {
-    const key = String(event || '').toLowerCase()
-    if (key.includes('started') || key.includes('play')) return 'stream activity'
-    if (key.includes('ended') || key.includes('stop')) return 'stream ended'
-    if (key.includes('join')) return 'user joined'
-    if (key.includes('disconnect') || key.includes('leave')) return 'user disconnected'
-    return 'livestream event'
-  }
-
-  function eventIcon(event: string): string {
-    const key = String(event || '').toLowerCase()
-    if (key.includes('started') || key.includes('play')) return 'bi-play-circle-fill'
-    if (key.includes('ended') || key.includes('stop')) return 'bi-stop-circle'
-    if (key.includes('join')) return 'bi-person-plus'
-    if (key.includes('disconnect') || key.includes('leave')) return 'bi-person-dash'
-    return 'bi-activity'
-  }
-
   function sparkPoints(values: number[], width = 128, height = 38): string {
     return pointsForLine(values, width, height)
   }
@@ -520,7 +467,7 @@
   async function runIntroMotion() {
     if (!dashboardRoot || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
     const { animate } = await import('motion/mini')
-    const elements = Array.from(dashboardRoot.querySelectorAll('.phase-strip article, .status-tile, .panel, .health-bar'))
+    const elements = Array.from(dashboardRoot.querySelectorAll('.status-tile, .panel, .health-bar'))
     elements.forEach((element, index) => {
       const animation = animate(
         element,
@@ -536,20 +483,56 @@
     errorMsg = ''
     await waitForAuthContext()
     const query = { dateTime: dateTimeParam, tz: TZ, scope: 'all' as const }
-    const [overviewResult, eventsResult] = await Promise.all([
-      fetchAnalyticsOverview(query),
-      fetchAnalyticsEvents(query)
-    ])
+    const overviewResult = await fetchAnalyticsOverview(query)
 
     loading = false
     hasLoaded = true
     overview = overviewResult.data?.details ?? null
-    eventItems = eventsResult.data?.details?.items ?? []
     if (overviewResult.error) {
       errorMsg = overviewResult.error.message
-    } else if (eventsResult.error) {
-      errorMsg = eventsResult.error.message
     }
+  }
+
+  function scheduleRealtimeRefresh() {
+    if (realtimeRefreshTimer) clearTimeout(realtimeRefreshTimer)
+    realtimeRefreshTimer = setTimeout(() => {
+      realtimeRefreshTimer = null
+      void loadDashboard()
+    }, 1000)
+  }
+
+  function applyRealtimeEvent(payload: WssIngestEventPayload) {
+    if (!payload?.eventId) return
+    if (seenRealtimeEvents.has(payload.eventId)) return
+    seenRealtimeEvents.add(payload.eventId)
+    if (seenRealtimeEvents.size > 500) {
+      const keep = Array.from(seenRealtimeEvents).slice(-250)
+      seenRealtimeEvents.clear()
+      for (const key of keep) seenRealtimeEvents.add(key)
+    }
+    lastRealtimeAt = payload.occurredAt ?? new Date().toISOString()
+    scheduleRealtimeRefresh()
+  }
+
+  function startRealtime() {
+    if (unsubscribeRealtime) return
+    realtimeDenied = ''
+    unsubscribeRealtime = subscribeWsTopic<WssIngestEventPayload>(
+      [WS_TOPICS.INGEST_EVENT],
+      (_topic, _ts, payload) => applyRealtimeEvent(payload),
+      {
+        onDenied: (topic, reason) => {
+          realtimeDenied = `${topic} denied: ${reason}`
+        }
+      }
+    )
+  }
+
+  function stopRealtime() {
+    unsubscribeRealtime?.()
+    unsubscribeRealtime = null
+    if (realtimeRefreshTimer) clearTimeout(realtimeRefreshTimer)
+    realtimeRefreshTimer = null
   }
 
   onMount(() => {
@@ -558,11 +541,13 @@
     previousFooter = $appOptions.appFooter
     $appOptions.appContentClass = 'p-0 d-flex flex-column overflow-hidden phibek-analytics-content'
     $appOptions.appFooter = false
+    startRealtime()
     void loadDashboard()
     void runIntroMotion()
   })
 
   onDestroy(() => {
+    stopRealtime()
     for (const stop of motionStops.splice(0)) stop()
     $appOptions.appContentClass = previousContentClass
     $appOptions.appFooter = previousFooter
@@ -585,25 +570,22 @@
       <button type="button" class="control-button icon-only" title="Refresh analytics" onclick={loadDashboard} disabled={loading}>
         <i class={`bi ${loading ? 'bi-arrow-repeat spin' : 'bi-arrow-clockwise'}`}></i>
       </button>
+      <span class="control-button live-chip {liveBadgeClass($wsHubStatus)}" title={$wsHubLastError ?? ''}>
+        <i class="bi bi-broadcast"></i>
+        <span>{liveBadgeLabel($wsHubStatus)}</span>
+      </span>
       <button type="button" class="control-button" title="Filters">
         <i class="bi bi-funnel"></i>
         <span>Filters</span>
         <i class="bi bi-chevron-down"></i>
       </button>
     </div>
-  </section>
 
-  <section class="phase-strip" aria-label="Dashboard experience phases">
-    {#each phaseCards as phase}
-      <article class:active={phase.active}>
-        <div class="phase-icon"><i class={`bi ${phase.icon}`}></i></div>
-        <div>
-          <span>{phase.phase}</span>
-          <strong>{phase.title}</strong>
-          <small>{phase.meta}</small>
-        </div>
-      </article>
-    {/each}
+    {#if realtimeDenied}
+      <div class="dashboard-realtime-warning">{realtimeDenied}</div>
+    {:else if lastRealtimeAt}
+      <div class="dashboard-realtime-warning dashboard-realtime-note">ingest.event {new Date(lastRealtimeAt).toLocaleTimeString()}</div>
+    {/if}
   </section>
 
   {#if errorMsg}
@@ -782,19 +764,6 @@
           </div>
         </div>
       </article>
-
-      <article class="panel callout-card slim">
-        <div class="callout-icon"><i class="bi bi-activity"></i></div>
-        <p>
-          EVENT BREAKDOWN:
-          {#if eventItems.length}
-            <strong>{eventItems[0]?.event}</strong> {fmt(eventItems[0]?.count)} times
-            {#if eventItems[1]}, <strong>{eventItems[1]?.event}</strong> {fmt(eventItems[1]?.count)} times{/if}.
-          {:else}
-            <strong>klive.play.started</strong> 102 times, <strong>klive.play.ended</strong> 84 times.
-          {/if}
-        </p>
-      </article>
     </div>
   </section>
 
@@ -883,24 +852,6 @@
       </div>
     </article>
 
-    <article class="panel event-feed-panel">
-      <div class="panel-header compact">
-        <h2>RECENT ACTIVITY</h2>
-        <button type="button" class="view-all-button">VIEW ALL</button>
-      </div>
-      <div class="event-feed-list">
-        {#each eventActivityRows as row}
-          <div class={`event-feed-row ${row.tone}`}>
-            <div class="event-feed-icon"><i class={`bi ${row.icon}`}></i></div>
-            <div>
-              <strong>{row.event}</strong>
-              <span>{row.meta}</span>
-            </div>
-            <b>{row.count} ครั้ง</b>
-          </div>
-        {/each}
-      </div>
-    </article>
   </section>
 
   <section class="health-bar" aria-label="Livestream analytics status">
@@ -961,7 +912,6 @@
 
   .dashboard-hero,
   .dashboard-actions,
-  .phase-strip,
   .status-strip,
   .top-grid,
   .middle-grid,
@@ -974,8 +924,7 @@
   .region-row,
   .map-summary,
   .donut-layout,
-  .callout-card,
-  .event-feed-row {
+  .callout-card {
     display: flex;
   }
 
@@ -1038,85 +987,31 @@
     min-width: 252px;
   }
 
-  .phase-strip {
-    align-items: stretch;
-    gap: 12px;
-    margin-bottom: 14px;
-  }
-
-  .phase-strip article {
-    position: relative;
-    flex: 1;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    min-width: 0;
-    min-height: 74px;
-    padding: 14px;
-    border: 1px solid var(--panel-border);
-    border-radius: 8px;
-    background: rgba(8, 20, 30, .42);
-    color: var(--dash-muted);
-    overflow: hidden;
-  }
-
-  :global([data-bs-theme="light"]) .phase-strip article {
-    background: rgba(255, 255, 255, .62);
-  }
-
-  .phase-strip article.active {
-    border-color: var(--panel-border-strong);
-    background: linear-gradient(135deg, rgba(var(--accent-rgb), .16), rgba(8, 20, 30, .48));
-    box-shadow: 0 0 30px rgba(var(--accent-rgb), .08);
-  }
-
-  :global([data-bs-theme="light"]) .phase-strip article.active {
-    background: linear-gradient(135deg, rgba(var(--accent-rgb), .18), rgba(255, 255, 255, .74));
-  }
-
-  .phase-icon {
-    width: 38px;
-    height: 38px;
-    display: grid;
-    flex: 0 0 auto;
-    place-items: center;
-    border-radius: 8px;
-    color: var(--accent);
-    background: rgba(var(--accent-rgb), .12);
-    font-size: 18px;
-  }
-
-  .phase-strip span,
-  .phase-strip small {
-    display: block;
-    color: var(--dash-muted);
-    font-size: 11px;
-    font-weight: 700;
-  }
-
-  .phase-strip strong {
-    display: block;
-    margin: 2px 0;
-    color: var(--dash-text);
-    font-size: 13px;
-    font-weight: 800;
-    line-height: 1.2;
-  }
-
-  .phase-strip small {
-    font-weight: 500;
-    text-transform: none;
-  }
-
   .control-button.icon-only {
     width: 46px;
     min-width: 46px;
     padding: 0;
   }
 
+  .control-button.live-chip {
+    min-width: 92px;
+    color: #fff;
+  }
+
   .control-button:disabled {
     cursor: wait;
     opacity: .72;
+  }
+
+  .dashboard-realtime-warning {
+    flex-basis: 100%;
+    color: #f59e0b;
+    font-size: 12px;
+    text-align: right;
+  }
+
+  .dashboard-realtime-note {
+    color: var(--dash-muted);
   }
 
   .spin {
@@ -1658,11 +1553,6 @@
     padding: 18px;
   }
 
-  .callout-card.slim {
-    min-height: 90px;
-    align-items: center;
-  }
-
   .callout-icon {
     width: 42px;
     height: 42px;
@@ -1681,10 +1571,6 @@
     color: var(--dash-muted);
     font-size: 12px;
     line-height: 1.7;
-  }
-
-  .callout-card strong {
-    color: var(--accent);
   }
 
   .callout-grid {
@@ -1932,92 +1818,6 @@
     white-space: nowrap;
   }
 
-  .view-all-button {
-    border: 0;
-    background: transparent;
-    color: var(--accent);
-    font-size: 11px;
-    font-weight: 800;
-  }
-
-  .event-feed-panel {
-    padding-bottom: 10px;
-  }
-
-  .event-feed-list {
-    display: grid;
-    gap: 8px;
-    padding: 4px 14px 14px;
-  }
-
-  .event-feed-row {
-    align-items: center;
-    gap: 10px;
-    min-height: 52px;
-    padding: 10px;
-    border: 1px solid var(--grid-line);
-    border-radius: 8px;
-    background: rgba(255, 255, 255, .025);
-  }
-
-  :global([data-bs-theme="light"]) .event-feed-row {
-    background: rgba(255, 255, 255, .58);
-  }
-
-  .event-feed-icon {
-    width: 34px;
-    height: 34px;
-    display: grid;
-    flex: 0 0 auto;
-    place-items: center;
-    border-radius: 8px;
-    color: var(--event-color, var(--accent));
-    background: color-mix(in srgb, var(--event-color, var(--accent)) 14%, transparent);
-    box-shadow: 0 0 18px color-mix(in srgb, var(--event-color, var(--accent)) 18%, transparent);
-  }
-
-  .event-feed-row.success { --event-color: var(--accent); }
-  .event-feed-row.violet { --event-color: #8b5cf6; }
-  .event-feed-row.cyan { --event-color: #06b6d4; }
-  .event-feed-row.warning { --event-color: var(--warning); }
-  .event-feed-row.blue { --event-color: var(--blue); }
-
-  .event-feed-row > div:nth-child(2) {
-    min-width: 0;
-    flex: 1;
-  }
-
-  .event-feed-row strong,
-  .event-feed-row span {
-    display: block;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .event-feed-row strong {
-    color: var(--dash-text);
-    font-size: 12px;
-    font-weight: 700;
-    text-transform: none;
-  }
-
-  .event-feed-row span {
-    margin-top: 2px;
-    color: var(--dash-muted);
-    font-size: 11px;
-    text-transform: none;
-  }
-
-  .event-feed-row b {
-    flex: 0 0 auto;
-    color: var(--event-color, var(--accent));
-    font-size: 12px;
-    font-weight: 700;
-    text-transform: none;
-  }
-
   .health-bar {
     align-items: center;
     justify-content: space-between;
@@ -2060,14 +1860,6 @@
       flex-wrap: wrap;
     }
 
-    .phase-strip {
-      flex-wrap: wrap;
-    }
-
-    .phase-strip article {
-      flex: 1 1 calc(33.333% - 12px);
-    }
-
     .status-tile {
       flex: 1 1 calc(33.333% - 12px);
     }
@@ -2104,10 +1896,6 @@
     .dashboard-actions {
       width: 100%;
       justify-content: stretch;
-    }
-
-    .phase-strip article {
-      flex-basis: 100%;
     }
 
     .control-button {

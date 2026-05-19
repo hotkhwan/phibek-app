@@ -9,6 +9,20 @@
   type Entry = { version: string; date: string; bullets: string[] }
   const entries: Entry[] = [
     {
+      version: '0.9.1',
+      date: '2026-05-15',
+      bullets: [
+        'Dashboard Livestream Analytics now removes the Phase 1/2/3 strip, event-type KPI, event-breakdown callout, and recent activity feed so the page stays focused on usage analytics.'
+      ]
+    },
+    {
+      version: '0.9.0',
+      date: '2026-05-15',
+      bullets: [
+        'System Users permissions now use a file-manager tree for profiles, menu/resource scopes, org units, users, cameras, and read-only API scopes; sidebar organization switching and org-unit duplicate protection were also improved.'
+      ]
+    },
+    {
       version: '0.8.1',
       date: '2026-05-15',
       bullets: [

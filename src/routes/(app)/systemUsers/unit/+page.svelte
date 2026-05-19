@@ -1,6 +1,6 @@
 <!-- src/routes/(app)/systemUsers/unit/+page.svelte -->
 <script lang="ts">
-  import { onMount } from 'svelte'
+  import { onDestroy, onMount } from 'svelte'
   import { setPageTitle } from '$lib/utils/title'
   import Modal from '$lib/components/shared/Modal.svelte'
   import ConfirmDialog from '$lib/components/shared/ConfirmDialog.svelte'
@@ -8,6 +8,7 @@
     addOrgUnitMembers,
     createOrgUnit,
     deleteOrgUnit,
+    getOrgUnitsAll,
     getOrgUnitTree,
     listOrgMembers,
     listOrgUnitMembers,
@@ -40,41 +41,104 @@
   let deleteOpen = $state(false)
   let editing = $state<OrgUnit | null>(null)
   let form = $state({ name: '', description: '', parentId: '' })
+  let unsubscribeWorkspace: (() => void) | null = null
+  let loadSeq = 0
 
   const selected = $derived(units.find((x) => x.id === selectedId))
   const filtered = $derived(units.filter((x) => `${x.name} ${x.description ?? ''} ${x.parentId ?? ''}`.toLowerCase().includes(search.toLowerCase())))
   const shownMembers = $derived((viewMode === 'members' ? members : addUsers).filter((u) => `${displayName(u)} ${u.email ?? ''}`.toLowerCase().includes(memberSearch.toLowerCase())))
+  const duplicateUnit = $derived.by(() => form.name.trim() ? findDuplicateUnit(form.name, form.parentId, editing?.id) : undefined)
 
   function userId(row: MemberRow) { return row.userId ?? row.id }
   function displayName(row: MemberRow) { return row.label || row.fullName || `${row.firstName ?? ''} ${row.lastName ?? ''}`.trim() || row.username || row.email || userId(row) }
   function unitDepth(row: OrgUnit) { let depth = 0; let parent = row.parentId; while (parent && depth < 6) { depth++; parent = units.find((u) => u.id === parent)?.parentId } return depth }
-
-  async function load() {
-    loading = true
-    errorMsg = ''
-    const { data, error } = await getOrgUnitTree()
-    loading = false
-    if (error) errorMsg = error.message
-    units = flattenUnits(data?.details ?? [])
-    if (!selectedId && units[0]) selectedId = units[0].id
-    if (selectedId) await loadMembers()
+  function unitParentKey(parentId?: string) { return parentId || '' }
+  function unitNameKey(name: string) { return name.trim().toLocaleLowerCase() }
+  function parentLabel(parentId?: string) { return parentId ? units.find((u) => u.id === parentId)?.name ?? 'selected parent' : 'root' }
+  function duplicateMessage(name: string, parentId?: string) {
+    return `A unit named "${name.trim()}" already exists under ${parentLabel(parentId)}. Select the existing unit or use another name.`
+  }
+  function findDuplicateUnit(name: string, parentId?: string, excludeId?: string) {
+    const key = unitNameKey(name)
+    const parentKey = unitParentKey(parentId)
+    return units.find((unit) =>
+      unit.id !== excludeId &&
+      unitParentKey(unit.parentId) === parentKey &&
+      unitNameKey(unit.name) === key
+    )
+  }
+  function isDuplicateUnitError(err: unknown) {
+    const apiErr = err as { message?: string; data?: { code?: string; message?: string } }
+    const message = `${apiErr.message ?? ''} ${apiErr.data?.message ?? ''} ${apiErr.data?.code ?? ''}`.toLowerCase()
+    return message.includes('duplicate key') && (message.includes('org_units') || message.includes('uq_root_name_per_org'))
   }
 
-  function flattenUnits(items: OrgUnit[]): OrgUnit[] {
+  function itemsFrom<T>(value: unknown): T[] {
+    if (Array.isArray(value)) return value as T[]
+    if (!value || typeof value !== 'object') return []
+
+    const obj = value as Record<string, unknown>
+    for (const key of ['items', 'details', 'units', 'orgUnits', 'children']) {
+      const nested = obj[key]
+      const items = itemsFrom<T>(nested)
+      if (items.length) return items
+    }
+
+    return []
+  }
+
+  function flattenUnits(items: unknown): OrgUnit[] {
     const out: OrgUnit[] = []
-    const walk = (list: OrgUnit[]) => {
+    const walk = (list: OrgUnit[], parentId = '') => {
       for (const item of list) {
-        out.push(item)
-        const children = (item as OrgUnit & { children?: OrgUnit[] }).children ?? []
-        if (children.length) walk(children)
+        const children = itemsFrom<OrgUnit>(item.children)
+        const normalized: OrgUnit = {
+          ...item,
+          parentId: item.parentId ?? (parentId || undefined),
+          childCount: item.childCount ?? item.totalUnit ?? children.length
+        }
+        out.push(normalized)
+        if (children.length) walk(children, normalized.id)
       }
     }
-    walk(items)
+    walk(itemsFrom<OrgUnit>(items))
     return out
+  }
+
+  async function load() {
+    const orgId = get(activeWorkspaceId)
+    const seq = ++loadSeq
+    if (!orgId) {
+      units = []
+      selectedId = ''
+      members = []
+      addUsers = []
+      errorMsg = 'Select an organization to load org units.'
+      return
+    }
+
+    loading = true
+    errorMsg = ''
+    const treeRes = await getOrgUnitTree()
+    let nextUnits = flattenUnits(treeRes.data?.details)
+
+    if (treeRes.error || nextUnits.length === 0) {
+      const allRes = await getOrgUnitsAll()
+      nextUnits = flattenUnits(allRes.data?.details)
+      if (treeRes.error && allRes.error) errorMsg = allRes.error.message || treeRes.error.message
+      else if (treeRes.error) errorMsg = treeRes.error.message
+    }
+
+    if (seq !== loadSeq) return
+    loading = false
+    units = nextUnits
+    if (!units.some((unit) => unit.id === selectedId)) selectedId = units[0]?.id ?? ''
+    if (selectedId) await loadMembers()
   }
 
   async function loadMembers() {
     if (!selectedId) return
+    if (!get(activeWorkspaceId)) return
     memberLoading = true
     const req = viewMode === 'members'
       ? listOrgUnitMembers(selectedId, { page: 1, perPage: 250, search: memberSearch || undefined })
@@ -82,7 +146,7 @@
     const { data, error } = await req
     memberLoading = false
     if (error) { notify.error('Members unavailable', error.message); return }
-    const mapped = (data?.details?.items ?? []).map((u) => ({ ...u, label: displayName(u) }))
+    const mapped = itemsFrom<MemberRow>(data?.details).map((u) => ({ ...u, label: displayName(u) }))
     if (viewMode === 'members') members = mapped
     else addUsers = mapped.filter((u) => !members.some((m) => userId(m) === userId(u)))
   }
@@ -106,6 +170,11 @@
       notify.warning('Select an organization', 'Org units are created inside the active organization.')
       return
     }
+    if (duplicateUnit) {
+      selectedId = duplicateUnit.id
+      notify.warning('Unit already exists', duplicateMessage(form.name, form.parentId))
+      return
+    }
     const body = { name: form.name.trim(), description: form.description, ...(form.parentId ? { parentId: form.parentId } : {}) }
     try {
       if (editing) await updateOrgUnit(editing.id, body)
@@ -114,6 +183,11 @@
       formOpen = false
       await load()
     } catch (err) {
+      if (isDuplicateUnitError(err)) {
+        notify.warning('Unit already exists', duplicateMessage(form.name, form.parentId))
+        await load()
+        return
+      }
       notify.error('Unit save failed', (err as { message?: string })?.message ?? 'Unknown error')
     }
   }
@@ -151,7 +225,24 @@
     await load()
   }
 
-  onMount(() => { setPageTitle(`${m.navSystemUsers()} · ${m.navSystemUsersUnit()}`); load() })
+  onMount(() => {
+    setPageTitle(`${m.navSystemUsers()} · ${m.navSystemUsersUnit()}`)
+    unsubscribeWorkspace = activeWorkspaceId.subscribe((orgId) => {
+      if (!orgId) {
+        units = []
+        selectedId = ''
+        members = []
+        addUsers = []
+        errorMsg = 'Select an organization to load org units.'
+        return
+      }
+      void load()
+    })
+  })
+
+  onDestroy(() => {
+    unsubscribeWorkspace?.()
+  })
 </script>
 
 <div class="page-header mb-3"><h1 class="page-title">{m.navSystemUsersUnit()}</h1><div class="d-flex gap-2"><button class="btn btn-outline-theme btn-sm" onclick={load} disabled={loading}><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button><button class="btn btn-theme btn-sm" onclick={() => startCreate('')}><i class="bi bi-plus-lg me-1"></i>Add root unit</button></div></div>
@@ -165,8 +256,8 @@
 </div>
 
 <Modal bind:open={formOpen} title={editing ? 'Edit unit' : 'Add unit'} size="md">
-  {#snippet body()}<div class="mb-3"><label class="form-label" for="unit-name">Name</label><input id="unit-name" class="form-control" bind:value={form.name} /></div><div class="mb-3"><label class="form-label" for="unit-parent">Parent unit</label><select id="unit-parent" class="form-select" bind:value={form.parentId}><option value="">— root —</option>{#each units.filter((u) => u.id !== editing?.id) as opt (opt.id)}<option value={opt.id}>{opt.name}</option>{/each}</select></div><div class="mb-3"><label class="form-label" for="unit-description">Description</label><textarea id="unit-description" class="form-control" rows="3" bind:value={form.description}></textarea></div>{/snippet}
-  {#snippet footer()}<button class="btn btn-outline-secondary" onclick={() => formOpen = false}>Cancel</button><button class="btn btn-theme" onclick={save}>Save</button>{/snippet}
+  {#snippet body()}<div class="mb-3"><label class="form-label" for="unit-name">Name</label><input id="unit-name" class="form-control" bind:value={form.name} />{#if duplicateUnit}<div class="alert alert-warning py-2 px-3 mt-2 mb-0 small">{duplicateMessage(form.name, form.parentId)}</div>{/if}</div><div class="mb-3"><label class="form-label" for="unit-parent">Parent unit</label><select id="unit-parent" class="form-select" bind:value={form.parentId}><option value="">— root —</option>{#each units.filter((u) => u.id !== editing?.id) as opt (opt.id)}<option value={opt.id}>{opt.name}</option>{/each}</select></div><div class="mb-3"><label class="form-label" for="unit-description">Description</label><textarea id="unit-description" class="form-control" rows="3" bind:value={form.description}></textarea></div>{/snippet}
+  {#snippet footer()}<button class="btn btn-outline-secondary" onclick={() => formOpen = false}>Cancel</button><button class="btn btn-theme" onclick={save} disabled={!form.name.trim() || !!duplicateUnit}>Save</button>{/snippet}
 </Modal>
 <ConfirmDialog bind:open={deleteOpen} title="Delete unit" message="Delete this unit?" confirmLabel="Delete" danger onConfirm={remove} />
 
