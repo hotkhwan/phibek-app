@@ -7,6 +7,8 @@ this project follows semantic versioning.
 ## [Unreleased]
 
 ### Added
+- Added an MQTT Console broker URL override field on `/mqtt`, with persisted `ws(s)` validation,
+  credential-safe URL handling, and reconnect of active test subscriptions.
 - Added `/intDash` as the AI Event Intelligence surface and sidebar entry, backed by the existing
   ingest dashboard/events APIs.
 - Added the contract-backed realtime WSS hub behind `PUBLIC_REALTIME_HUB_ENABLED`, with first live

@@ -8,6 +8,7 @@
   import {
     getMqttClient,
     getMqttConfig,
+    setMqttUrlOverride,
     subscribeMqtt,
     mqttStatus,
     mqttLastError,
@@ -41,9 +42,31 @@
   type Msg = { t: number; topic: string; pretty: string }
   let msgs = $state<Msg[]>([])
   let publishStatus = $state('')
+  let brokerUrl = $state('')
+  let brokerStatus = $state('')
+  let brokerBusy = $state(false)
 
   const subscriptions = new Map<string, () => void>()
-  const mqttConfig = getMqttConfig()
+  let mqttConfig = $state(getMqttConfig())
+  const brokerStorageKey = 'phibek:mqtt:broker-url'
+
+  function brokerSourceLabel() {
+    switch (mqttConfig.source) {
+      case 'runtime':
+        return 'manual'
+      case 'PUBLIC_MQTT_URL':
+        return 'PUBLIC_MQTT_URL'
+      case 'NUXT_PUBLIC_MQTT_URL':
+        return 'NUXT_PUBLIC_MQTT_URL'
+      default:
+        return 'not configured'
+    }
+  }
+
+  function refreshMqttConfig() {
+    mqttConfig = getMqttConfig()
+    brokerUrl = mqttConfig.url ?? ''
+  }
 
   function handleMessage(topic: string, payload: Uint8Array) {
     const text = new TextDecoder().decode(payload)
@@ -58,10 +81,14 @@
 
   function subscribeTopic(t: string) {
     const trimmed = t.trim()
-    if (!trimmed || subscriptions.has(trimmed)) return
-    const unsub = subscribeMqtt(trimmed, handleMessage)
-    subscriptions.set(trimmed, unsub)
-    activeTopics = [...activeTopics, trimmed]
+    if (!trimmed) return
+    if (!subscriptions.has(trimmed)) {
+      const unsub = subscribeMqtt(trimmed, handleMessage)
+      subscriptions.set(trimmed, unsub)
+    }
+    if (!activeTopics.includes(trimmed)) {
+      activeTopics = [...activeTopics, trimmed]
+    }
   }
 
   function unsubscribeTopic(t: string) {
@@ -71,6 +98,45 @@
       subscriptions.delete(t)
     }
     activeTopics = activeTopics.filter((x) => x !== t)
+  }
+
+  function clearSubscriptions() {
+    for (const fn of subscriptions.values()) fn()
+    subscriptions.clear()
+  }
+
+  async function connectActiveTopics() {
+    await getMqttClient()
+    for (const t of activeTopics) subscribeTopic(t)
+  }
+
+  async function applyBrokerUrl() {
+    brokerStatus = ''
+    brokerBusy = true
+    try {
+      const nextUrl = brokerUrl.trim()
+      await setMqttUrlOverride(nextUrl || undefined)
+      clearSubscriptions()
+      if (nextUrl) {
+        localStorage.setItem(brokerStorageKey, nextUrl)
+      } else {
+        localStorage.removeItem(brokerStorageKey)
+      }
+      refreshMqttConfig()
+      msgs = []
+      await connectActiveTopics()
+      brokerStatus = nextUrl ? `Connected via ${brokerSourceLabel()}` : 'Connected via env default'
+    } catch (err) {
+      refreshMqttConfig()
+      brokerStatus = (err as Error)?.message ?? String(err)
+    } finally {
+      brokerBusy = false
+    }
+  }
+
+  async function resetBrokerUrl() {
+    brokerUrl = ''
+    await applyBrokerUrl()
   }
 
   async function publish() {
@@ -95,25 +161,66 @@
 
   onMount(() => {
     setPageTitle(m.navMqttConsole())
-    void getMqttClient()
-    for (const t of activeTopics) subscribeTopic(t)
+    const savedUrl = localStorage.getItem(brokerStorageKey)?.trim()
+    void (async () => {
+      if (savedUrl) {
+        try {
+          await setMqttUrlOverride(savedUrl)
+        } catch {
+          localStorage.removeItem(brokerStorageKey)
+        }
+      }
+      refreshMqttConfig()
+      await connectActiveTopics()
+    })()
   })
 
   onDestroy(() => {
-    for (const fn of subscriptions.values()) fn()
-    subscriptions.clear()
+    clearSubscriptions()
   })
 </script>
 
 <DomainStarter title={m.navMqttConsole()} subtitle="Subscribe + publish test console" icon="bi-broadcast-pin" legacyName="mqtt">
-  <div class="small text-body text-opacity-50 mb-3">
-    Broker:
-    {#if mqttConfig.url}
-      <code>{mqttConfig.url}</code>
-      <span class="ms-1">via {mqttConfig.source}</span>
-    {:else}
-      <span>PUBLIC_MQTT_URL / NUXT_PUBLIC_MQTT_URL not configured</span>
-    {/if}
+  <div class="card mb-3">
+    <div class="card-header fw-bold d-flex justify-content-between align-items-center">
+      <span>Broker</span>
+      <span class="badge {statusBadge[$mqttStatus]}">{$mqttStatus}</span>
+    </div>
+    <div class="card-body">
+      <div class="input-group input-group-sm">
+        <input
+          class="form-control font-monospace"
+          bind:value={brokerUrl}
+          onkeydown={(e) => e.key === 'Enter' && void applyBrokerUrl()}
+          placeholder="wss://istio.k-lynx.com/mqtt"
+          aria-label="MQTT broker URL"
+        />
+        <button type="button" class="btn btn-outline-theme" disabled={brokerBusy} onclick={applyBrokerUrl}>
+          <i class="bi bi-plug me-1"></i> Connect
+        </button>
+        <button type="button" class="btn btn-outline-secondary" disabled={brokerBusy} onclick={resetBrokerUrl} title="Use env default">
+          <i class="bi bi-arrow-counterclockwise"></i>
+        </button>
+      </div>
+      <div class="small text-body text-opacity-50 mt-2">
+        Current:
+        {#if mqttConfig.url}
+          <code>{mqttConfig.url}</code>
+          <span class="ms-1">via {brokerSourceLabel()}</span>
+        {:else}
+          <span>PUBLIC_MQTT_URL / NUXT_PUBLIC_MQTT_URL not configured</span>
+        {/if}
+      </div>
+      {#if brokerStatus}
+        <div class="small text-body text-opacity-75 mt-2">{brokerStatus}</div>
+      {/if}
+    </div>
+    <div class="card-arrow">
+      <div class="card-arrow-top-left"></div>
+      <div class="card-arrow-top-right"></div>
+      <div class="card-arrow-bottom-left"></div>
+      <div class="card-arrow-bottom-right"></div>
+    </div>
   </div>
 
   {#if $mqttLastError}
