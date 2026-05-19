@@ -31,16 +31,22 @@ let connectingPromise: Promise<MqttClient | null> | null = null
 const dynamicPublicEnv = env as Record<string, string | undefined>
 const vitePublicEnv = import.meta.env as Record<string, string | undefined>
 
+function cleanEnv(value: string | undefined) {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : undefined
+}
+
 function firstPublicEnv(publicKey: string, nuxtKey: string) {
-  return dynamicPublicEnv[publicKey] ?? vitePublicEnv[publicKey] ?? vitePublicEnv[nuxtKey]
+  return cleanEnv(dynamicPublicEnv[publicKey]) ?? cleanEnv(vitePublicEnv[publicKey]) ?? cleanEnv(vitePublicEnv[nuxtKey])
 }
 
 export function getMqttConfig(): MqttConfig {
-  const publicUrl = dynamicPublicEnv.PUBLIC_MQTT_URL ?? vitePublicEnv.PUBLIC_MQTT_URL
-  const nuxtUrl = vitePublicEnv.NUXT_PUBLIC_MQTT_URL
+  const publicUrl = cleanEnv(dynamicPublicEnv.PUBLIC_MQTT_URL) ?? cleanEnv(vitePublicEnv.PUBLIC_MQTT_URL)
+  const nuxtUrl = cleanEnv(vitePublicEnv.NUXT_PUBLIC_MQTT_URL)
+  const url = publicUrl ?? nuxtUrl
 
   return {
-    url: publicUrl ?? nuxtUrl,
+    url,
     username: firstPublicEnv('PUBLIC_MQTT_USERNAME', 'NUXT_PUBLIC_MQTT_USERNAME'),
     password: firstPublicEnv('PUBLIC_MQTT_PASSWORD', 'NUXT_PUBLIC_MQTT_PASSWORD'),
     source: publicUrl ? 'PUBLIC_MQTT_URL' : nuxtUrl ? 'NUXT_PUBLIC_MQTT_URL' : undefined
