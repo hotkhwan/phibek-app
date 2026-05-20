@@ -19,6 +19,7 @@ export type Camera = {
   description?: string
   url?: string
   streamUrl?: string
+  wssFlvUrl?: string | null
   mapVisibility?: 'inherit' | 'forcePublic' | 'forcePrivate' | 'public' | 'private' | string
   monitorState?: MonitorState | string
   online?: boolean

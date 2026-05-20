@@ -6,12 +6,31 @@ import { browser } from '$app/environment'
 import { env } from '$env/dynamic/public'
 import { api, type ApiError } from '$lib/utils/fetch'
 import { notify } from '$lib/stores/notify'
+import type { Camera } from '$lib/api/devices'
 
 export type DeviceId = string
 
 export type CameraLocation = {
   id: DeviceId
   url?: string
+}
+
+export type PlaybackKind = 'flv' | 'webrtc'
+
+export type CameraPlayback = {
+  url: string
+  kind: PlaybackKind
+}
+
+type WsNegotiateResponse = {
+  code?: string
+  status?: boolean
+  message?: string
+  details?: {
+    ticket?: string
+    wsUrl?: string
+    expiresAt?: string
+  }
 }
 
 const createdStreamUrlMap = new Map<DeviceId, string>()
@@ -35,6 +54,29 @@ export function toAbsoluteMediaUrl(pathOrUrl: string): string {
   const origin = getMediaOrigin()
   if (!origin) return pathOrUrl
   return new URL(withBasePrefix(pathOrUrl), origin).toString()
+}
+
+function toAbsoluteWebSocketUrl(pathOrUrl: string): string {
+  if (/^wss?:\/\//i.test(pathOrUrl)) return pathOrUrl
+  const absolute = toAbsoluteMediaUrl(pathOrUrl)
+  return absolute.replace(/^http:/i, 'ws:').replace(/^https:/i, 'wss:')
+}
+
+/**
+ * Backend-proxied FLV WSS URLs require a single-use realtime ticket on the
+ * query string. See klynx-api/docs/contracts/camera-live-flv-proxy.md §5.1.
+ */
+export async function withWsTicket(pathOrUrl: string): Promise<string> {
+  const response = await api<WsNegotiateResponse, Record<string, never>>('/ws/v1/negotiate', {
+    method: 'POST',
+    body: {}
+  })
+  const ticket = response.details?.ticket
+  if (!ticket) throw new Error('ไม่สามารถขอ ticket สำหรับ FLV stream ได้')
+
+  const url = new URL(toAbsoluteWebSocketUrl(pathOrUrl))
+  url.searchParams.set('ticket', ticket)
+  return url.toString()
 }
 
 /**
@@ -122,4 +164,27 @@ export async function createStream(
 
 export function getCreatedStreamUrl(deviceId: DeviceId): string | null {
   return createdStreamUrlMap.get(deviceId) ?? null
+}
+
+function trimUrl(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+export function hasFlvPlayback(camera: Pick<Camera, 'wssFlvUrl' | 'ataWsFlvUrl' | 'brand'>) {
+  return Boolean(trimUrl(camera.wssFlvUrl) || trimUrl(camera.ataWsFlvUrl) || String(camera.brand ?? '').toUpperCase() === 'ATA')
+}
+
+export async function resolveCameraPlayback(camera: Camera, id: DeviceId): Promise<CameraPlayback | null> {
+  const wssFlvUrl = trimUrl(camera.wssFlvUrl)
+  if (wssFlvUrl) {
+    return { url: await withWsTicket(wssFlvUrl), kind: 'flv' }
+  }
+
+  const legacyFlvUrl = trimUrl(camera.ataWsFlvUrl)
+  if (legacyFlvUrl) {
+    return { url: legacyFlvUrl, kind: 'flv' }
+  }
+
+  const webRtcUrl = await createStream({ id, url: camera.url ?? camera.streamUrl })
+  return webRtcUrl ? { url: webRtcUrl, kind: 'webrtc' } : null
 }
