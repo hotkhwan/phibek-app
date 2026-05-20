@@ -27,6 +27,11 @@ export type Camera = {
   enabled?: boolean
   brand?: string
   district?: string
+  status?: boolean | string
+  alarm?: boolean
+  ataWsFlvUrl?: string | null
+  isOwner?: boolean
+  isOwener?: boolean
   user?: string
   lat?: number
   lng?: number

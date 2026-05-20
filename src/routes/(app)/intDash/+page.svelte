@@ -4,6 +4,7 @@
   import { setPageTitle } from '$lib/utils/title'
   import DomainStarter from '$lib/components/shared/DomainStarter.svelte'
   import ProtectedImage from '$lib/components/shared/ProtectedImage.svelte'
+  import IntDashMap from '$lib/components/intDash/IntDashMap.svelte'
   import {
     countCameras,
     countIngestEvents,
@@ -326,15 +327,6 @@
     return 'REST'
   }
 
-  function markerStyle(event: IngestEvent, index: number) {
-    const location = eventLocation(event)
-    if (!location) return ''
-    const left = Math.max(5, Math.min(95, ((location.lng + 180) / 360) * 100))
-    const top = Math.max(8, Math.min(92, ((90 - location.lat) / 180) * 100))
-    const delay = Math.min(index, 12) * 80
-    return `left:${left}%;top:${top}%;background:${severityColor(eventSeverity(event))};animation-delay:${delay}ms`
-  }
-
   function openLightbox(event: IngestEvent) {
     const index = events.findIndex((item) => (item.eventId ?? item.id) === (event.eventId ?? event.id))
     if (index >= 0) lightboxIndex = index
@@ -428,30 +420,7 @@
     <div class="card intdash-map-card">
       <div class="card-body">
         <div class="fw-bold mb-2">แผนที่เหตุการณ์แบบเรียลไทม์</div>
-        <div class="intdash-map">
-          <div class="intdash-map-grid"></div>
-          <div class="intdash-map-toolbar">
-            <span><i class="bi bi-broadcast-pin me-1"></i>{mapEvents.length} หมุด</span>
-            <span>{mapEvents.length > 1 ? `${Math.max(1, Math.round(mapEvents.length / 8))} กลุ่ม` : '0 กลุ่ม'}</span>
-          </div>
-          {#each mapEvents as event, index (event.eventId ?? event.id)}
-            <button
-              type="button"
-              class="intdash-map-marker"
-              style={markerStyle(event, index)}
-              title={`${eventLabel(event)} · ${eventDevice(event)}`}
-              onclick={() => openLightbox(event)}
-            ></button>
-          {/each}
-          {#if mapEvents.length === 0}
-            <div class="intdash-map-empty">ยังไม่มีเหตุการณ์ที่มีพิกัด — รอข้อมูลจากกล้องที่เปิด geo enrichment</div>
-          {/if}
-          <div class="intdash-map-legend">
-            {#each severityOrder as severity}
-              <span><i style={`background:${severityColor(severity)}`}></i>{severityLabels[severity]}</span>
-            {/each}
-          </div>
-        </div>
+        <IntDashMap events={mapEvents} {loading} />
       </div>
     </div>
 
