@@ -1,7 +1,8 @@
 {
   "name": "phibek-app",
   "private": true,
-  "version": "0.9.3",
+<<<<<<< HEAD
+  "version": "0.18.0",
   "type": "module",
   "scripts": {
     "dev": "bun run i18n:merge && set -a && [ -f .env ] && source .env; set +a && bun run vite dev",
