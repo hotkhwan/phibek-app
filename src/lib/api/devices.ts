@@ -18,10 +18,27 @@ export type Camera = {
   name: string
   description?: string
   url?: string
+  streamUrl?: string
+  mapVisibility?: 'inherit' | 'forcePublic' | 'forcePrivate' | 'public' | 'private' | string
+  monitorState?: 'online' | 'offline' | 'unknown' | string
   online?: boolean
   groupId?: string
   groupName?: string
   enabled?: boolean
+  externalSource?: {
+    provider?: string
+    sourceFamily?: string
+    edgeId?: string
+    gwCamId?: string
+    gwDeviceMgmtId?: string
+    gwWorkspaceId?: string
+    gwSyncStatus?: 'synced' | 'localOnly' | 'pending' | 'failed' | 'deferred' | string
+    gwSyncLastError?: string
+    nameOverridden?: boolean
+    locationOverridden?: boolean
+    streamConfigOverridden?: boolean
+    typeOverridden?: boolean
+  }
   createAt?: string
   updateAt?: string
 }
@@ -60,6 +77,19 @@ export type ListParams = {
   sortOrder?: 'asc' | 'desc'
   search?: string
   groupId?: string
+  mapVisibility?: '' | 'inherit' | 'forcePublic' | 'forcePrivate' | 'public' | 'private'
+}
+
+export type CameraMonitorSyncResult = {
+  registered: number
+  skipped: number
+  failed: number
+}
+
+export type CameraSyncResult = {
+  id: string
+  status: 'synced' | 'skipped' | 'failed'
+  reason?: string
 }
 
 export async function listCameras(params: ListParams = {}) {
@@ -76,6 +106,19 @@ export async function getCamera(id: string) {
 
 export async function deleteCamera(id: string): Promise<void> {
   await api(`/resources/camera/${encodeURIComponent(id)}`, { method: 'DELETE' })
+}
+
+export async function syncCameraMonitor() {
+  return api<ApiEnvelope<CameraMonitorSyncResult>>('/resources/camera/syncMonitor', {
+    method: 'POST'
+  })
+}
+
+export async function syncCamera(id: string) {
+  return api<ApiEnvelope<CameraSyncResult>>(
+    `/resources/camera/${encodeURIComponent(id)}/sync`,
+    { method: 'POST' }
+  )
 }
 
 export async function listEdgeDevices(params: ListParams = {}) {

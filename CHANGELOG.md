@@ -7,6 +7,9 @@ this project follows semantic versioning.
 ## [Unreleased]
 
 ### Added
+- Added latest camera contract controls on `/systemDevices/cameras`: `mapVisibility` filtering,
+  org-wide monitor sync, per-camera external-source sync, and GW/EdgeAI source/sync status columns.
+- Added resource-permission support for direct Edge grants and canonical `memberIdsByOU` writes.
 - Added MQTT Console broker URL and username/password overrides on `/mqtt`, with persisted `ws(s)`
   URL validation, credential-safe URL handling, and reconnect of active test subscriptions.
 - Added `/intDash` as the AI Event Intelligence surface and sidebar entry, backed by the existing

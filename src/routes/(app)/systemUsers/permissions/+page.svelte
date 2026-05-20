@@ -25,7 +25,7 @@
     type OrgUnit,
     type ResourcePermission
   } from '$lib/api/klynxUser'
-  import { listCameras, listResourceGroups, type Camera, type ResourceGroup } from '$lib/api/devices'
+  import { listCameras, listEdgeDevices, listResourceGroups, type Camera, type EdgeDevice, type ResourceGroup } from '$lib/api/devices'
   import { notify } from '$lib/stores/notify'
   import { m } from '$lib/i18n/messages'
   import type { SidebarChild, SidebarMenu, SidebarMenuLink } from '$lib/types/navigation'
@@ -33,7 +33,7 @@
   type Tab = 'resource' | 'menu' | 'api'
   type Relation = 'viewer' | 'editor' | 'creator'
   type Row = (MenuPermission | ResourcePermission) & { id: string }
-  type TreeKind = 'section' | 'profile' | 'menu' | 'orgUnit' | 'member' | 'resourceGroup' | 'camera' | 'apiScope'
+  type TreeKind = 'section' | 'profile' | 'menu' | 'orgUnit' | 'member' | 'resourceGroup' | 'camera' | 'edge' | 'apiScope'
   type PermissionTreeNode = {
     id: string
     kind: TreeKind
@@ -53,6 +53,7 @@
   let members = $state<(KlynxUser & { userId?: string; orgRole?: string })[]>([])
   let groups = $state<ResourceGroup[]>([])
   let cameras = $state<Camera[]>([])
+  let edges = $state<EdgeDevice[]>([])
   let selectedId = $state('')
   let loading = $state(false)
   let detailLoading = $state(false)
@@ -65,6 +66,8 @@
   let selectedMembers = $state<Set<string>>(new Set())
   let selectedGroups = $state<Set<string>>(new Set())
   let selectedCameras = $state<Set<string>>(new Set())
+  let selectedEdges = $state<Set<string>>(new Set())
+  let selectedMemberIdsByOU = $state<Record<string, string[]>>({})
   let selectedMenus = $state<Set<string>>(new Set())
   let expandedNodes = $state<Set<string>>(new Set([
     'profiles:resource',
@@ -76,6 +79,7 @@
     'audience:members',
     'resources:groups',
     'resources:ungrouped',
+    'resources:edges',
     'api:root',
     'api:third-party',
     'api:aliza'
@@ -103,12 +107,13 @@
   function setFrom(values: Array<string | undefined | null>) { return new Set(values.filter(Boolean).map(String)) }
   function selectedListCount(values?: Array<string | undefined | null>) { return values?.filter(Boolean).length ?? 0 }
   function rowSelectedCount(row: Row) {
-    const resource = row as ResourcePermission & { memberIds?: string[]; resourceGroupIds?: string[]; cameraIds?: string[] }
+    const resource = row as ResourcePermission & { memberIds?: string[]; memberIdsByOU?: Record<string, string[]>; resourceGroupIds?: string[]; cameraIds?: string[]; edgeIds?: string[] }
     const menu = row as MenuPermission & { userIds?: string[] }
     return selectedListCount(resource.orgUnitIds)
-      + selectedListCount(resource.memberIds ?? menu.userIds)
+      + selectedListCount(resource.memberIds ?? (resource.memberIdsByOU ? Object.values(resource.memberIdsByOU).flat() : undefined) ?? menu.userIds)
       + selectedListCount(resource.resourceGroupIds)
       + selectedListCount(resource.cameraIds)
+      + selectedListCount(resource.edgeIds)
       + selectedListCount(menu.menuIds)
   }
   function descendantIds<T extends { id: string; parentId?: string }>(items: T[], rootId: string) {
@@ -165,7 +170,40 @@
     return out
   }
 
-  function toggle(setName: 'ou' | 'member' | 'group' | 'camera' | 'menu', id: string) {
+  function edgeId(row: EdgeDevice) { return row.id }
+
+  function equalSet(a: Set<string>, b: Set<string>) {
+    if (a.size !== b.size) return false
+    for (const item of a) if (!b.has(item)) return false
+    return true
+  }
+
+  function unionMemberIdsByOU(map: Record<string, string[]>) {
+    return new Set(Object.values(map).flat().filter(Boolean).map(String))
+  }
+
+  function nextMemberIdsByOU() {
+    const selectedOuIds = [...selectedOrgUnits]
+    if (selectedMembers.size === 0) return {}
+    if (selectedOuIds.length === 0) {
+      notify.warning('Select org units before narrowing users', 'memberIdsByOU must be keyed by bound org units.')
+      return null
+    }
+
+    const originalUnion = unionMemberIdsByOU(selectedMemberIdsByOU)
+    if (equalSet(selectedMembers, originalUnion)) {
+      const preserved: Record<string, string[]> = {}
+      for (const ouId of selectedOuIds) {
+        const membersForOu = selectedMemberIdsByOU[ouId]
+        preserved[ouId] = membersForOu?.length ? membersForOu : [...selectedMembers]
+      }
+      return preserved
+    }
+
+    return Object.fromEntries(selectedOuIds.map((ouId) => [ouId, [...selectedMembers]]))
+  }
+
+  function toggle(setName: 'ou' | 'member' | 'group' | 'camera' | 'edge' | 'menu', id: string) {
     const source = setName === 'ou'
       ? selectedOrgUnits
       : setName === 'member'
@@ -174,7 +212,9 @@
           ? selectedGroups
           : setName === 'camera'
             ? selectedCameras
-            : selectedMenus
+            : setName === 'edge'
+              ? selectedEdges
+              : selectedMenus
     const next = new Set(source)
     if (next.has(id)) next.delete(id)
     else next.add(id)
@@ -182,6 +222,7 @@
     else if (setName === 'member') selectedMembers = next
     else if (setName === 'group') selectedGroups = next
     else if (setName === 'camera') selectedCameras = next
+    else if (setName === 'edge') selectedEdges = next
     else selectedMenus = next
   }
 
@@ -380,6 +421,14 @@
         icon: camera.online === false ? 'bi-camera-video-off' : 'bi-camera-video'
       }))
     const children = buildResourceGroupNodes()
+    const edgeNodes = edges.map((edge) => ({
+      id: `edge:${edgeId(edge)}`,
+      kind: 'edge' as const,
+      label: edge.name,
+      value: edgeId(edge),
+      description: edge.hwId ?? edge.refId ?? edge.status,
+      icon: edge.status === 'online' ? 'bi-cpu' : 'bi-hdd-network'
+    }))
     const nodes: PermissionTreeNode[] = [
       {
         id: 'resources:groups',
@@ -398,6 +447,15 @@
         count: selectedCameras.size || 'All',
         selectable: false,
         children: ungroupedCameras
+      },
+      {
+        id: 'resources:edges',
+        kind: 'section',
+        label: 'Edge devices',
+        icon: 'bi-cpu',
+        count: selectedEdges.size,
+        selectable: false,
+        children: edgeNodes
       }
     ]
     return nodes.filter((node) => (node.children?.length ?? 0) || node.id === 'resources:groups')
@@ -457,6 +515,7 @@
     if (node.kind === 'member') return selectedMembers.has(node.value)
     if (node.kind === 'resourceGroup') return selectedGroups.has(node.value)
     if (node.kind === 'camera') return selectedCameras.has(node.value)
+    if (node.kind === 'edge') return selectedEdges.has(node.value)
     return false
   }
 
@@ -479,6 +538,7 @@
     else if (node.kind === 'member') toggle('member', node.value)
     else if (node.kind === 'resourceGroup') toggle('group', node.value)
     else if (node.kind === 'camera') toggle('camera', node.value)
+    else if (node.kind === 'edge') toggle('edge', node.value)
   }
 
   function treeEmptyText() {
@@ -525,24 +585,28 @@
     selectedMembers = new Set()
     selectedGroups = new Set()
     selectedCameras = new Set()
+    selectedEdges = new Set()
+    selectedMemberIdsByOU = {}
     selectedMenus = new Set()
     includeOrgUnitChildren = true
     includeResourceGroupChildren = true
   }
 
   async function loadLookups() {
-    const [unitsRes, membersRes, groupsRes, camerasRes] = await Promise.all([
+    const [unitsRes, membersRes, groupsRes, camerasRes, edgesRes] = await Promise.all([
       getOrgUnitsAll(),
       listOrgMembers({ perPage: 500, mode: 'members', sortField: 'firstName', sortOrder: 'asc' }),
       listResourceGroups({ perPage: 500 }),
-      listCameras({ perPage: 500 })
+      listCameras({ perPage: 500 }),
+      listEdgeDevices({ perPage: 500 })
     ])
     orgUnits = flattenUnits(unitsRes.data?.details)
     members = itemsFrom<KlynxUser & { userId?: string; orgRole?: string }>(membersRes.data?.details)
     groups = itemsFrom<ResourceGroup>(groupsRes.data?.details)
     cameras = itemsFrom<Camera>(camerasRes.data?.details)
+    edges = itemsFrom<EdgeDevice>(edgesRes.data?.details)
 
-    const lookupError = unitsRes.error ?? membersRes.error ?? groupsRes.error ?? camerasRes.error
+    const lookupError = unitsRes.error ?? membersRes.error ?? groupsRes.error ?? camerasRes.error ?? edgesRes.error
     if (lookupError) {
       notify.warning('Permission lookup partially loaded', lookupError.message)
     }
@@ -578,6 +642,8 @@
         selectedMembers = setFrom(d?.userIds ?? [])
         selectedGroups = new Set()
         selectedCameras = new Set()
+        selectedEdges = new Set()
+        selectedMemberIdsByOU = {}
         selectedMenus = setFrom(d?.menuIds ?? [])
         includeOrgUnitChildren = d?.includeOrgUnitChildren ?? true
       } else {
@@ -586,9 +652,12 @@
         const d = data?.details
         form = { name: d?.name ?? selected?.name ?? '', description: d?.description ?? selected?.description ?? '', status: d?.status ?? true, relation: relationFrom(d?.relations) }
         selectedOrgUnits = setFrom(d?.orgUnitIds ?? [])
-        selectedMembers = setFrom(d?.memberIds ?? [])
+        selectedMemberIdsByOU = d?.memberIdsByOU ?? {}
+        selectedMembers = unionMemberIdsByOU(selectedMemberIdsByOU)
+        if (selectedMembers.size === 0) selectedMembers = setFrom(d?.memberIds ?? [])
         selectedGroups = setFrom(d?.resourceGroupIds ?? [])
         selectedCameras = setFrom(d?.cameraIds ?? [])
+        selectedEdges = setFrom(d?.edgeIds ?? [])
         selectedMenus = new Set()
         includeOrgUnitChildren = d?.includeOrgUnitChildren ?? true
         includeResourceGroupChildren = d?.includeResourceGroupChildren ?? true
@@ -622,6 +691,8 @@
     let savedId = selectedId
     try {
       if (activeTab === 'resource') {
+        const memberIdsByOU = nextMemberIdsByOU()
+        if (!memberIdsByOU) return
         let id = selectedId
         if (createMode || !id) {
           const created = await createResourcePermission({ name: form.name.trim(), description: form.description, status: form.status, relations: relations() })
@@ -630,8 +701,8 @@
         savedId = id
         await updateResourcePermission(id, {
           name: form.name.trim(), description: form.description, status: form.status, relations: relations(),
-          orgUnits: [...selectedOrgUnits], memberIds: [...selectedMembers], resourceGroups: [...selectedGroups], cameras: [...selectedCameras],
-          resourceDeviceScope: selectedCameras.size ? 'selected' : 'all', includeOrgUnitChildren, includeResourceGroupChildren
+          orgUnits: [...selectedOrgUnits], memberIdsByOU, resourceGroups: [...selectedGroups], cameras: [...selectedCameras], edges: [...selectedEdges],
+          resourceDeviceScope: selectedCameras.size || selectedEdges.size ? 'selected' : 'all', includeOrgUnitChildren, includeResourceGroupChildren
         })
       } else if (activeTab === 'menu') {
         let id = selectedId
@@ -929,7 +1000,8 @@
               <span>Org units <b>{selectedOrgUnits.size}</b></span>
               <span>Users <b>{selectedMembers.size || 'All'}</b></span>
               <span>Resource groups <b>{selectedGroups.size}</b></span>
-              <span>Devices <b>{selectedCameras.size || 'All'}</b></span>
+              <span>Cameras <b>{selectedCameras.size || 'All'}</b></span>
+              <span>Edges <b>{selectedEdges.size}</b></span>
             {:else}
               <span>Integrations <b>service-account</b></span>
             {/if}
