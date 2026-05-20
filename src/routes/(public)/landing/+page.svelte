@@ -31,7 +31,7 @@
     </div>
     <div class="container-lg container-fluid py-3">
       <a class="navbar-brand d-flex align-items-center position-relative mx-auto mx-lg-0 me-lg-auto brand px-0 w-auto fs-5" href={resolve('/')}>
-        <img src={asset('/img/logo/phibek-mark.svg')} alt="PHIBEK" class="landing-brand-mark" />
+        <img src={asset('/img/logo/phibek-mark.webp')} alt="PHIBEK" class="landing-brand-mark" />
         <span>PHIBEK <span class="opacity-5">พิเภท</span></span>
       </a>
       <div class="d-none d-lg-flex navbar-nav gap-3 mx-auto fw-semibold">
@@ -154,6 +154,7 @@
     width: 34px;
     height: 34px;
     margin-right: .65rem;
+    object-fit: contain;
     filter: drop-shadow(0 0 8px rgba(232, 184, 75, .4));
   }
   .landing-hero {

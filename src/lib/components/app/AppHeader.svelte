@@ -169,7 +169,7 @@
     >
       <span class="brand-img phibek-brand-img">
         <img
-          src={asset('/img/logo/phibek-mark.svg')}
+          src={asset('/img/logo/phibek-mark.webp')}
           alt="PHIBEK"
           class="phibek-brand-mark"
           onerror={(e) => (e.currentTarget as HTMLElement).style.display = 'none'}
@@ -371,6 +371,7 @@
     width: 32px;
     height: 32px;
     display: block;
+    object-fit: contain;
     filter: drop-shadow(0 0 6px rgba(232, 184, 75, 0.35));
   }
   .phibek-brand-fallback {
