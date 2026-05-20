@@ -68,6 +68,9 @@
   const mapEvents = $derived(analyticsEvents.filter((event) => !!eventLocation(event)).slice(0, 200))
   const analytics = $derived(buildAnalytics(analyticsEvents))
   const lightboxEvent = $derived(lightboxIndex === null ? null : events[lightboxIndex] ?? null)
+  const timelineMax = $derived.by(() => Math.max(1, ...analytics.timeline.buckets.map((_bucket, index) =>
+    severityOrder.reduce((sum, severity) => sum + analytics.timeline.series[severity][index], 0)
+  )))
 
   function startOfTodayISO() {
     const date = new Date()
@@ -454,7 +457,7 @@
                   onclick={() => openLightbox(event)}
                 >
                   {#if firstImage(event)}
-                    <ProtectedImage src={firstImage(event)} alt={eventLabel(event)} class="intdash-thumb-img" bbox={firstBbox(event)} />
+                    <ProtectedImage src={firstImage(event)} alt={eventLabel(event)} class="intdash-thumb-img" />
                   {:else}
                     <i class="bi bi-image text-body text-opacity-50"></i>
                   {/if}
@@ -476,13 +479,20 @@
         <div class="intdash-timeline">
           {#each analytics.timeline.buckets as bucket, index}
             {@const total = severityOrder.reduce((sum, severity) => sum + analytics.timeline.series[severity][index], 0)}
-            <div class="intdash-timeline-bar" title={`${formatTime(bucket)} · ${total}`}>
-              {#each severityOrder as severity}
-                {@const value = analytics.timeline.series[severity][index]}
-                {#if value > 0}
-                  <span style={`height:${Math.max(8, value * 7)}px;background:${severityColor(severity)}`}></span>
+            <div class="intdash-timeline-col">
+              <div class="intdash-timeline-bar" title={`${formatTime(bucket)} · ${total}`}>
+                {#if total > 0}
+                  {#each severityOrder as severity}
+                    {@const value = analytics.timeline.series[severity][index]}
+                    {#if value > 0}
+                      <span style={`height:${Math.max(8, (value / timelineMax) * 132)}px;background:${severityColor(severity)}`}></span>
+                    {/if}
+                  {/each}
+                {:else}
+                  <i></i>
                 {/if}
-              {/each}
+              </div>
+              <small>{formatTime(bucket).slice(0, 5)}</small>
             </div>
           {/each}
         </div>
@@ -743,25 +753,52 @@
 
   .intdash-timeline {
     height: 10rem;
-    display: flex;
-    align-items: flex-end;
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    align-items: end;
     gap: 0.45rem;
     border-bottom: 1px dashed rgba(255, 255, 255, 0.16);
+    padding-top: 0.35rem;
+  }
+
+  .intdash-timeline-col {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 0.25rem;
+    height: 100%;
+    min-width: 0;
   }
 
   .intdash-timeline-bar {
-    flex: 1 1 0;
-    min-width: 0.45rem;
     display: flex;
     align-items: flex-end;
     justify-content: center;
     gap: 1px;
+    min-height: 0;
+    padding-inline: 0.08rem;
+    border-inline: 1px solid rgba(255, 255, 255, 0.04);
   }
 
   .intdash-timeline-bar span {
-    width: 100%;
+    width: 0.38rem;
     min-height: 0.15rem;
     border-radius: 999px 999px 0 0;
+  }
+
+  .intdash-timeline-bar i {
+    width: 100%;
+    height: 0.15rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .intdash-timeline-col small {
+    overflow: hidden;
+    color: rgba(var(--bs-body-color-rgb), 0.42);
+    font-size: 0.62rem;
+    text-align: center;
+    text-overflow: clip;
+    white-space: nowrap;
   }
 
   .intdash-bar-row {

@@ -10,6 +10,12 @@
     alt?: string
     class?: string
     bbox?: {
+      width?: number
+      height?: number
+      x?: number
+      y?: number
+      w?: number
+      h?: number
       x1?: number
       y1?: number
       x2?: number
@@ -27,18 +33,34 @@
   let abortController: AbortController | null = null
   const failedUrls = new Set<string>()
 
-  const overlayBox = $derived.by(() => {
+  const overlaySpace = $derived.by(() => {
     if (!bbox || !naturalWidth || !naturalHeight) return null
-    const values = [bbox.x1, bbox.y1, bbox.x2, bbox.y2].map(Number)
+    const bw = Number(bbox.width)
+    const bh = Number(bbox.height)
+    return {
+      width: Number.isFinite(bw) && bw > 0 ? bw : naturalWidth,
+      height: Number.isFinite(bh) && bh > 0 ? bh : naturalHeight
+    }
+  })
+
+  const overlayBox = $derived.by(() => {
+    if (!bbox || !overlaySpace) return null
+    const rawX = Number(bbox.x)
+    const rawY = Number(bbox.y)
+    const rawW = Number(bbox.w ?? bbox.width)
+    const rawH = Number(bbox.h ?? bbox.height)
+    const values = Number.isFinite(rawX) && Number.isFinite(rawY) && Number.isFinite(rawW) && Number.isFinite(rawH)
+      ? [rawX, rawY, rawX + rawW, rawY + rawH]
+      : [bbox.x1, bbox.y1, bbox.x2, bbox.y2].map(Number)
     if (values.some((value) => !Number.isFinite(value))) return null
     const [rawX1, rawY1, rawX2, rawY2] = values
     const normalized = Math.max(Math.abs(rawX1), Math.abs(rawY1), Math.abs(rawX2), Math.abs(rawY2)) <= 1
-    const scaleX = normalized ? naturalWidth : 1
-    const scaleY = normalized ? naturalHeight : 1
-    const x1 = Math.max(0, Math.min(naturalWidth, rawX1 * scaleX))
-    const y1 = Math.max(0, Math.min(naturalHeight, rawY1 * scaleY))
-    const x2 = Math.max(0, Math.min(naturalWidth, rawX2 * scaleX))
-    const y2 = Math.max(0, Math.min(naturalHeight, rawY2 * scaleY))
+    const scaleX = normalized ? overlaySpace.width : 1
+    const scaleY = normalized ? overlaySpace.height : 1
+    const x1 = Math.max(0, Math.min(overlaySpace.width, rawX1 * scaleX))
+    const y1 = Math.max(0, Math.min(overlaySpace.height, rawY1 * scaleY))
+    const x2 = Math.max(0, Math.min(overlaySpace.width, rawX2 * scaleX))
+    const y2 = Math.max(0, Math.min(overlaySpace.height, rawY2 * scaleY))
     const x = Math.min(x1, x2)
     const y = Math.min(y1, y2)
     return {
@@ -135,7 +157,7 @@
       {#if overlayBox}
         <svg
           class="protected-image-overlay"
-          viewBox="0 0 {naturalWidth} {naturalHeight}"
+          viewBox="0 0 {overlaySpace?.width ?? naturalWidth} {overlaySpace?.height ?? naturalHeight}"
           preserveAspectRatio="xMidYMid meet"
           aria-hidden="true"
         >
