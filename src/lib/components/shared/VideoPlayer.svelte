@@ -2,7 +2,6 @@
      Auto-detects stream kind by URL suffix and delegates to FlvPlayer / HlsPlayer / WebRTCPlayer.
      Use directly when you don't know the format up-front. -->
 <script lang="ts">
-  import { onMount } from 'svelte'
   import FlvPlayer from './FlvPlayer.svelte'
   import HlsPlayer from './HlsPlayer.svelte'
   import WebRTCPlayer from './WebRTCPlayer.svelte'
@@ -27,6 +26,7 @@
     if (/\.flv(\?|$)/i.test(url)) return 'flv'
     if (/\.m3u8(\?|$)/i.test(url)) return 'hls'
     if (/webrtc|whep|whip/i.test(url)) return 'webrtc'
+    if (/^wss?:\/\//i.test(url) || /flv/i.test(url)) return 'flv'
     return 'webrtc'
   }
 
@@ -35,10 +35,12 @@
   let flvRef: { start: (u: string) => void; stop: () => void } | null = $state(null)
   let webrtcRef: { start: (u: string) => void; stop: () => void } | null = $state(null)
 
-  onMount(() => {
+  $effect(() => {
+    const url = source
+    const playerKind = resolvedKind
     queueMicrotask(() => {
-      if (resolvedKind === 'flv') flvRef?.start(source)
-      else if (resolvedKind === 'webrtc') webrtcRef?.start(source)
+      if (playerKind === 'flv') flvRef?.start(url)
+      else if (playerKind === 'webrtc') webrtcRef?.start(url)
     })
   })
 </script>

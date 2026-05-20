@@ -30,6 +30,10 @@ this project follows semantic versioning.
   threshold configuration from the documented kControl temperature REST contract.
 
 ### Changed
+- `/intDash` event map now follows Klynx's Leaflet + markercluster path to avoid MapLibre black
+  basemap failures while keeping realtime `ingest.event` / `ingest.blacklist` WSS updates.
+- `/videowall` now follows Klynx's 1/4/9/16-slot wall UX with camera sidebar search, scope/group
+  filters, drag/drop assignment, realtime status updates, and ATA FLV vs WebRTC playback routing.
 - Sidebar and protected app routes now consume `GET /kapi/orgs/effectiveAccess` before exposing
   grant-controlled pages, including a safe redirect to Dashboard/Profile when a direct URL is not
   allowed.
