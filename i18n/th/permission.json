@@ -1,5 +1,8 @@
 {
   "_comments_permission": "ป้ายกำกับการจัดการโปรไฟล์สิทธิ์",
+  "permissionsNoAccessTitle": "ไม่มีสิทธิ์เข้าหน้านี้",
+  "permissionsNoAccessDescription": "หน้านี้ต้องการสิทธิ์ผู้ดูแลองค์กร (organization.manage) ติดต่อผู้ดูแลองค์กรของคุณเพื่อรับสิทธิ์เพิ่มเติม",
+  "permissionsNoAccessBackHome": "กลับไปยังหน้าหลัก",
   "permTitle": "โปรไฟล์สิทธิ์",
   "permCreateTitle": "สร้างโปรไฟล์สิทธิ์",
   "permEditTitle": "แก้ไขโปรไฟล์สิทธิ์",

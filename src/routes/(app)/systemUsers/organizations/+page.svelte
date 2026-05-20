@@ -208,6 +208,47 @@
     await loadMembers()
   }
 
+  let batchRoleBusy = $state(false)
+
+  async function batchSetRole(role: OrgRole) {
+    if (!selectedId || selectedRemoval.size === 0 || batchRoleBusy) return
+    batchRoleBusy = true
+    try {
+      const ids = [...selectedRemoval]
+      // Skip owners — they can't be downgraded via this API
+      const editable = ids.filter((id) => {
+        const m = members.find((row) => userId(row) === id)
+        return m && m.orgRole !== 'owner'
+      })
+      if (editable.length === 0) {
+        notify.warning('ไม่มีสมาชิกที่เปลี่ยนได้', 'Owner เปลี่ยนสิทธิ์ผ่านเครื่องมือนี้ไม่ได้')
+        return
+      }
+      let ok = 0
+      let fail = 0
+      for (const id of editable) {
+        try {
+          await updateOrgMemberRole(id, selectedId, role)
+          ok++
+        } catch {
+          fail++
+        }
+      }
+      if (fail > 0) {
+        notify.warning('Bulk role change บางส่วน', `สำเร็จ ${ok} · ล้มเหลว ${fail}`)
+      } else {
+        notify.success('Bulk role change สำเร็จ', `${ok} member(s) → ${role}`)
+      }
+      selectedRemoval = new Set()
+      await loadMembers()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      notify.error('Bulk role change ล้มเหลว', msg)
+    } finally {
+      batchRoleBusy = false
+    }
+  }
+
   async function batchAdd() {
     if (!selectedId || selectedAdding.size === 0) return
     await inviteOrgUsers(Array.from(selectedAdding.entries()).map(([userId, role]) => ({ userId, role })), selectedId)
@@ -270,7 +311,23 @@
         {:else}
           {#if memberLoading}<div class="text-muted">Loading members…</div>{/if}
           <div class="table-responsive"><table class="table table-sm table-striped align-middle"><thead><tr><th style="width:42px"></th><th>User</th><th>Email</th><th class="text-center">Role</th></tr></thead><tbody>{#each shownMembers as row (userId(row))}<tr><td>{#if viewMode === 'members'}<input class="form-check-input" type="checkbox" checked={selectedRemoval.has(userId(row))} onchange={() => toggleRemoval(userId(row))} />{:else}<input class="form-check-input" type="checkbox" checked={selectedAdding.has(userId(row))} onchange={() => toggleAdding(row)} />{/if}</td><td><i class="bi bi-person me-2 text-theme"></i>{displayName(row)}</td><td>{row.email ?? '—'}</td><td class="text-center">{#if viewMode === 'members'}{#if row.orgRole === 'owner' || row.isOwner}<span class="badge bg-warning text-black">Owner</span>{:else}<select class="form-select form-select-sm role-select" value={row.orgRole ?? 'member'} onchange={(e) => updateRole(row, (e.currentTarget as HTMLSelectElement).value as OrgRole)}><option value="member">Member</option><option value="admin">Admin</option></select>{/if}{:else}<select class="form-select form-select-sm role-select" disabled={!selectedAdding.has(userId(row))} value={selectedAdding.get(userId(row)) ?? 'member'} onchange={(e) => setAddRole(userId(row), (e.currentTarget as HTMLSelectElement).value as OrgRole)}><option value="member">Member</option><option value="admin">Admin</option></select>{/if}</td></tr>{/each}</tbody></table></div>
-          <div class="d-flex justify-content-end gap-2">{#if viewMode === 'members' && selectedRemoval.size}<button class="btn btn-danger btn-sm" onclick={batchRemove}>Remove {selectedRemoval.size}</button>{/if}{#if viewMode === 'add' && selectedAdding.size}<button class="btn btn-theme btn-sm" onclick={batchAdd}>Add {selectedAdding.size}</button>{/if}</div>
+          <div class="d-flex justify-content-end gap-2 align-items-center">
+            {#if viewMode === 'members' && selectedRemoval.size}
+              <span class="small text-body text-opacity-65">{selectedRemoval.size} selected:</span>
+              <button class="btn btn-outline-theme btn-sm" disabled={batchRoleBusy} onclick={() => batchSetRole('admin')}>
+                {#if batchRoleBusy}<span class="spinner-border spinner-border-sm me-1"></span>{/if}
+                Make admin
+              </button>
+              <button class="btn btn-outline-theme btn-sm" disabled={batchRoleBusy} onclick={() => batchSetRole('member')}>
+                {#if batchRoleBusy}<span class="spinner-border spinner-border-sm me-1"></span>{/if}
+                Make member
+              </button>
+              <button class="btn btn-danger btn-sm" onclick={batchRemove}>Remove {selectedRemoval.size}</button>
+            {/if}
+            {#if viewMode === 'add' && selectedAdding.size}
+              <button class="btn btn-theme btn-sm" onclick={batchAdd}>Add {selectedAdding.size}</button>
+            {/if}
+          </div>
         {/if}
       {:else}<div class="text-muted">Select an organization to manage members.</div>{/if}
     </div></div>
