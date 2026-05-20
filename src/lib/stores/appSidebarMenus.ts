@@ -7,7 +7,18 @@ import type { SidebarMenu } from '$lib/types/navigation'
 export const appSidebarMenus = writable<SidebarMenu[]>([
   { kind: 'header', id: 'nav', textKey: 'navNavigation' },
 
-  { kind: 'link', id: 'dashboard', menuId: 'dashboard', url: 'dashboard', icon: 'bi bi-ui-radios-grid', textKey: 'navDashboard' },
+  {
+    kind: 'link',
+    id: 'dashboard',
+    menuId: 'dashboard',
+    url: 'dashboard',
+    icon: 'bi bi-ui-radios-grid',
+    textKey: 'navDashboard',
+    children: [
+      { id: 'dashboardOverview', menuId: 'dashboard', url: 'dashboard', textKey: 'navDashboardOverview' },
+      { id: 'dashboardCameraUsage', menuId: 'dashboard', url: 'dashboard/camera-usage', textKey: 'navCameraUsage' }
+    ]
+  },
   { kind: 'link', id: 'intDash', menuId: 'intDash', url: 'intDash', icon: 'bi bi-activity', textKey: 'navIntDash' },
   { kind: 'link', id: 'aiSearch', menuId: 'ksearch', url: 'aiSearch', icon: 'bi bi-search-heart', textKey: 'navAiSearch' },
   {

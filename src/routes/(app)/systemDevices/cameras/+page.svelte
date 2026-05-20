@@ -4,7 +4,7 @@
   import { setPageTitle } from '$lib/utils/title'
   import DomainStarter from '$lib/components/shared/DomainStarter.svelte'
   import DataTableStarter from '$lib/components/shared/DataTableStarter.svelte'
-  import { listCameras, syncCamera, syncCameraMonitor, type Camera } from '$lib/api/devices'
+  import { getCameraGwSyncStatus, listCameras, syncCamera, syncCameraMonitor, type Camera } from '$lib/api/devices'
   import { activeWorkspaceId } from '$lib/stores/activeWorkspace'
   import { notify } from '$lib/stores/notify'
   import { m } from '$lib/i18n/messages'
@@ -28,6 +28,7 @@
   let unsubscribeWorkspace: (() => void) | null = null
   let unsubscribeRealtime: (() => void) | null = null
   let realtimeDenied = $state('')
+  let gwStatusLoading = $state(false)
   let lastRealtimeAt = $state<string | null>(null)
   let realtimeRefreshTimer: ReturnType<typeof setTimeout> | null = null
   const seenCameraStatus = new Set<string>()
@@ -113,6 +114,23 @@
       cleared.delete(id)
       syncingCameraIds = cleared
     }
+  }
+
+  async function checkGwSyncStatus() {
+    gwStatusLoading = true
+    const { data, error } = await getCameraGwSyncStatus()
+    gwStatusLoading = false
+    if (error) {
+      notify.warning('GW sync status unavailable', error.message)
+      return
+    }
+    const details = data?.details
+    const items = Array.isArray(details) ? details : itemsFrom<Camera>(details)
+    const summary = !Array.isArray(details) ? details?.summary : undefined
+    const total = summary?.total ?? items.length
+    const failed = summary?.failed ?? items.filter((row) => row.externalSource?.gwSyncStatus === 'failed').length
+    const deferred = summary?.deferred ?? items.filter((row) => row.externalSource?.gwSyncStatus === 'deferred').length
+    notify.info('GW sync status', `non-synced ${total} · failed ${failed} · deferred ${deferred}`)
   }
 
   function pruneSeenStatus() {
@@ -272,6 +290,9 @@
       {/if}
       <button type="button" class="btn btn-outline-warning btn-sm" onclick={runMonitorSync} disabled={syncingAll || loading}>
         {#if syncingAll}<span class="spinner-border spinner-border-sm me-1"></span>{:else}<i class="bi bi-hdd-network me-1"></i>{/if}Sync monitor
+      </button>
+      <button type="button" class="btn btn-outline-secondary btn-sm" onclick={checkGwSyncStatus} disabled={gwStatusLoading}>
+        {#if gwStatusLoading}<span class="spinner-border spinner-border-sm me-1"></span>{:else}<i class="bi bi-diagram-3 me-1"></i>{/if}GW status
       </button>
       <button type="button" class="btn btn-outline-theme btn-sm" onclick={load} disabled={loading}>
         <i class="bi bi-arrow-clockwise me-1"></i> Refresh

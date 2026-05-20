@@ -103,8 +103,28 @@ export type TemperatureHistoryDetails = {
   totalRecords?: number
 }
 
+export type KControlRegistryDriftItem = {
+  hwId: string
+  orgId?: string
+  lastSyncFromKlynxAt?: string
+  reason: 'stale' | 'missingLocalRow' | string
+}
+
+export type KControlRegistryDrift = {
+  items: KControlRegistryDriftItem[]
+  summary: {
+    total: number
+    stale: number
+    missingLocalRow: number
+  }
+}
+
 export async function fetchOverview() {
   return apiSafe<ApiEnvelope<IotControlOverview>>('/kcontrol/dashboard')
+}
+
+export async function fetchKControlRegistryDrift() {
+  return apiSafe<ApiEnvelope<KControlRegistryDrift>>('/admin/system/kctrlRegistryDrift')
 }
 
 export async function listResources(params: { page?: number; perPage?: number; search?: string } = {}) {

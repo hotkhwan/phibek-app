@@ -92,6 +92,17 @@ export type CameraSyncResult = {
   reason?: string
 }
 
+export type CameraGwSyncStatus = {
+  items?: Camera[]
+  summary?: {
+    total?: number
+    localOnly?: number
+    pending?: number
+    failed?: number
+    deferred?: number
+  }
+}
+
 export async function listCameras(params: ListParams = {}) {
   return apiSafe<
     ApiEnvelope<{ items: Camera[] }> & { pagination?: Pagination }
@@ -119,6 +130,12 @@ export async function syncCamera(id: string) {
     `/resources/camera/${encodeURIComponent(id)}/sync`,
     { method: 'POST' }
   )
+}
+
+export async function getCameraGwSyncStatus(params: { orgId?: string } = {}) {
+  return apiSafe<ApiEnvelope<CameraGwSyncStatus | Camera[]>>('/admin/system/gwSyncStatus', {
+    params
+  })
 }
 
 export async function listEdgeDevices(params: ListParams = {}) {
