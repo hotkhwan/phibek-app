@@ -1,7 +1,6 @@
 {
   "name": "phibek-app",
   "private": true,
-<<<<<<< HEAD
   "version": "0.18.0",
   "type": "module",
   "scripts": {

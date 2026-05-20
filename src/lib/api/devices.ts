@@ -20,11 +20,23 @@ export type Camera = {
   url?: string
   streamUrl?: string
   mapVisibility?: 'inherit' | 'forcePublic' | 'forcePrivate' | 'public' | 'private' | string
-  monitorState?: 'online' | 'offline' | 'unknown' | string
+  monitorState?: MonitorState | string
   online?: boolean
   groupId?: string
   groupName?: string
   enabled?: boolean
+  brand?: string
+  district?: string
+  user?: string
+  lat?: number
+  lng?: number
+  angle?: string
+  monitorReasonCode?: string
+  lastProbeAt?: string
+  offlineDescription?: string
+  location?: string
+  dateTimeCreate?: string
+  dateTimeUpdate?: string
   externalSource?: {
     provider?: string
     sourceFamily?: string
@@ -43,13 +55,47 @@ export type Camera = {
   updateAt?: string
 }
 
+export type MonitorState = 'online' | 'offline' | 'suspect' | 'unknown'
+
+export type CameraInput = {
+  name?: string
+  url?: string
+  lat?: number
+  lng?: number
+  brand?: string
+  district?: string
+  user?: string
+  password?: string
+  angle?: string
+  mapVisibility?: 'public' | 'internal' | 'inherit' | 'forcePublic' | 'forcePrivate'
+  description?: string
+  offlineDescription?: string
+}
+
 export type EdgeDevice = {
   id: string
   hwId?: string
   name: string
-  status?: 'online' | 'offline' | 'pairing'
+  type?: EdgeDeviceType | string
+  username?: string
+  url?: string
+  tls?: boolean
+  status?: 'online' | 'offline' | 'pairing' | 'connected' | 'disconnected' | string
   refId?: string
   lastSeenAt?: string
+}
+
+export type EdgeDeviceType = 'svms' | 'ata' | 'iboc'
+
+export type EdgeDeviceInput = {
+  type?: EdgeDeviceType
+  name?: string
+  username?: string
+  password?: string
+  url?: string
+  tls?: boolean
+  apiKey?: string
+  apiSecret?: string
 }
 
 export type SystemEdgeDevice = {
@@ -78,6 +124,10 @@ export type ListParams = {
   search?: string
   groupId?: string
   mapVisibility?: '' | 'inherit' | 'forcePublic' | 'forcePrivate' | 'public' | 'private'
+  monitorState?: MonitorState | 'all'
+  status?: string
+  q?: string
+  type?: EdgeDeviceType | 'all'
 }
 
 export type CameraMonitorSyncResult = {
@@ -115,6 +165,22 @@ export async function getCamera(id: string) {
   )
 }
 
+export async function createCamera(body: CameraInput) {
+  return apiSafe<ApiEnvelope<Camera>>('/resources/camera', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body
+  })
+}
+
+export async function updateCamera(id: string, body: CameraInput) {
+  return apiSafe<ApiEnvelope<Camera>>(`/resources/camera/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body
+  })
+}
+
 export async function deleteCamera(id: string): Promise<void> {
   await api(`/resources/camera/${encodeURIComponent(id)}`, { method: 'DELETE' })
 }
@@ -148,6 +214,26 @@ export async function listSystemEdgeDevices(params: ListParams = {}) {
   return apiSafe<
     ApiEnvelope<{ items: SystemEdgeDevice[] }> & { pagination?: Pagination }
   >('/system/edge', { params })
+}
+
+export async function createEdgeDevice(body: EdgeDeviceInput) {
+  return apiSafe<ApiEnvelope<EdgeDevice>>('/system/edge', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body
+  })
+}
+
+export async function updateEdgeDevice(id: string, body: EdgeDeviceInput) {
+  return apiSafe<ApiEnvelope<EdgeDevice>>(`/system/edge/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body
+  })
+}
+
+export async function deleteEdgeDevice(id: string): Promise<void> {
+  await api(`/system/edge/${encodeURIComponent(id)}`, { method: 'DELETE' })
 }
 
 export async function listResourceGroups(params: ListParams = {}) {
