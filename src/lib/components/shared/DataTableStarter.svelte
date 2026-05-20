@@ -12,6 +12,8 @@
     label: string
     icon?: string
     class?: string
+    hidden?: (row: T) => boolean
+    disabled?: (row: T) => boolean
     action: (row: T) => void | Promise<void>
   }
 
@@ -80,14 +82,17 @@
                 {#if rowActions.length}
                   <td class="text-end text-nowrap">
                     {#each rowActions as rowAction}
-                      <button
-                        type="button"
-                        class={rowAction.class ?? 'btn btn-outline-theme btn-sm me-1'}
-                        onclick={() => rowAction.action(row)}
-                      >
-                        {#if rowAction.icon}<i class={rowAction.icon}></i>{/if}
-                        <span class="ms-1">{rowAction.label}</span>
-                      </button>
+                      {#if !rowAction.hidden?.(row)}
+                        <button
+                          type="button"
+                          class={rowAction.class ?? 'btn btn-outline-theme btn-sm me-1'}
+                          disabled={rowAction.disabled?.(row)}
+                          onclick={() => rowAction.action(row)}
+                        >
+                          {#if rowAction.icon}<i class={rowAction.icon}></i>{/if}
+                          <span class="ms-1">{rowAction.label}</span>
+                        </button>
+                      {/if}
                     {/each}
                   </td>
                 {/if}

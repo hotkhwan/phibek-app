@@ -104,6 +104,7 @@ export type ResourcePermission = {
   edgeIds?: string[]
   orgUnitIds?: string[]
   memberIds?: string[]
+  memberIdsByOU?: Record<string, string[]>
   relations?: string[]
   status?: boolean
   resourceDeviceScope?: 'all' | 'selected' | string
@@ -384,7 +385,7 @@ export async function updateResourcePermission(id: string, body: {
   cameras?: string[]
   kControls?: string[]
   edges?: string[]
-  memberIds?: string[]
+  memberIdsByOU?: Record<string, string[]>
   resourceDeviceScope?: 'all' | 'selected' | string
   includeOrgUnitChildren?: boolean
   includeResourceGroupChildren?: boolean
