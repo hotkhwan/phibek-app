@@ -478,7 +478,7 @@
 <ConfirmDialog
   bind:open={deleteOpen}
   title="Remove marker?"
-  message={`Remove this camera marker from the plan? The camera itself is not deleted.`}
+  message="Remove this camera marker from the plan? The camera itself is not deleted."
   confirmLabel="Remove"
   cancelLabel="Cancel"
   danger
