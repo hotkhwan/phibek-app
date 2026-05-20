@@ -43,6 +43,7 @@ const pageAccessRules: PageAccessRule[] = [
   { path: '/settings', requireOrgManage: true, requirePlatformSettings: true },
 
   { path: '/intDash', exact: true, menuIds: ['intDash'] },
+  { path: '/dashboard/camera-usage', menuIds: ['dashboard'] },
   { path: '/dashboard', exact: true, menuIds: ['dashboard'] },
   { path: '/biDash', exact: true, menuIds: ['map'] },
   { path: '/map', menuIds: ['map'] },

@@ -9,6 +9,8 @@ this project follows semantic versioning.
 ### Added
 - Added latest camera contract controls on `/systemDevices/cameras`: `mapVisibility` filtering,
   org-wide monitor sync, per-camera external-source sync, and GW/EdgeAI source/sync status columns.
+- Added dashboard camera-scope selection, `/dashboard/camera-usage` with camera usage JSON/export
+  support, camera GW sync triage, and kControl registry-drift triage from the latest contracts.
 - Added resource-permission support for direct Edge grants and canonical `memberIdsByOU` writes.
 - Added MQTT Console broker URL and username/password overrides on `/mqtt`, with persisted `ws(s)`
   URL validation, credential-safe URL handling, and reconnect of active test subscriptions.

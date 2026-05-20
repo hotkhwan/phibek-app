@@ -8,6 +8,8 @@
   "navNavigation": "Navigation",
   "navUserPortal": "User Portal",
   "navDashboard": "Dashboard",
+  "navDashboardOverview": "Overview",
+  "navCameraUsage": "Camera Usage",
   "navIntDash": "AI Event Intelligence",
 
   "_comments_nav_events": "Events section",

@@ -5,6 +5,7 @@
   import DomainStarter from '$lib/components/shared/DomainStarter.svelte'
   import DataTableStarter from '$lib/components/shared/DataTableStarter.svelte'
   import {
+    fetchKControlRegistryDrift,
     fetchOverview,
     listResources,
     type IotControlOverview,
@@ -23,6 +24,7 @@
   let overview = $state<IotControlOverview | null>(null)
   let resources = $state<IotControlResource[]>([])
   let loading = $state(false)
+  let driftLoading = $state(false)
   let errorMsg = $state('')
 
   const stats = $derived([
@@ -51,6 +53,24 @@
     resources = r?.details?.items ?? []
     if (oErr) errorMsg = oErr.message
     else if (rErr) errorMsg = rErr.message
+  }
+
+  async function checkRegistryDrift() {
+    driftLoading = true
+    const { data, error } = await fetchKControlRegistryDrift()
+    driftLoading = false
+    if (error) {
+      errorMsg = error.message
+      return
+    }
+    const summary = data?.details.summary
+    errorMsg = ''
+    recent = [{
+      key: `drift:${Date.now()}`,
+      t: Date.now(),
+      topic: 'admin.system.kctrlRegistryDrift',
+      preview: `registry drift total ${summary?.total ?? 0} · stale ${summary?.stale ?? 0} · missing ${summary?.missingLocalRow ?? 0}`
+    }, ...recent].slice(0, 10)
   }
 
   function scheduleRealtimeReload() {
@@ -174,9 +194,14 @@
     <div class="col-lg-7">
       <div class="d-flex align-items-center justify-content-between mb-2">
         <div class="fw-bold">Resources</div>
-        <button type="button" class="btn btn-outline-theme btn-sm" onclick={load} disabled={loading}>
-          <i class="bi bi-arrow-clockwise me-1"></i> Refresh
-        </button>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-secondary btn-sm" onclick={checkRegistryDrift} disabled={driftLoading}>
+            {#if driftLoading}<span class="spinner-border spinner-border-sm me-1"></span>{:else}<i class="bi bi-diagram-3 me-1"></i>{/if}Registry drift
+          </button>
+          <button type="button" class="btn btn-outline-theme btn-sm" onclick={load} disabled={loading}>
+            <i class="bi bi-arrow-clockwise me-1"></i> Refresh
+          </button>
+        </div>
       </div>
       <DataTableStarter {columns} rows={resources} {loading} error={errorMsg} emptyText="No resources" />
     </div>

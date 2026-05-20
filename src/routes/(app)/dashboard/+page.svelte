@@ -1,6 +1,7 @@
 <!-- src/routes/(app)/dashboard/+page.svelte -->
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte'
+  import { resolve } from '$app/paths'
   import { setPageTitle } from '$lib/utils/title'
   import { appOptions } from '$lib/stores/appOptions'
   import { auth } from '$lib/stores/auth'
@@ -15,6 +16,7 @@
   import type { WssIngestEventPayload } from '$lib/types/realtime'
   import {
     fetchAnalyticsOverview,
+    type AnalyticsScope,
     type AnalyticsBarChart,
     type AnalyticsChartSeries,
     type AnalyticsDonutChart,
@@ -161,6 +163,7 @@
   let overview = $state<AnalyticsOverviewDetails | null>(null)
   let loading = $state(false)
   let errorMsg = $state('')
+  let cameraScope = $state<AnalyticsScope>('all')
   let hasLoaded = $state(false)
   let dashboardRoot: HTMLDivElement | null = null
   const motionStops: Array<() => void> = []
@@ -482,7 +485,7 @@
     loading = true
     errorMsg = ''
     await waitForAuthContext()
-    const query = { dateTime: dateTimeParam, tz: TZ, scope: 'all' as const }
+    const query = { dateTime: dateTimeParam, tz: TZ, scope: cameraScope }
     const overviewResult = await fetchAnalyticsOverview(query)
 
     loading = false
@@ -567,9 +570,18 @@
         <span>{rangeLabel}</span>
         <i class="bi bi-chevron-down"></i>
       </button>
+      <select class="control-button scope-select" bind:value={cameraScope} onchange={loadDashboard} aria-label="Camera scope">
+        <option value="all">All cameras</option>
+        <option value="owner">Owner</option>
+        <option value="public">Public</option>
+      </select>
       <button type="button" class="control-button icon-only" title="Refresh analytics" onclick={loadDashboard} disabled={loading}>
         <i class={`bi ${loading ? 'bi-arrow-repeat spin' : 'bi-arrow-clockwise'}`}></i>
       </button>
+      <a class="control-button" href={resolve('/dashboard/camera-usage')} title="Camera usage">
+        <i class="bi bi-table"></i>
+        <span>Camera usage</span>
+      </a>
       <span class="control-button live-chip {liveBadgeClass($wsHubStatus)}" title={$wsHubLastError ?? ''}>
         <i class="bi bi-broadcast"></i>
         <span>{liveBadgeLabel($wsHubStatus)}</span>
