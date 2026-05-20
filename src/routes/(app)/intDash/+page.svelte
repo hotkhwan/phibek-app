@@ -20,6 +20,17 @@
 
   type Severity = 'high' | 'medium' | 'low' | 'info' | 'none'
   type EventWithSeverity = IngestEvent & { severity?: string }
+  type RealtimeMessage = {
+    key: string
+    topic: string
+    eventId: string
+    label: string
+    severity: Severity
+    device: string
+    occurredAt?: string
+    receivedAt: string
+    location?: WssIngestEventPayload['location']
+  }
 
   let dashboard = $state<IngestDashboard | null>(null)
   let events = $state<IngestEvent[]>([])
@@ -27,11 +38,14 @@
   let errorMsg = $state('')
   let lastUpdatedAt = $state<Date | null>(null)
   let realtimeDenied = $state('')
+  let lastRealtimeAt = $state<string | null>(null)
+  let realtimeMessages = $state<RealtimeMessage[]>([])
   let unsubscribeRealtime: (() => void) | null = null
   let realtimeReloadTimer: ReturnType<typeof setTimeout> | null = null
   const seenRealtimeEvents = new Set<string>()
 
   const latestEvents = $derived(events.slice(0, 10))
+  const latestRealtimeMessages = $derived(realtimeMessages.slice(0, 8))
   const highSeverityCount = $derived(events.filter((event) => eventSeverity(event) === 'high').length)
   const kpis = $derived([
     {
@@ -117,6 +131,11 @@
     return event.deviceName ?? event.deviceId ?? event.source ?? event.sourceFamily ?? '-'
   }
 
+  function eventLocationLabel(location?: WssIngestEventPayload['location']) {
+    if (!location) return ''
+    return `${location.lat.toFixed(5)}, ${location.lng.toFixed(5)}`
+  }
+
   function formatCount(value: number | undefined | null) {
     return Number(value ?? 0).toLocaleString('en-US')
   }
@@ -170,10 +189,33 @@
     }, 1200)
   }
 
-  function applyRealtimeEvent(data: WssIngestEventPayload) {
+  function applyRealtimeEvent(topic: string, data: WssIngestEventPayload) {
     const event = wssEventToIngestEvent(data)
     if (!event?.eventId) return
-    if (seenRealtimeEvents.has(event.eventId)) return
+    const receivedAt = new Date().toISOString()
+    const severity = eventSeverity(event)
+    const messageKey = `${topic}:${event.eventId}:${receivedAt}`
+
+    lastRealtimeAt = receivedAt
+    realtimeMessages = [
+      {
+        key: messageKey,
+        topic,
+        eventId: event.eventId,
+        label: eventLabel(event),
+        severity,
+        device: eventDevice(event),
+        occurredAt: event.occurredAt,
+        receivedAt,
+        location: data.location
+      },
+      ...realtimeMessages
+    ].slice(0, 25)
+
+    if (seenRealtimeEvents.has(event.eventId)) {
+      scheduleRealtimeReload()
+      return
+    }
     seenRealtimeEvents.add(event.eventId)
     pruneSeenEvents()
 
@@ -181,7 +223,6 @@
       event,
       ...events.filter((item) => (item.eventId ?? item.id) !== event.eventId)
     ].slice(0, 20)
-    lastUpdatedAt = new Date()
     scheduleRealtimeReload()
   }
 
@@ -190,7 +231,7 @@
     realtimeDenied = ''
     unsubscribeRealtime = subscribeWsTopic<WssIngestEventPayload>(
       [WS_TOPICS.INGEST_EVENT, WS_TOPICS.INGEST_BLACKLIST],
-      (_topic, _ts, payload) => applyRealtimeEvent(payload),
+      (topic, _ts, payload) => applyRealtimeEvent(topic, payload),
       {
         onDenied: (topic, reason) => {
           realtimeDenied = `${topic} denied: ${reason}`
@@ -245,6 +286,9 @@
       <span class="badge bg-warning text-dark">Beta</span>
       <span class="badge {liveBadgeClass($wsHubStatus)}" title={$wsHubLastError ?? ''}>
         <i class="bi bi-broadcast me-1"></i>{liveBadgeLabel($wsHubStatus)}
+      </span>
+      <span class="badge bg-dark text-body text-opacity-75 border border-secondary">
+        WSS {lastRealtimeAt ? formatTime(lastRealtimeAt) : '-'}
       </span>
       <button type="button" class="btn btn-outline-theme btn-sm" onclick={load} disabled={loading}>
         <i class="bi bi-arrow-clockwise me-1"></i>{loading ? 'Loading...' : 'Refresh'}
@@ -353,6 +397,32 @@
           {:else}
             <div class="text-body text-opacity-50 small">ยังไม่มีข้อมูลประเภทเหตุการณ์</div>
           {/if}
+
+          <div class="fw-bold mt-4 mb-2">Realtime WSS messages</div>
+          <div class="intdash-wss-feed">
+            {#if latestRealtimeMessages.length === 0}
+              <div class="text-body text-opacity-50 small py-2">รอข้อความจาก ingest.event / ingest.blacklist</div>
+            {:else}
+              {#each latestRealtimeMessages as message (message.key)}
+                <div class="intdash-wss-row">
+                  <span class={severityClass(message.severity)}></span>
+                  <div class="min-w-0">
+                    <div class="d-flex align-items-center gap-2">
+                      <span class="badge bg-theme text-black">{message.topic}</span>
+                      <span class="small text-body text-opacity-50">{formatTime(message.receivedAt)}</span>
+                    </div>
+                    <div class="fw-semibold text-truncate mt-1">{message.label}</div>
+                    <div class="small text-body text-opacity-50 text-truncate">
+                      {message.device}
+                      {#if eventLocationLabel(message.location)}
+                        · {eventLocationLabel(message.location)}
+                      {/if}
+                    </div>
+                  </div>
+                </div>
+              {/each}
+            {/if}
+          </div>
         </div>
         <div class="card-arrow">
           <div class="card-arrow-top-left"></div>
@@ -390,7 +460,13 @@
     min-height: 31rem;
   }
 
+  .intdash-wss-feed {
+    display: grid;
+    gap: 0.75rem;
+  }
+
   .intdash-event-row,
+  .intdash-wss-row,
   .intdash-summary-line,
   .intdash-type-row {
     display: flex;
@@ -398,6 +474,12 @@
     gap: 0.75rem;
     min-height: 3.5rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .intdash-wss-row {
+    align-items: flex-start;
+    min-height: 4.25rem;
+    padding-bottom: 0.75rem;
   }
 
   .intdash-type-row,

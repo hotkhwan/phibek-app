@@ -11,6 +11,15 @@
 
   let error = $state('')
 
+  function currentCallbackRedirectPath() {
+    const url = new URL(window.location.href)
+    for (const key of ['code', 'state', 'session_state', 'iss']) {
+      url.searchParams.delete(key)
+    }
+    const search = url.searchParams.toString()
+    return `${url.pathname}${search ? `?${search}` : ''}`
+  }
+
   onMount(async () => {
     setPageTitle(m.authPageCallbackTitle())
     if (!browser) return
@@ -18,7 +27,7 @@
     try {
       const ok = await initKeycloak({
         onLoad: 'check-sso',
-        redirectPath: '/auth/callback'
+        redirectPath: currentCallbackRedirectPath()
       })
       if (!ok) {
         error = m.authPageCallbackDidNotComplete()
