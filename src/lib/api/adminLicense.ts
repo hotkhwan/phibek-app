@@ -26,6 +26,7 @@ export type License = {
 export type PlatformLicense = {
   licenseKey?: string
   edition?: string
+  licenseMode?: string
   customerOrgId?: string
   customerName?: string
   expiresAt?: string
@@ -33,7 +34,24 @@ export type PlatformLicense = {
   status?: 'unactivated' | 'active' | 'expired' | 'invalid'
   features?: string[]
   signature?: string
+  artifactMeta?: Record<string, unknown> | null
+  maxDevices?: number
+  maxCustomers?: number
+  maxOrganizations?: number
+  maxLicensedUsers?: number
 }
+
+export type PlatformLicenseActivationDetails = {
+  platformLicense?: PlatformLicense
+  action?: string
+  subscriptionRepair?: {
+    status?: 'complete' | 'partial' | 'skipped' | string
+    reason?: string
+    counts?: Record<string, number>
+    samples?: Record<string, string[]>
+    generatedAt?: string
+  }
+} & PlatformLicense
 
 export async function listLicenses(params: { page?: number; perPage?: number; search?: string } = {}) {
   return apiSafe<
@@ -60,16 +78,16 @@ export async function getPlatformLicense() {
   return apiSafe<ApiEnvelope<PlatformLicense>>('/admin/platformLicense')
 }
 
-export async function activatePlatformLicense(licenseKey: string) {
-  return api<ApiEnvelope<PlatformLicense>>('/admin/platformLicense/activate', {
+export async function activatePlatformLicense(artifact: unknown) {
+  return api<ApiEnvelope<PlatformLicenseActivationDetails>>('/admin/platformLicense/activate', {
     method: 'POST',
-    body: { licenseKey }
+    body: { artifact }
   })
 }
 
-export async function validatePlatformLicense(licenseKey: string) {
-  return api<ApiEnvelope<{ valid: boolean; reason?: string }>>(
+export async function validatePlatformLicense(artifact: unknown) {
+  return api<ApiEnvelope<{ valid?: boolean; reason?: string } | null>>(
     '/admin/platformLicense/validate',
-    { method: 'POST', body: { licenseKey } }
+    { method: 'POST', body: { artifact } }
   )
 }

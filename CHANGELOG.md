@@ -7,6 +7,8 @@ this project follows semantic versioning.
 ## [Unreleased]
 
 ### Added
+- Ported `/intDash` closer to the latest Klynx surface with five KPI cards, realtime map-style
+  event markers, thumbnail feed/lightbox, and the B-4 analytics strip.
 - Added latest camera contract controls on `/systemDevices/cameras`: `mapVisibility` filtering,
   org-wide monitor sync, per-camera external-source sync, and GW/EdgeAI source/sync status columns.
 - Added dashboard camera-scope selection, `/dashboard/camera-usage` with camera usage JSON/export
@@ -39,6 +41,10 @@ this project follows semantic versioning.
   `police` permission, and removed the external Watchman/iotWatch frontend surface and env wiring.
 
 ### Fixed
+- Platform license activation now accepts signed artifact JSON files and sends the contracted
+  `{ artifact: ... }` body to validate/activate instead of the legacy `licenseKey` wrapper.
+- System Users Organizations can open for administrators during first-org setup and selected orgs
+  now drive the active workspace/member-management header consistently.
 - Header search now opens the Cyber Admin overlay correctly, focuses the search input, closes via
   icon/ESC, and no longer relies on a hidden `d-none` form that defeated the shell toggle class.
 - Added the missing `/ingest/events` route entry so the sidebar's ingest event link resolves to the

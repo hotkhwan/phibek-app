@@ -142,11 +142,14 @@ export async function listUsers(params: ListParams = {}) {
  * Backend matches klynx: GET /orgs/users/members
  *   X-Active-Org: <orgId>  (auto-injected by `lib/utils/fetch`)
  */
-export async function listOrgMembers(params: ListParams & { sortField?: string } = {}) {
+export async function listOrgMembers(params: ListParams & { sortField?: string } = {}, orgId?: string) {
   return apiSafe<
     ApiEnvelope<{ items: (KlynxUser & { orgRole?: 'owner' | 'admin' | 'member' })[] }>
     & { pagination?: Pagination }
-  >('/orgs/users/members', { params })
+  >('/orgs/users/members', {
+    params,
+    headers: orgId ? { 'X-Active-Org': orgId } : undefined
+  })
 }
 
 export async function getUser(id: string) {

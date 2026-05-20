@@ -19,7 +19,9 @@
     type Organization
   } from '$lib/api/klynxUser'
   import { notify } from '$lib/stores/notify'
+  import { setActiveWorkspace, setWorkspaceList } from '$lib/stores/activeWorkspace'
   import { m } from '$lib/i18n/messages'
+  import type { Workspace } from '$lib/types/workspace'
 
   type ViewMode = 'members' | 'add'
   type OrgTab = 'members' | 'ingest'
@@ -54,6 +56,26 @@
   function orgId(row: Organization) { return row.orgId ?? row.id }
   function userId(row: MemberRow) { return row.userId ?? row.id }
   function displayName(row: MemberRow) { return row.label || row.fullName || `${row.firstName ?? ''} ${row.lastName ?? ''}`.trim() || row.username || row.email || userId(row) }
+  function itemsFrom<T>(value: unknown): T[] {
+    if (Array.isArray(value)) return value as T[]
+    if (!value || typeof value !== 'object') return []
+    const record = value as Record<string, unknown>
+    for (const key of ['items', 'details', 'orgs', 'organizations']) {
+      const nested = record[key]
+      if (Array.isArray(nested)) return nested as T[]
+    }
+    return []
+  }
+  function syncWorkspaceOptions(orgs: Organization[]) {
+    setWorkspaceList(orgs.map((org) => ({
+      id: orgId(org),
+      name: org.name,
+      description: org.description,
+      status: org.status === 'inactive' ? 'inactive' : 'active',
+      createdAt: org.createAt ?? new Date().toISOString(),
+      updatedAt: org.updateAt
+    }) as Workspace))
+  }
 
   async function load() {
     loading = true
@@ -61,8 +83,12 @@
     const { data, error } = await listOrgs({ perPage: 250, search: search || undefined })
     loading = false
     if (error) errorMsg = error.message
-    rows = data?.details?.items ?? []
-    if (!selectedId && rows[0]) selectedId = orgId(rows[0])
+    rows = itemsFrom<Organization>(data?.details)
+    syncWorkspaceOptions(rows)
+    if (!selectedId && rows[0]) {
+      selectedId = orgId(rows[0])
+      await setActiveWorkspace(selectedId)
+    }
     if (selectedId) await loadMembers()
     if (selectedId) await loadIngestStatus()
   }
@@ -71,16 +97,17 @@
     if (!selectedId) return
     if (orgTab !== 'members') return
     memberLoading = true
-    const { data, error } = await listOrgMembers({ page: 1, perPage: 250, mode: viewMode === 'members' ? 'members' : undefined, search: memberSearch || undefined, sortField: 'firstName', sortOrder: 'asc' })
+    const { data, error } = await listOrgMembers({ page: 1, perPage: 250, mode: viewMode === 'members' ? 'members' : undefined, search: memberSearch || undefined, sortField: 'firstName', sortOrder: 'asc' }, selectedId)
     memberLoading = false
     if (error) { notify.error('Members unavailable', error.message); return }
-    const mapped = (data?.details?.items ?? []).map((u) => ({ ...u, label: displayName(u) }))
+    const mapped = itemsFrom<MemberRow>(data?.details).map((u) => ({ ...u, label: displayName(u) }))
     if (viewMode === 'members') members = mapped
     else addUsers = mapped
   }
 
   function selectOrg(id: string) {
     selectedId = id
+    void setActiveWorkspace(id)
     orgTab = 'members'
     viewMode = 'members'
     memberSearch = ''
