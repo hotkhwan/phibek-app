@@ -101,3 +101,47 @@ export async function updateFloorPlan(id: string, body: FloorPlanUpdateInput) {
 export async function deleteFloorPlan(id: string): Promise<void> {
   await api(`/floorPlans/${encodeURIComponent(id)}`, { method: 'DELETE' })
 }
+
+// ─────────────────── Placements (camera markers on canvas) ───────────────────
+
+export type PlacementInput = {
+  cameraId: string
+  x: number
+  y: number
+  yawDeg?: number
+  label?: string
+}
+
+export type PlacementUpdate = {
+  x?: number
+  y?: number
+  yawDeg?: number
+  label?: string
+}
+
+export async function listPlacements(planId: string) {
+  return apiSafe<ApiEnvelope<{ items: FloorPlanPlacement[] }>>(
+    `/floorPlans/${encodeURIComponent(planId)}/placements`
+  )
+}
+
+export async function addPlacement(planId: string, body: PlacementInput) {
+  return apiSafe<ApiEnvelope<FloorPlanPlacement>>(
+    `/floorPlans/${encodeURIComponent(planId)}/placements`,
+    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }
+  )
+}
+
+export async function updatePlacement(planId: string, placementId: string, body: PlacementUpdate) {
+  return apiSafe<ApiEnvelope<FloorPlanPlacement>>(
+    `/floorPlans/${encodeURIComponent(planId)}/placements/${encodeURIComponent(placementId)}`,
+    { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body }
+  )
+}
+
+export async function removePlacement(planId: string, placementId: string) {
+  await api(
+    `/floorPlans/${encodeURIComponent(planId)}/placements/${encodeURIComponent(placementId)}`,
+    { method: 'DELETE' }
+  )
+}
