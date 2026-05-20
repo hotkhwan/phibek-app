@@ -5,7 +5,7 @@
   import DomainStarter from '$lib/components/shared/DomainStarter.svelte'
   import VideoPlayer from '$lib/components/shared/VideoPlayer.svelte'
   import { listCameras, listResourceGroups, type Camera, type ResourceGroup } from '$lib/api/devices'
-  import { createStream } from '$lib/utils/streamUrl'
+  import { hasFlvPlayback, resolveCameraPlayback } from '$lib/utils/streamUrl'
   import { WS_TOPICS } from '$lib/realtime/wsTopics'
   import { liveBadgeClass, liveBadgeLabel } from '$lib/realtime/liveStatus'
   import {
@@ -87,10 +87,6 @@
     return String(camera.camId ?? camera.id)
   }
 
-  function isAta(camera: Camera) {
-    return String(camera.brand ?? '').toUpperCase() === 'ATA'
-  }
-
   function getLocationStatus(camera: Camera): StatusT {
     if (camera.alarm === true) return 'alarm'
     if (camera.monitorState === 'online' || camera.online === true || camera.status === true || camera.status === 'online') return 'online'
@@ -127,16 +123,9 @@
 
     setSlot(index, { loading: true, error: '' })
     try {
-      if (isAta(camera)) {
-        const flvUrl = camera.ataWsFlvUrl || camera.streamUrl || camera.url
-        if (!flvUrl) throw new Error('ไม่พบ FLV URL สำหรับกล้อง ATA')
-        setSlot(index, { url: flvUrl, kind: 'flv' })
-        return
-      }
-
-      const url = await createStream({ id: cameraKey(camera), url: camera.url ?? camera.streamUrl })
-      if (!url) throw new Error('ไม่สามารถสร้าง WebRTC stream ได้')
-      setSlot(index, { url, kind: 'webrtc' })
+      const playback = await resolveCameraPlayback(camera, cameraKey(camera))
+      if (!playback) throw new Error('ไม่พบ stream URL สำหรับกล้องนี้')
+      setSlot(index, playback)
     } catch (err) {
       setSlot(index, { error: err instanceof Error ? err.message : 'เริ่ม stream ไม่สำเร็จ' })
     } finally {
@@ -151,7 +140,7 @@
       loading: false,
       error: '',
       url: '',
-      kind: isAta(camera) ? 'flv' : 'webrtc'
+      kind: hasFlvPlayback(camera) ? 'flv' : 'webrtc'
     })
     await tick()
     await startSlot(index)
