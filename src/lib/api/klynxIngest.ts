@@ -53,6 +53,11 @@ export type IngestEvent = {
   }
 }
 
+export type IngestAggregate = {
+  aiCamerasReporting?: number
+  averageAccuracy?: { value: number; samples: number }
+}
+
 export type IngestDashboard = {
   totals?: {
     events24h?: number
@@ -71,7 +76,9 @@ export type ListEventsParams = {
   from?: string
   to?: string
   type?: string
+  severity?: string
   deviceId?: string
+  sortOrder?: 'asc' | 'desc'
 }
 
 export async function listIngestEvents(params: ListEventsParams = {}) {
@@ -82,6 +89,24 @@ export async function listIngestEvents(params: ListEventsParams = {}) {
 
 export async function fetchIngestDashboard(params: { from?: string; to?: string } = {}) {
   return apiSafe<ApiEnvelope<IngestDashboard>>('/events/dashboard', { params })
+}
+
+export async function fetchIngestAggregate(params: { from?: string; to?: string; bucket?: string } = {}) {
+  return apiSafe<ApiEnvelope<IngestAggregate>>('/events/aggregate', { params })
+}
+
+export async function countIngestEvents(params: ListEventsParams = {}) {
+  return apiSafe<ApiEnvelope<{ items: IngestEvent[] }> & { pagination?: Pagination }>(
+    '/events',
+    { params: { ...params, page: 1, perPage: 1 } }
+  )
+}
+
+export async function countCameras(params: Record<string, unknown> = {}) {
+  return apiSafe<ApiEnvelope<{ items: unknown[] }> & { pagination?: Pagination }>(
+    '/resources/camera',
+    { params: { ...params, page: 1, perPage: 1 } }
+  )
 }
 
 export async function getIngestEventDetail(eventId: string) {

@@ -10,6 +10,7 @@ type PageAccessRule = {
   requireOrgManage?: boolean
   requirePlatformSettings?: boolean
   requirePlatformAdmin?: boolean
+  allowAdministrator?: boolean
 }
 
 export type PageAccessInput = {
@@ -86,7 +87,8 @@ const pageAccessRules: PageAccessRule[] = [
     path: '/systemUsers/organizations',
     menuIds: ['systemUsersOrgs'],
     requireOrgManage: true,
-    allowWithoutOrg: true
+    allowWithoutOrg: true,
+    allowAdministrator: true
   },
   { path: '/systemUsers/users', menuIds: ['systemUsersUsers'], requireOrgManage: true },
   { path: '/systemUsers/unit', menuIds: ['systemUsersUnits'], requireOrgManage: true },
@@ -171,6 +173,7 @@ export function evaluatePageAccess(
 
   const canManageOrg = input.access.orgCapabilities.canManageOrganization
   const canManageSettings = input.access.platformCapabilities.canManageSettings
+  const isAdministrator = input.user?.role === 'administrator'
   const hasMenu = requiredMenuIds.some((menuId) => input.access.visibleMenuIds.includes(menuId))
   const needsAccess =
     requiredMenuIds.length > 0 || rule.requireOrgManage || rule.requirePlatformSettings
@@ -191,6 +194,7 @@ export function evaluatePageAccess(
     ...baseDecision,
     allowed:
       hasMenu ||
+      Boolean(rule.allowAdministrator && isAdministrator) ||
       Boolean(rule.requireOrgManage && canManageOrg) ||
       Boolean(rule.requirePlatformSettings && canManageSettings),
     requiredOrgCapability: rule.requireOrgManage ? 'organization.manage' : undefined,

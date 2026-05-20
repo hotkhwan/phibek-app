@@ -16,10 +16,12 @@
   let loading = $state(false)
   let errorMsg = $state('')
 
-  let licenseKey = $state('')
+  let artifactText = $state('')
+  let artifactFileName = $state('')
   let activating = $state(false)
   let validating = $state(false)
   let validateResult = $state<{ valid: boolean; reason?: string } | null>(null)
+  let repairStatus = $state('')
 
   async function load() {
     loading = true
@@ -33,13 +35,34 @@
     license = data?.details ?? null
   }
 
+  function parseArtifact() {
+    const trimmed = artifactText.trim()
+    if (!trimmed) throw new Error('artifact is required')
+    return JSON.parse(trimmed) as unknown
+  }
+
+  async function onFileChange(event: Event) {
+    const input = event.currentTarget as HTMLInputElement
+    const file = input.files?.[0]
+    if (!file) return
+    if (!file.name.toLowerCase().endsWith('.json')) {
+      notify.warning('License artifact', 'Please choose a .json file.')
+      input.value = ''
+      return
+    }
+    artifactText = await file.text()
+    artifactFileName = file.name
+    validateResult = null
+  }
+
   async function onValidate() {
-    if (!licenseKey) return
+    if (!artifactText.trim()) return
     validating = true
     validateResult = null
     try {
-      const r = await validatePlatformLicense(licenseKey)
-      validateResult = r.details
+      const artifact = parseArtifact()
+      const r = await validatePlatformLicense(artifact)
+      validateResult = { valid: r.details?.valid ?? true, reason: r.details?.reason }
     } catch (e) {
       validateResult = { valid: false, reason: (e as { message?: string })?.message ?? 'Validation failed' }
     } finally {
@@ -48,13 +71,16 @@
   }
 
   async function onActivate() {
-    if (!licenseKey) return
+    if (!artifactText.trim()) return
     activating = true
     try {
-      const r = await activatePlatformLicense(licenseKey)
-      license = r.details
+      const artifact = parseArtifact()
+      const r = await activatePlatformLicense(artifact)
+      license = r.details.platformLicense ?? r.details
+      repairStatus = r.details.subscriptionRepair?.status ?? ''
       notify.success('Platform license activated')
-      licenseKey = ''
+      artifactText = ''
+      artifactFileName = ''
       validateResult = null
     } catch (e) {
       notify.error(
@@ -138,13 +164,24 @@
         <div class="card-header fw-bold">Activate / Validate</div>
         <div class="card-body">
           <div class="mb-3">
-            <label class="form-label" for="licenseKey">License Key</label>
+            <label class="form-label" for="licenseArtifactFile">License artifact (.json)</label>
+            <input
+              id="licenseArtifactFile"
+              class="form-control form-control-sm mb-2"
+              type="file"
+              accept="application/json,.json"
+              onchange={onFileChange}
+            />
+            {#if artifactFileName}
+              <div class="text-body text-opacity-50 small mb-2">{artifactFileName}</div>
+            {/if}
+            <label class="form-label" for="licenseArtifact">Signed artifact JSON</label>
             <textarea
-              id="licenseKey"
+              id="licenseArtifact"
               class="form-control font-monospace"
-              rows="4"
-              bind:value={licenseKey}
-              placeholder="Paste signed key…"
+              rows="10"
+              bind:value={artifactText}
+              placeholder='Paste signed artifact JSON, or choose a .json file above…'
             ></textarea>
           </div>
 
@@ -157,12 +194,17 @@
               {/if}
             </div>
           {/if}
+          {#if repairStatus}
+            <div class="alert alert-info small">
+              Subscription repair status: <b>{repairStatus}</b>
+            </div>
+          {/if}
 
           <div class="d-flex gap-2">
             <button
               type="button"
               class="btn btn-outline-secondary btn-sm"
-              disabled={!licenseKey || validating}
+              disabled={!artifactText.trim() || validating}
               onclick={onValidate}
             >
               {#if validating}<span class="spinner-border spinner-border-sm me-1"></span>{/if}
@@ -171,7 +213,7 @@
             <button
               type="button"
               class="btn btn-outline-theme btn-sm"
-              disabled={!licenseKey || activating}
+              disabled={!artifactText.trim() || activating}
               onclick={onActivate}
             >
               {#if activating}<span class="spinner-border spinner-border-sm me-1"></span>{/if}
