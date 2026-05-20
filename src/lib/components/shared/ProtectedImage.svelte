@@ -10,6 +10,12 @@
     alt?: string
     class?: string
     bbox?: {
+      imageWidth?: number
+      imageHeight?: number
+      sourceWidth?: number
+      sourceHeight?: number
+      frameWidth?: number
+      frameHeight?: number
       width?: number
       height?: number
       x?: number
@@ -35,8 +41,8 @@
 
   const overlaySpace = $derived.by(() => {
     if (!bbox || !naturalWidth || !naturalHeight) return null
-    const bw = Number(bbox.width)
-    const bh = Number(bbox.height)
+    const bw = Number(bbox.imageWidth ?? bbox.sourceWidth ?? bbox.frameWidth)
+    const bh = Number(bbox.imageHeight ?? bbox.sourceHeight ?? bbox.frameHeight)
     return {
       width: Number.isFinite(bw) && bw > 0 ? bw : naturalWidth,
       height: Number.isFinite(bh) && bh > 0 ? bh : naturalHeight
@@ -49,8 +55,12 @@
     const rawY = Number(bbox.y)
     const rawW = Number(bbox.w ?? bbox.width)
     const rawH = Number(bbox.h ?? bbox.height)
+    const rawLeft = Number(bbox.x1)
+    const rawTop = Number(bbox.y1)
     const values = Number.isFinite(rawX) && Number.isFinite(rawY) && Number.isFinite(rawW) && Number.isFinite(rawH)
       ? [rawX, rawY, rawX + rawW, rawY + rawH]
+      : Number.isFinite(rawLeft) && Number.isFinite(rawTop) && Number.isFinite(rawW) && Number.isFinite(rawH)
+        ? [rawLeft, rawTop, rawLeft + rawW, rawTop + rawH]
       : [bbox.x1, bbox.y1, bbox.x2, bbox.y2].map(Number)
     if (values.some((value) => !Number.isFinite(value))) return null
     const [rawX1, rawY1, rawX2, rawY2] = values

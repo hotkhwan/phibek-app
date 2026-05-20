@@ -730,7 +730,8 @@
   :global(.intdash-thumb-img) {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
+    background: rgba(0, 0, 0, 0.42);
   }
 
   .intdash-severity {
