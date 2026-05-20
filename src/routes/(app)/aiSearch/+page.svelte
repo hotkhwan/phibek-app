@@ -4,10 +4,11 @@
   import { setPageTitle } from '$lib/utils/title'
   import DomainStarter from '$lib/components/shared/DomainStarter.svelte'
   import ProtectedImage from '$lib/components/shared/ProtectedImage.svelte'
-  import { searchInvestigation, type InvestigationCard, type InvestigationDetails, type InvestigationPagination } from '$lib/api/aiSearch'
+  import { searchInvestigation, type AiSearchSortField, type InvestigationCard, type InvestigationDetails, type InvestigationPagination } from '$lib/api/aiSearch'
 
   let prompt = $state('')
   let score = $state(0.5)
+  let sortField = $state<AiSearchSortField>('score')
   let localFilter = $state('')
   let activeClass = $state('all')
   let loading = $state(false)
@@ -110,7 +111,7 @@
   }
 
   async function fetchPage(query: string, page: number, append: boolean) {
-    const { data, error } = await searchInvestigation({ text: query, page, perPage: 10, sortField: 'score', sortOrder: 'desc', score: score > 0 ? score : undefined, include: { summary: true, cards: true, timeline: true, mapPoints: true, diagnostics: true } })
+    const { data, error } = await searchInvestigation({ text: query, page, perPage: 10, sortField, sortOrder: 'desc', score: score > 0 ? score : undefined, include: { summary: true, cards: true, timeline: true, mapPoints: true, diagnostics: true } })
     if (error) {
       errorMsg = error.message || 'Search failed'
       return
@@ -185,6 +186,7 @@
       <div class="tool-row">
         <button type="button"><i class="bi bi-mic"></i> Voice</button><button type="button"><i class="bi bi-image"></i> Image</button><button type="button"><i class="bi bi-camera-video"></i> Video</button>
         <label class="score-box"><i class="bi bi-speedometer2"></i> Score <input bind:value={score} type="number" min="0" max="1" step="0.05" /></label>
+        <label class="sort-box"><i class="bi bi-sort-down"></i> Sort <select bind:value={sortField}><option value="score">score</option><option value="id">id</option><option value="createAt">createAt</option></select></label>
       </div>
     </section>
 
@@ -210,7 +212,7 @@
   .prompt-row { display: flex; gap: 1rem; padding: 1rem; border-bottom: 1px solid rgba(255,255,255,.1); align-items: center; textarea { flex: 1; resize: none; background: transparent; border: 0; color: #fff; outline: 0; } }
   .send-btn { width: 46px; height: 46px; border-radius: 999px; border: 0; background: #00d084; color: #001b12; }
   .tool-row, .suggestions, .result-tools, .tabs { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
-  .tool-row { padding: .75rem; button, .score-box { border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04); color: #c8cad1; border-radius: 6px; padding: .45rem .7rem; } input { width: 4rem; background: transparent; border: 0; color: #fff; text-align: right; } }
+  .tool-row { padding: .75rem; button, .score-box, .sort-box { border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04); color: #c8cad1; border-radius: 6px; padding: .45rem .7rem; } input { width: 4rem; background: transparent; border: 0; color: #fff; text-align: right; } select { min-width: 6rem; background: transparent; border: 0; color: #fff; outline: 0; } option { background: #15171c; color: #fff; } }
   .suggestions { margin: 1rem 0; button { border: 1px solid rgba(255,255,255,.12); background: transparent; color: #c8cad1; border-radius: 999px; padding: .35rem .8rem; } }
   .summary-panel { margin-top: 1rem; padding: 1rem; display: flex; justify-content: space-between; gap: 1rem; h2 { font-size: 1.1rem; } p, .muted { color: #9296a3; } }
   .summary-cards { display: flex; gap: .75rem; > div { min-width: 96px; border: 1px solid rgba(255,255,255,.1); border-radius: 6px; padding: .75rem; display: grid; gap: .2rem; } strong { font-size: 1.4rem; } span { color: #9296a3; font-size: .78rem; } }

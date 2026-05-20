@@ -7,14 +7,18 @@ type ApiEnvelope<T> = { status?: boolean; code?: string; message?: string; detai
 
 export type AiSearchChat = {
   id: string
+  score?: number
   title?: string
   messageCount?: number
   updatedAt?: string
+  createAt?: string
   createdAt?: string
   preview?: string
 }
 
-export async function listChats(params: { page?: number; perPage?: number; search?: string } = {}) {
+export type AiSearchSortField = 'id' | 'score' | 'createAt'
+
+export async function listChats(params: { page?: number; perPage?: number; search?: string; sortField?: AiSearchSortField; sortOrder?: 'asc' | 'desc' } = {}) {
   return apiSafe<ApiEnvelope<{ items: AiSearchChat[]; total?: number }>>(
     '/ksearch/chats',
     { params }
@@ -35,7 +39,7 @@ export type InvestigationRequest = {
   text: string
   page: number
   perPage: number
-  sortField: string
+  sortField: AiSearchSortField
   sortOrder: 'asc' | 'desc'
   score?: number
   include: {
@@ -52,7 +56,7 @@ export type InvestigationPagination = {
   perPage: number
   totalRecords: number
   totalPages: number
-  sortField: string
+  sortField: AiSearchSortField | string
   sortOrder: 'asc' | 'desc'
 }
 
