@@ -31,6 +31,8 @@ this project follows semantic versioning.
 - Sidebar and protected app routes now consume `GET /kapi/orgs/effectiveAccess` before exposing
   grant-controlled pages, including a safe redirect to Dashboard/Profile when a direct URL is not
   allowed.
+- Keycloak SSO login now redirects through `/auth/callback` with a preserved `returnTo` target and
+  normalizes `/phibek` base paths so callback/session setup does not bounce through duplicated paths.
 - System Users permission trees now handle nested/list response shapes more defensively and include
   clearer selected/partial-selected states plus expand/collapse controls.
 - Replaced the Police/Watchman navigation split with a single Watchlist menu backed by the existing
@@ -48,6 +50,8 @@ this project follows semantic versioning.
 - MQTT browser connections keep broker credentials out of the WebSocket request URL and use
   MQTT CONNECT username/password only; HTTP Basic WebSocket auth must be handled by a server-side
   proxy or the contracted realtime WSS hub, not by `user:pass@host` client URLs.
+- IntDash now shows a visible realtime WSS message feed for `ingest.event` and `ingest.blacklist`
+  frames while continuing to debounce REST KPI/event refreshes from the contract-backed hub.
 
 ## [0.9.3] — 2026-05-17
 

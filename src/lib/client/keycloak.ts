@@ -2,12 +2,23 @@
 import { browser } from '$app/environment'
 import Keycloak from 'keycloak-js'
 import { env } from '$env/dynamic/public'
-import { auth, type UserData } from '$lib/stores/auth'
+import { auth, setIntended, type UserData } from '$lib/stores/auth'
 
 let kc: Keycloak | null = null
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 
-const BASE_PATH = (env.PUBLIC_APP_BASE_PATH ?? '').replace(/\/+$|^\/+$/g, '')
+const BASE_PATH = normalizeBasePath(env.PUBLIC_APP_BASE_PATH)
+
+function normalizeBasePath(value?: string) {
+  if (!value || value === '/') return ''
+  return `/${value.replace(/^\/+|\/+$/g, '')}`
+}
+
+function normalizeAppPath(path: string) {
+  if (!path) return '/'
+  if (/^https?:\/\//i.test(path)) return path
+  return `/${path}`.replace(/\/+/g, '/')
+}
 
 function getRuntimeBasePath() {
   if (BASE_PATH) return BASE_PATH
@@ -33,8 +44,25 @@ function getRuntimeBasePath() {
 function absolute(path: string) {
   if (!browser) return path
   const prefix = getRuntimeBasePath()
-  const p = ('/' + path).replace(/\/+/g, '/')
+  const p = normalizeAppPath(path)
+  if (/^https?:\/\//i.test(p)) return p
+  if (prefix && (p === prefix || p.startsWith(`${prefix}/`))) {
+    return `${window.location.origin}${p}`
+  }
   return `${window.location.origin}${prefix}${p}`
+}
+
+function withRuntimeBase(path: string) {
+  const prefix = getRuntimeBasePath()
+  const p = normalizeAppPath(path)
+  if (/^https?:\/\//i.test(p)) return p
+  if (prefix && (p === prefix || p.startsWith(`${prefix}/`))) return p
+  return `${prefix}${p}` || '/'
+}
+
+function callbackPath(returnTo: string) {
+  const safeReturnTo = withRuntimeBase(returnTo)
+  return `/auth/callback?returnTo=${encodeURIComponent(safeReturnTo)}`
 }
 
 function parseJwtClient(token?: string): Record<string, unknown> | null {
@@ -56,7 +84,7 @@ function parseJwtClient(token?: string): Record<string, unknown> | null {
 }
 
 async function setSessionCookie(token: string) {
-  const prefix = BASE_PATH === '/' ? '' : BASE_PATH
+  const prefix = getRuntimeBasePath()
   const res = await fetch(`${prefix}/auth/session`, {
     method: 'POST',
     credentials: 'include',
@@ -66,7 +94,7 @@ async function setSessionCookie(token: string) {
 }
 
 async function clearSessionCookie() {
-  const prefix = BASE_PATH === '/' ? '' : BASE_PATH
+  const prefix = getRuntimeBasePath()
   await fetch(`${prefix}/api/auth/logout`, {
     method: 'POST',
     credentials: 'include'
@@ -194,11 +222,13 @@ function stopRefreshTimer() {
 
 export async function login(redirectPath = '/dashboard') {
   if (!browser) return
+  const returnTo = withRuntimeBase(redirectPath)
+  setIntended(returnTo)
+  const redirectUri = absolute(callbackPath(returnTo))
   if (!kc) {
-    await initKeycloak({ onLoad: 'login-required', redirectPath })
+    await initKeycloak({ onLoad: 'login-required', redirectPath: callbackPath(returnTo) })
     return
   }
-  const redirectUri = absolute(redirectPath)
   await kc.login({ redirectUri })
 }
 

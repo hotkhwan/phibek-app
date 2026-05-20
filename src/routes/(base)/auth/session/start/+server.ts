@@ -5,8 +5,12 @@ import { redirect } from '@sveltejs/kit'
 import { env } from '$env/dynamic/public'
 import type { RequestHandler } from './$types'
 
-const RAW_BASE = (env.PUBLIC_APP_BASE_PATH ?? '').replace(/\/+$/, '')
-const BASE = RAW_BASE === '/' ? '' : RAW_BASE
+function normalizeBasePath(value?: string) {
+  if (!value || value === '/') return ''
+  return `/${value.replace(/^\/+|\/+$/g, '')}`
+}
+
+const BASE = normalizeBasePath(env.PUBLIC_APP_BASE_PATH)
 
 export const GET: RequestHandler = ({ url }) => {
   const returnTo = url.searchParams.get('returnTo') || `${BASE}/dashboard`
