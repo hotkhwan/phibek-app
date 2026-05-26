@@ -23,6 +23,7 @@ const publicExact = new Set([
   '/',
   '/landing',
   '/landing/landing',
+  '/live',
   '/robots.txt',
   '/favicon.ico',
   '/documentation',

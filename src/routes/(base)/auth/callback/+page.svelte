@@ -36,7 +36,7 @@
       }
       const url = new URL(window.location.href)
       const returnTo =
-        url.searchParams.get('returnTo') ?? popIntended() ?? resolve('/dashboard')
+        url.searchParams.get('returnTo') ?? popIntended() ?? resolve('/intDash')
       await goto(returnTo, { replaceState: true })
     } catch (err) {
       console.error('[auth/callback] error', err)

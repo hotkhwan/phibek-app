@@ -3,6 +3,7 @@
      — menu-profile block at top, single NAVIGATION header with HUD decoration,
      bottom status widget + DOCUMENTATION button. -->
 <script lang="ts">
+  import { env } from '$env/dynamic/public'
   import { m } from '$lib/i18n/messages'
   import { appOptions } from '$lib/stores/appOptions'
   import { appSidebarMenus } from '$lib/stores/appSidebarMenus'
@@ -17,6 +18,7 @@
   import { effectiveAccess } from '$lib/stores/effectiveAccess'
   import { listSystemEdgeDevices, type SystemEdgeDevice } from '$lib/api/devices'
   import { listWorkspaces } from '$lib/api/workspace'
+  import { getBackendVersion } from '$lib/api/systemVersion'
   import { evaluatePageAccess, menuPath } from '$lib/utils/pageAccess'
   import { itemsFrom } from '$lib/utils/apiShape'
   import pkg from '../../../../package.json'
@@ -32,8 +34,11 @@
     SidebarMenuLink
   } from '$lib/types/navigation'
 
+  let beVersion = $state('—')
+
   onMount(async () => {
     document.body.classList.add('app-init')
+    void loadBackendVersion()
     if ($workspaceList.length > 0) return
     try {
       const workspaces = await listWorkspaces()
@@ -42,6 +47,12 @@
       console.warn('[AppSidebar] failed to load organizations', err)
     }
   })
+
+  async function loadBackendVersion() {
+    const { data, error } = await getBackendVersion()
+    if (error || !data?.details) return
+    beVersion = data.details.version || '—'
+  }
 
   function isLinkMenu(menu: SidebarMenu): menu is SidebarMenuLink {
     return menu.kind === 'link'
@@ -174,8 +185,11 @@
     return child.external || isExternalUrl(child.url) ? 'noreferrer' : undefined
   }
 
+  const debugMenuEnabled = env.PUBLIC_DEBUG_MENU_ENABLED === 'true'
+
   function isVisibleMenu(menu: SidebarMenu) {
     if (menu.kind !== 'link') return true
+    if (menu.debug && !debugMenuEnabled) return false
     const children = renderedChildren(menu)
     if (menu.children?.length) return children.length > 0 || canSeeMenu(menu)
     return canSeeMenu(menu)
@@ -463,9 +477,9 @@
           <div class="text-body text-opacity-50 fs-8px">v{pkg.version}</div>
         </div>
         <div class="col-6">
-          <div class="text-body text-opacity-75 small">REGION</div>
-          <div class="text-body fw-bold">istio.k-lynx</div>
-          <div class="text-body text-opacity-50 fs-8px">cluster</div>
+          <div class="text-body text-opacity-75 small">BACKEND</div>
+          <div class="text-body fw-bold">API</div>
+          <div class="text-body text-opacity-50 fs-8px">v{beVersion}</div>
         </div>
       </div>
     </div>

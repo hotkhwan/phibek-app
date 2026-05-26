@@ -4,9 +4,43 @@ All notable changes to the **PHIBEK · winn** SvelteKit FE.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 this project follows semantic versioning.
 
+## [0.19.0] — 2026-05-26
+
+Cuts a version so the sidebar shows the new build out of the BACKEND row's
+neighbor (PLATFORM v0.18.0 → v0.19.0). Aggregates everything under
+"Unreleased" below into a tagged release.
+
+### Fixed (0.19.0)
+- `IntDashMap` reactivity: `map` is now `$state` so the `$effect` re-fires after the async leaflet init finishes. Previously, if events arrived before leaflet was ready, the effect bailed once (`map=null`) and never re-ran when `map` got set — markers stayed at 0 even when `event.detail.location` was populated.
+- `IntDashMap` LIVE chip now reads `{markerCount} / {receivedEventCount} หมุด` so it's obvious whether the events prop is reaching the component vs whether marker creation is failing downstream.
+- `IntDashMap` popup now shows the event picture. Leaflet popups are HTML strings, so a plain `<img src>` can't carry the Bearer header that `/api/v1/files/{bucket}/{object}` requires. Mirror klynx `hydrateMarkerPopupImage`: emit a placeholder `<div class="intdash-popup-img" data-bucket data-object>`, hook `map.on('popupopen')`, fetch the file with Bearer + `X-Active-Org`, swap to a blob URL, and overlay the orange `pictureCoordinates` boxes on load. Blob URLs cached per `bucket/object`; revoked on component destroy.
+
 ## [Unreleased]
 
 ### Added
+- intDash and floorPlans fit-1-screen monitor mode (no page scroll on lg+, internal scroll for feed/grid).
+- Permission-aware default landing: `/intDash` when granted, else `/dashboard`, else `/profile` — applied across `firstAllowedFallback`, auth callback, login, session-start, and keycloak login default.
+- `PUBLIC_DEBUG_MENU_ENABLED` env flag with `debug?: boolean` sidebar entry shape; `mqtt` + `biDash` hidden unless enabled.
+- Sidebar BACKEND column showing live `/version` (klynx-api) — replaces the removed REGION block.
+- Public `/live` route + LIVE link in landing nav (route moved from `(app)` to `(public)` group, added to `publicExact` allow-list).
+- intDash event timeline rendered as SVG stacked-area chart (5-min × 12 buckets, severity-colored) with HH:mm axis + legend.
+
+### Changed
+- `dashboard` analytics surface fit-1-screen on lg+: flex-column shell, top/middle/bottom grids share remaining height, activity table scrolls internally; falls back to natural scroll at < 1440px.
+- Sidebar order: `intDash` now sits above `dashboard` to match the new default-landing priority; `landing` entry removed.
+- intDash bottom analytics tightened (timeline 4rem, donut 3.5rem) so map + events feed claim more vertical space.
+- intDash header replaced `DomainStarter` with an inline compact header; viewport-locked layout via `appContentClass` override.
+
+### Fixed
+- intDash enrichment now re-fetches `/events/{eventId}` whenever `event.detail.location` is missing, not just when `event.detail` is null. klynx-api's `EventRefView` returns a partial `detail` (e.g. `binaryRefs` for thumbnails) even when it couldn't reach gw at list time, so the previous "skip if detail exists" check stranded events that had thumbnails but no geo. Detail is merged (not replaced) so existing list-side fields like `binaryRefs` survive.
+- intDash now enriches each event ref with full `detail` via `GET /events/{eventId}` (same pattern as klynx `useIntDashEvents.enrichFeedItem`) — the list endpoint returns events without `detail`, so without enrichment the map had no `detail.location` to render markers from. Realtime WSS arrivals also trigger enrichment.
+- intDash event map now reads `event.detail.location.{lat,lng}` (matches klynx AiEventMap.vue) — events with geo enrichment now render markers instead of being filtered out.
+- floorPlan marker rendered as a klynx-style SVG camera (body + lens + FOV cone) that rotates with `rotationDeg`; colors driven by `cameraStatus` + `cameraAvailability`; camera name shown as a label below.
+- floorPlan selected-marker panel now has rotation controls (range slider + ±15° buttons + number input). Slider drag updates the SVG cone live; PATCH is debounced 250ms after the user releases so the BE isn't hit every degree.
+- floorPlans card `<a href="/floorPlans/{id}">` now wraps with `resolve()` so the base path is preserved (was producing 404 on `/phibek/...` deploys).
+- `IntDashMap` shell `min-height: 27.5rem` dropped — was forcing the map taller than its parent flex container.
+- intDash footer regression: page no longer flips `appFooter` off; padding-bottom reserves space so content doesn't sit under the fixed footer.
+
 - Ported `/intDash` closer to the latest Klynx surface with five KPI cards, realtime map-style
   event markers, thumbnail feed/lightbox, and the B-4 analytics strip.
 - Added latest camera contract controls on `/systemDevices/cameras`: `mapVisibility` filtering,

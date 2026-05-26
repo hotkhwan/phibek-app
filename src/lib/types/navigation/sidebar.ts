@@ -51,6 +51,8 @@ export type SidebarMenuLink = {
     children?: SidebarChild[]
     /** Same capability gate as SidebarChild. */
     requireCapability?: SidebarRequireCapability
+    /** When true, hide unless PUBLIC_DEBUG_MENU_ENABLED=true. */
+    debug?: boolean
 }
 
 export type SidebarMenu =

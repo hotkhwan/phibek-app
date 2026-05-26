@@ -17,23 +17,34 @@ export type FloorPlan = {
   floorLabel?: string
   description?: string
   imageUrl?: string
+  imageWidthPx?: number
+  imageHeightPx?: number
   scaleMetersPerPx?: number
+  placementCount?: number
+  /** @deprecated alias for placementCount on legacy responses */
   cameraCount?: number
-  width?: number
-  height?: number
-  lat?: number
-  lng?: number
-  createdAt?: string
-  updatedAt?: string
+  lat?: number | null
+  lng?: number | null
+  revision?: number
+  createAt?: string
+  updateAt?: string
 }
+
+export type CameraAvailability = 'available' | 'unavailable'
 
 export type FloorPlanPlacement = {
   id: string
-  cameraId?: string
-  label?: string
-  x: number
-  y: number
-  yawDeg?: number
+  floorPlanId?: string
+  camId?: string
+  cameraName?: string
+  cameraStatus?: boolean
+  cameraAvailability?: CameraAvailability
+  xPx: number
+  yPx: number
+  rotationDeg?: number
+  revision?: number
+  createAt?: string
+  updateAt?: string
 }
 
 export type FloorPlanDetail = FloorPlan & {
@@ -105,18 +116,17 @@ export async function deleteFloorPlan(id: string): Promise<void> {
 // ─────────────────── Placements (camera markers on canvas) ───────────────────
 
 export type PlacementInput = {
-  cameraId: string
-  x: number
-  y: number
-  yawDeg?: number
-  label?: string
+  camId: string
+  xPx: number
+  yPx: number
+  rotationDeg?: number
 }
 
 export type PlacementUpdate = {
-  x?: number
-  y?: number
-  yawDeg?: number
-  label?: string
+  expectedRevision: number
+  xPx?: number
+  yPx?: number
+  rotationDeg?: number
 }
 
 export async function listPlacements(planId: string) {
@@ -139,9 +149,13 @@ export async function updatePlacement(planId: string, placementId: string, body:
   )
 }
 
-export async function removePlacement(planId: string, placementId: string) {
+export async function removePlacement(planId: string, placementId: string, expectedRevision: number) {
   await api(
     `/floorPlans/${encodeURIComponent(planId)}/placements/${encodeURIComponent(placementId)}`,
-    { method: 'DELETE' }
+    {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: { expectedRevision }
+    }
   )
 }
