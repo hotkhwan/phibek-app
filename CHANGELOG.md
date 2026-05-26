@@ -7,6 +7,23 @@ this project follows semantic versioning.
 ## [Unreleased]
 
 ### Added
+- intDash and floorPlans fit-1-screen monitor mode (no page scroll on lg+, internal scroll for feed/grid).
+- Permission-aware default landing: `/intDash` when granted, else `/dashboard`, else `/profile` — applied across `firstAllowedFallback`, auth callback, login, session-start, and keycloak login default.
+- `PUBLIC_DEBUG_MENU_ENABLED` env flag with `debug?: boolean` sidebar entry shape; `mqtt` + `biDash` hidden unless enabled.
+- Sidebar BACKEND column showing live `/version` (klynx-api) — replaces the removed REGION block.
+- Public `/live` route + LIVE link in landing nav (route moved from `(app)` to `(public)` group, added to `publicExact` allow-list).
+- intDash event timeline rendered as SVG stacked-area chart (5-min × 12 buckets, severity-colored) with HH:mm axis + legend.
+
+### Changed
+- Sidebar order: `intDash` now sits above `dashboard` to match the new default-landing priority; `landing` entry removed.
+- intDash bottom analytics tightened (timeline 4rem, donut 3.5rem) so map + events feed claim more vertical space.
+- intDash header replaced `DomainStarter` with an inline compact header; viewport-locked layout via `appContentClass` override.
+
+### Fixed
+- floorPlans card `<a href="/floorPlans/{id}">` now wraps with `resolve()` so the base path is preserved (was producing 404 on `/phibek/...` deploys).
+- `IntDashMap` shell `min-height: 27.5rem` dropped — was forcing the map taller than its parent flex container.
+- intDash footer regression: page no longer flips `appFooter` off; padding-bottom reserves space so content doesn't sit under the fixed footer.
+
 - Ported `/intDash` closer to the latest Klynx surface with five KPI cards, realtime map-style
   event markers, thumbnail feed/lightbox, and the B-4 analytics strip.
 - Added latest camera contract controls on `/systemDevices/cameras`: `mapVisibility` filtering,

@@ -4,8 +4,10 @@
      Per-plan placements (camera markers on canvas) are managed on the
      /floorPlans/[id] detail page (placement editor) — defer-iterating. -->
 <script lang="ts">
-  import { onMount } from 'svelte'
+  import { onDestroy, onMount } from 'svelte'
+  import { resolve } from '$app/paths'
   import { setPageTitle } from '$lib/utils/title'
+  import { appOptions } from '$lib/stores/appOptions'
   import Modal from '$lib/components/shared/Modal.svelte'
   import ConfirmDialog from '$lib/components/shared/ConfirmDialog.svelte'
   import {
@@ -197,14 +199,22 @@
     }
   }
 
+  let previousContentClass = ''
+
   onMount(() => {
     setPageTitle(m.navFloorPlans())
+    previousContentClass = $appOptions.appContentClass
+    $appOptions.appContentClass = 'p-0 d-flex flex-column overflow-hidden floorplans-monitor-content'
     void load()
+  })
+
+  onDestroy(() => {
+    $appOptions.appContentClass = previousContentClass
   })
 </script>
 
-<div class="page-shell">
-  <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+<div class="floorplans-monitor">
+  <div class="floorplans-head d-flex flex-wrap align-items-center justify-content-between gap-3">
     <div>
       <h1 class="page-header mb-1">
         <i class="bi bi-bounding-box text-theme me-2"></i>{m.navFloorPlans()}
@@ -216,8 +226,8 @@
     </button>
   </div>
 
-  <div class="card mb-3">
-    <div class="card-body py-3">
+  <div class="card floorplans-toolbar">
+    <div class="card-body py-2">
       <div class="d-flex flex-wrap gap-2 align-items-center">
         <div class="input-group input-group-sm" style="max-width: 320px">
           <span class="input-group-text"><i class="bi bi-search"></i></span>
@@ -244,9 +254,10 @@
   </div>
 
   {#if errorMsg}
-    <div class="alert alert-danger small mb-3">{errorMsg}</div>
+    <div class="alert alert-danger small mb-0">{errorMsg}</div>
   {/if}
 
+  <div class="floorplans-body">
   {#if loading && plans.length === 0}
     <div class="text-center py-5 text-body text-opacity-50">
       <div class="spinner-border spinner-border-sm me-2"></div>Loading…
@@ -268,7 +279,7 @@
       {#each plans as p (p.id)}
         <div class="col-lg-4 col-md-6">
           <div class="card h-100">
-            <a href={`/floorPlans/${p.id}`} class="text-decoration-none text-body">
+            <a href={resolve(`/floorPlans/${p.id}`)} class="text-decoration-none text-body">
               <div class="ratio ratio-16x9 bg-black bg-opacity-25 rounded-top overflow-hidden">
                 {#if p.imageUrl}
                   <img src={p.imageUrl} alt={p.name} style="object-fit: cover; width: 100%; height: 100%;" />
@@ -316,6 +327,7 @@
       {/each}
     </div>
   {/if}
+  </div>
 </div>
 
 <Modal bind:open={formOpen} title={formMode === 'create' ? 'Add floor plan' : 'Edit floor plan'} size="lg" dismissible={!formBusy}>
@@ -389,8 +401,47 @@
 />
 
 <style>
-  .page-shell { padding: 1rem; }
+  :global(.floorplans-monitor-content) {
+    background: transparent;
+  }
+
+  .floorplans-monitor {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    gap: 0.6rem;
+    padding: 0.6rem 1rem calc(var(--phibek-footer-height, 44px) + 0.6rem);
+  }
+
+  .floorplans-head,
+  .floorplans-toolbar {
+    flex: 0 0 auto;
+  }
+
+  .floorplans-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 0.25rem;
+  }
+
   .page-header { font-size: 1.4rem; font-weight: 700; }
   .spin { animation: spin 1s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 992px) {
+    :global(.floorplans-monitor-content) {
+      overflow: auto !important;
+      flex: 1;
+    }
+    .floorplans-monitor {
+      flex: 0 0 auto;
+      min-height: auto;
+    }
+    .floorplans-body {
+      overflow: visible;
+      flex: 0 0 auto;
+    }
+  }
 </style>

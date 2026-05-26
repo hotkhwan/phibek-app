@@ -19,7 +19,7 @@
   // When the user lands here directly with no returnTo, fall back to the
   // base-prefixed dashboard via resolve().
   const returnTo = $derived(
-    page.url.searchParams.get('returnTo') ?? resolve('/dashboard')
+    page.url.searchParams.get('returnTo') ?? resolve('/intDash')
   )
 
   onMount(async () => {

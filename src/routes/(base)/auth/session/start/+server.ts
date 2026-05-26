@@ -13,6 +13,6 @@ function normalizeBasePath(value?: string) {
 const BASE = normalizeBasePath(env.PUBLIC_APP_BASE_PATH)
 
 export const GET: RequestHandler = ({ url }) => {
-  const returnTo = url.searchParams.get('returnTo') || `${BASE}/dashboard`
+  const returnTo = url.searchParams.get('returnTo') || `${BASE}/intDash`
   throw redirect(302, `${BASE}/auth/login?returnTo=${encodeURIComponent(returnTo)}`)
 }

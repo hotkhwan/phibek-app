@@ -327,7 +327,7 @@
   .intdash-leaflet-shell {
     position: relative;
     height: 100%;
-    min-height: 27.5rem;
+    min-height: 0;
     overflow: hidden;
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 0.35rem;
