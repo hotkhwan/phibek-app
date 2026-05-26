@@ -241,6 +241,52 @@
     pendingCoord = null
   }
 
+  // ── Rotation ───────────────────────────────────────────────────────────────
+  // Live updates the local placement.rotationDeg so the SVG cone follows the
+  // slider; commitRotation() sends the PATCH only on release / number-input
+  // change so the BE isn't hit every degree of drag.
+  let rotationTimer: ReturnType<typeof setTimeout> | null = null
+
+  function normalizeAngle(deg: number) {
+    const n = Math.round(deg) % 360
+    return n < 0 ? n + 360 : n
+  }
+
+  function setRotation(deg: number) {
+    if (!selectedPlacementId) return
+    const next = normalizeAngle(deg)
+    placements = placements.map((pl) => (pl.id === selectedPlacementId ? { ...pl, rotationDeg: next } : pl))
+  }
+
+  function rotateSelected(delta: number) {
+    if (!selected) return
+    setRotation((selected.rotationDeg ?? 0) + delta)
+    commitRotation()
+  }
+
+  async function commitRotation() {
+    if (!selected || !selectedPlacementId) return
+    const targetId = selectedPlacementId
+    const targetDeg = selected.rotationDeg ?? 0
+    if (rotationTimer) clearTimeout(rotationTimer)
+    rotationTimer = setTimeout(async () => {
+      rotationTimer = null
+      saving = true
+      const { data, error } = await updatePlacement(id, targetId, {
+        expectedRevision: selected?.revision ?? 0,
+        rotationDeg: targetDeg
+      })
+      saving = false
+      if (error) {
+        notify.error('บันทึกองศาไม่สำเร็จ', error.message)
+        return
+      }
+      if (data?.details) {
+        placements = placements.map((pl) => (pl.id === targetId ? data.details : pl))
+      }
+    }, 250)
+  }
+
   // ── Delete ────────────────────────────────────────────────────────────────
   function openDelete(p: FloorPlanPlacement) {
     deleteTarget = p
@@ -423,10 +469,42 @@
             </div>
             <div class="card-body small">
               <div class="fw-semibold mb-1">{selected.cameraName ?? cameraNameById.get(selected.camId ?? '') ?? selected.camId ?? '—'}</div>
-              <div class="font-monospace text-body text-opacity-50">
+              <div class="font-monospace text-body text-opacity-50 mb-2">
                 x: {selected.xPx.toFixed(0)}px · y: {selected.yPx.toFixed(0)}px
               </div>
               {#if editMode}
+                <div class="rotation-control border-top pt-2 mt-2">
+                  <div class="d-flex align-items-center gap-2 mb-2">
+                    <i class="bi bi-arrow-counterclockwise text-body text-opacity-50"></i>
+                    <button type="button" class="btn btn-outline-secondary btn-xs px-2 py-0" onclick={() => rotateSelected(-15)}>-15°</button>
+                    <input
+                      type="range"
+                      min="0"
+                      max="359"
+                      step="1"
+                      class="form-range flex-grow-1"
+                      value={Math.round(selected.rotationDeg ?? 0)}
+                      oninput={(e) => setRotation(Number((e.currentTarget as HTMLInputElement).value))}
+                      onchange={() => commitRotation()}
+                    />
+                    <button type="button" class="btn btn-outline-secondary btn-xs px-2 py-0" onclick={() => rotateSelected(15)}>+15°</button>
+                  </div>
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="text-body text-opacity-50">Angle</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="359"
+                      step="1"
+                      class="form-control form-control-sm font-monospace"
+                      style="max-width:90px"
+                      value={Math.round(selected.rotationDeg ?? 0)}
+                      onchange={(e) => { setRotation(Number((e.currentTarget as HTMLInputElement).value)); commitRotation() }}
+                    />
+                    <span class="text-body text-opacity-50">°</span>
+                    <span class="text-body text-opacity-40 ms-auto">0°=east · 90°=north</span>
+                  </div>
+                </div>
                 <div class="d-grid gap-2 mt-3">
                   <button type="button" class="btn btn-outline-danger btn-sm" onclick={() => openDelete(selected!)}>
                     <i class="bi bi-trash me-1"></i> Remove marker

@@ -9,6 +9,7 @@
     countCameras,
     countIngestEvents,
     fetchIngestAggregate,
+    getIngestEventDetail,
     listIngestEvents,
     type IngestEvent,
     type IngestPictureCoordinate
@@ -145,11 +146,50 @@
         feedRes.error || analyticsRes.error
       if (firstError) errorMsg = firstError.message
       lastUpdatedAt = new Date()
+      void enrichEventsWithDetail()
     } catch (err) {
       errorMsg = err instanceof Error ? err.message : 'Unable to load AI event intelligence'
     } finally {
       loading = false
     }
+  }
+
+  // Match klynx useIntDashEvents.enrichFeedItem — the /events list endpoint
+  // returns EventRefItem without `detail`; we patch `detail.location` in by
+  // fetching `/events/{eventId}` per event so map markers can find geo coords.
+  const enrichedIds = new Set<string>()
+  const enrichInFlight = new Set<string>()
+  async function enrichEvent(eventId: string) {
+    if (enrichedIds.has(eventId) || enrichInFlight.has(eventId)) return
+    enrichInFlight.add(eventId)
+    try {
+      const { data } = await getIngestEventDetail(eventId)
+      const detail = data?.details
+      if (!detail) return
+      enrichedIds.add(eventId)
+      const patch = (list: IngestEvent[]) => list.map((e) => {
+        if ((e.eventId ?? e.id) !== eventId) return e
+        if (e.detail) return e
+        return { ...e, detail: detail as IngestEvent['detail'] }
+      })
+      events = patch(events)
+      analyticsEvents = patch(analyticsEvents)
+    } finally {
+      enrichInFlight.delete(eventId)
+    }
+  }
+
+  async function enrichEventsWithDetail() {
+    const ids = new Set<string>()
+    for (const e of analyticsEvents) {
+      const id = e.eventId ?? e.id
+      if (id && !e.detail) ids.add(id)
+    }
+    for (const e of events) {
+      const id = e.eventId ?? e.id
+      if (id && !e.detail) ids.add(id)
+    }
+    await Promise.all([...ids].map((id) => enrichEvent(id)))
   }
 
   function normalizeSeverity(value: unknown): Severity {
@@ -330,6 +370,7 @@
       seenRealtimeEvents.add(event.eventId)
       events = [event, ...events.filter((item) => (item.eventId ?? item.id) !== event.eventId)].slice(0, FEED_LIMIT)
       analyticsEvents = [event, ...analyticsEvents.filter((item) => (item.eventId ?? item.id) !== event.eventId)].slice(0, ANALYTICS_LIMIT)
+      void enrichEvent(event.eventId)
     }
     scheduleRefresh()
   }
