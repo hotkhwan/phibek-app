@@ -21,6 +21,7 @@ this project follows semantic versioning.
 - intDash header replaced `DomainStarter` with an inline compact header; viewport-locked layout via `appContentClass` override.
 
 ### Fixed
+- intDash enrichment now re-fetches `/events/{eventId}` whenever `event.detail.location` is missing, not just when `event.detail` is null. klynx-api's `EventRefView` returns a partial `detail` (e.g. `binaryRefs` for thumbnails) even when it couldn't reach gw at list time, so the previous "skip if detail exists" check stranded events that had thumbnails but no geo. Detail is merged (not replaced) so existing list-side fields like `binaryRefs` survive.
 - intDash now enriches each event ref with full `detail` via `GET /events/{eventId}` (same pattern as klynx `useIntDashEvents.enrichFeedItem`) — the list endpoint returns events without `detail`, so without enrichment the map had no `detail.location` to render markers from. Realtime WSS arrivals also trigger enrichment.
 - intDash event map now reads `event.detail.location.{lat,lng}` (matches klynx AiEventMap.vue) — events with geo enrichment now render markers instead of being filtered out.
 - floorPlan marker rendered as a klynx-style SVG camera (body + lens + FOV cone) that rotates with `rotationDeg`; colors driven by `cameraStatus` + `cameraAvailability`; camera name shown as a label below.

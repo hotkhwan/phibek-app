@@ -154,11 +154,22 @@
     }
   }
 
-  // Match klynx useIntDashEvents.enrichFeedItem — the /events list endpoint
-  // returns EventRefItem without `detail`; we patch `detail.location` in by
-  // fetching `/events/{eventId}` per event so map markers can find geo coords.
+  // Match klynx useIntDashEvents.enrichFeedItem — `/events` returns EventRefView
+  // which may include a partial `detail` (binaryRefs for thumbnails) but no
+  // `detail.location` when klynx-api couldn't reach gw at list time. Fetch
+  // `/events/{eventId}` per event so map markers always have geo coords when
+  // the underlying camera has geo enrichment turned on.
   const enrichedIds = new Set<string>()
   const enrichInFlight = new Set<string>()
+
+  function hasValidLocation(e: IngestEvent): boolean {
+    const loc = (e.detail as { location?: { lat?: unknown; lng?: unknown } } | undefined)?.location
+    if (!loc) return false
+    const lat = Number(loc.lat)
+    const lng = Number(loc.lng)
+    return Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0
+  }
+
   async function enrichEvent(eventId: string) {
     if (enrichedIds.has(eventId) || enrichInFlight.has(eventId)) return
     enrichInFlight.add(eventId)
@@ -167,10 +178,13 @@
       const detail = data?.details
       if (!detail) return
       enrichedIds.add(eventId)
+      // Merge fresh detail into the existing one so we keep binaryRefs etc.
+      // from the list response while adding location / source / geo from
+      // the per-event endpoint.
       const patch = (list: IngestEvent[]) => list.map((e) => {
         if ((e.eventId ?? e.id) !== eventId) return e
-        if (e.detail) return e
-        return { ...e, detail: detail as IngestEvent['detail'] }
+        const merged = { ...(e.detail ?? {}), ...(detail as object) } as IngestEvent['detail']
+        return { ...e, detail: merged }
       })
       events = patch(events)
       analyticsEvents = patch(analyticsEvents)
@@ -181,13 +195,9 @@
 
   async function enrichEventsWithDetail() {
     const ids = new Set<string>()
-    for (const e of analyticsEvents) {
+    for (const e of [...analyticsEvents, ...events]) {
       const id = e.eventId ?? e.id
-      if (id && !e.detail) ids.add(id)
-    }
-    for (const e of events) {
-      const id = e.eventId ?? e.id
-      if (id && !e.detail) ids.add(id)
+      if (id && !hasValidLocation(e)) ids.add(id)
     }
     await Promise.all([...ids].map((id) => enrichEvent(id)))
   }
