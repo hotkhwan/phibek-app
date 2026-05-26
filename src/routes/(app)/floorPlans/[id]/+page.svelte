@@ -7,8 +7,9 @@
        a resolution-independent position.
      BE: GET / POST / PATCH / DELETE /kapi/floorPlans/{id}/placements -->
 <script lang="ts">
-  import { onMount, tick } from 'svelte'
+  import { onMount } from 'svelte'
   import { page } from '$app/state'
+  import { resolve } from '$app/paths'
   import { setPageTitle } from '$lib/utils/title'
   import Modal from '$lib/components/shared/Modal.svelte'
   import ConfirmDialog from '$lib/components/shared/ConfirmDialog.svelte'
@@ -40,18 +41,12 @@
   // Pending click → camera picker
   let pickerOpen = $state(false)
   let pickerSearch = $state('')
-  let pendingCoord = $state<{ x: number; y: number } | null>(null)
+  let pendingCoord = $state<{ xPx: number; yPx: number } | null>(null)
 
   // Delete confirm
   let deleteOpen = $state(false)
   let deleteBusy = $state(false)
   let deleteTarget = $state<FloorPlanPlacement | null>(null)
-
-  // Label edit modal
-  let labelOpen = $state(false)
-  let labelBusy = $state(false)
-  let labelTarget = $state<FloorPlanPlacement | null>(null)
-  let labelValue = $state('')
 
   // Drag state
   let dragId = $state<string | null>(null)
@@ -62,13 +57,21 @@
   const cameraNameById = $derived(new Map(cameras.map((c) => [c.camId ?? c.id, c.name])))
   const placementsCount = $derived(placements.length)
   const selected = $derived(placements.find((p) => p.id === selectedPlacementId) ?? null)
-  const cameraIdsInUse = $derived(new Set(placements.map((p) => p.cameraId).filter((x): x is string => !!x)))
+  const cameraIdsInUse = $derived(new Set(placements.map((p) => p.camId).filter((x): x is string => !!x)))
   const filteredCameras = $derived.by(() => {
     const q = pickerSearch.trim().toLowerCase()
     return cameras
       .filter((c) => !cameraIdsInUse.has(c.camId ?? c.id))
       .filter((c) => !q || (c.name + ' ' + (c.brand ?? '') + ' ' + (c.district ?? '')).toLowerCase().includes(q))
   })
+
+  function placementPct(p: FloorPlanPlacement): { left: number; top: number } {
+    const w = plan?.imageWidthPx
+    const h = plan?.imageHeightPx
+    if (w && h) return { left: (p.xPx / w) * 100, top: (p.yPx / h) * 100 }
+    // Fallback for legacy responses where xPx/yPx are already percent.
+    return { left: p.xPx, top: p.yPx }
+  }
 
   async function load() {
     if (!id) return
@@ -103,13 +106,15 @@
     cameras = data?.details?.items ?? []
   }
 
-  function coordFromEvent(e: MouseEvent | PointerEvent): { x: number; y: number } | null {
+  function coordFromEvent(e: MouseEvent | PointerEvent): { xPx: number; yPx: number } | null {
     if (!canvasEl) return null
     const rect = canvasEl.getBoundingClientRect()
-    if (!rect.width || !rect.height) return null
-    const x = ((e.clientX - rect.left) / rect.width) * 100
-    const y = ((e.clientY - rect.top) / rect.height) * 100
-    return { x: clamp(x, 0, 100), y: clamp(y, 0, 100) }
+    const w = plan?.imageWidthPx
+    const h = plan?.imageHeightPx
+    if (!rect.width || !rect.height || !w || !h) return null
+    const xPx = ((e.clientX - rect.left) / rect.width) * w
+    const yPx = ((e.clientY - rect.top) / rect.height) * h
+    return { xPx: clamp(xPx, 0, w), yPx: clamp(yPx, 0, h) }
   }
 
   function clamp(v: number, min: number, max: number) {
@@ -152,7 +157,7 @@
     dragMoved = true
     const coord = coordFromEvent(e)
     if (!coord) return
-    placements = placements.map((pl) => (pl.id === p.id ? { ...pl, x: coord.x, y: coord.y } : pl))
+    placements = placements.map((pl) => (pl.id === p.id ? { ...pl, xPx: coord.xPx, yPx: coord.yPx } : pl))
   }
 
   async function onMarkerPointerUp(p: FloorPlanPlacement, e: PointerEvent) {
@@ -164,20 +169,30 @@
     const updated = placements.find((pl) => pl.id === p.id)
     if (!updated) return
     saving = true
-    const { error } = await updatePlacement(id, p.id, { x: updated.x, y: updated.y })
+    const { data, error } = await updatePlacement(id, p.id, {
+      expectedRevision: updated.revision ?? 0,
+      xPx: updated.xPx,
+      yPx: updated.yPx
+    })
     saving = false
-    if (error) notify.error('บันทึกตำแหน่งไม่สำเร็จ', error.message)
+    if (error) {
+      notify.error('บันทึกตำแหน่งไม่สำเร็จ', error.message)
+      return
+    }
+    if (data?.details) {
+      placements = placements.map((pl) => (pl.id === p.id ? data.details : pl))
+    }
   }
 
   // ── Add via picker ────────────────────────────────────────────────────────
   async function pickCamera(c: Camera) {
     if (!pendingCoord) return
     saving = true
-    const cameraId = c.camId ?? c.id
+    const camId = c.camId ?? c.id
     const { data, error } = await addPlacement(id, {
-      cameraId,
-      x: pendingCoord.x,
-      y: pendingCoord.y
+      camId,
+      xPx: pendingCoord.xPx,
+      yPx: pendingCoord.yPx
     })
     saving = false
     if (error) {
@@ -211,10 +226,10 @@
     if (!deleteTarget) return
     deleteBusy = true
     try {
-      await removePlacement(id, deleteTarget.id)
+      await removePlacement(id, deleteTarget.id, deleteTarget.revision ?? 0)
       placements = placements.filter((pl) => pl.id !== deleteTarget!.id)
       if (selectedPlacementId === deleteTarget.id) selectedPlacementId = null
-      notify.success('ลบหมุดแล้ว', cameraNameById.get(deleteTarget.cameraId ?? '') ?? '')
+      notify.success('ลบหมุดแล้ว', deleteTarget.cameraName ?? cameraNameById.get(deleteTarget.camId ?? '') ?? '')
       deleteOpen = false
       deleteTarget = null
     } catch (err) {
@@ -222,31 +237,6 @@
       notify.error('ลบไม่สำเร็จ', msg)
     } finally {
       deleteBusy = false
-    }
-  }
-
-  // ── Label edit ────────────────────────────────────────────────────────────
-  function openLabelEdit(p: FloorPlanPlacement) {
-    labelTarget = p
-    labelValue = p.label ?? ''
-    labelOpen = true
-  }
-
-  async function saveLabel() {
-    if (!labelTarget) return
-    labelBusy = true
-    try {
-      const { error } = await updatePlacement(id, labelTarget.id, { label: labelValue.trim() || undefined })
-      if (error) throw new Error(error.message)
-      placements = placements.map((pl) => (pl.id === labelTarget!.id ? { ...pl, label: labelValue.trim() || undefined } : pl))
-      labelOpen = false
-      labelTarget = null
-      notify.success('อัปเดตป้ายกำกับสำเร็จ', '')
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      notify.error('อัปเดตป้ายไม่สำเร็จ', msg)
-    } finally {
-      labelBusy = false
     }
   }
 
@@ -260,7 +250,7 @@
 <div class="page-shell">
   <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
     <div>
-      <a href="/floorPlans" class="btn btn-link btn-sm p-0 mb-1">
+      <a href={resolve('/floorPlans')} class="btn btn-link btn-sm p-0 mb-1">
         <i class="bi bi-chevron-left me-1"></i> All floor plans
       </a>
       <h1 class="page-header mb-0">
@@ -311,11 +301,12 @@
               >
                 <img src={plan.imageUrl} alt={plan.name} class="w-100 d-block" bind:this={imageEl} draggable="false" />
                 {#each placements as p (p.id)}
+                  {@const pos = placementPct(p)}
                   <!-- svelte-ignore a11y_click_events_have_key_events -->
                   <div
                     class="placement-marker"
                     class:selected={selectedPlacementId === p.id}
-                    style="left: {p.x}%; top: {p.y}%;"
+                    style="left: {pos.left}%; top: {pos.top}%;"
                     onpointerdown={(e) => onMarkerPointerDown(p, e)}
                     onpointermove={(e) => onMarkerPointerMove(p, e)}
                     onpointerup={(e) => onMarkerPointerUp(p, e)}
@@ -323,11 +314,11 @@
                     onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectPlacement(p.id) } }}
                     role="button"
                     tabindex="0"
-                    aria-label={`Camera marker ${cameraNameById.get(p.cameraId ?? '') ?? p.cameraId ?? p.id}`}
+                    aria-label={`Camera marker ${p.cameraName ?? cameraNameById.get(p.camId ?? '') ?? p.camId ?? p.id}`}
                   >
                     <i class="bi bi-camera-video"></i>
-                    {#if p.label}
-                      <span class="placement-label">{p.label}</span>
+                    {#if p.cameraName}
+                      <span class="placement-label">{p.cameraName}</span>
                     {/if}
                   </div>
                 {/each}
@@ -369,9 +360,9 @@
                 <dt class="fw-semibold">Scale</dt>
                 <dd class="mb-2">{plan.scaleMetersPerPx} m/px</dd>
               {/if}
-              {#if plan.updatedAt}
+              {#if plan.updateAt}
                 <dt class="fw-semibold">Updated</dt>
-                <dd class="mb-0">{new Date(plan.updatedAt).toLocaleString()}</dd>
+                <dd class="mb-0">{new Date(plan.updateAt).toLocaleString()}</dd>
               {/if}
             </dl>
           </div>
@@ -390,18 +381,12 @@
               <button type="button" class="btn-close btn-close-sm" aria-label="Close" onclick={() => (selectedPlacementId = null)}></button>
             </div>
             <div class="card-body small">
-              <div class="fw-semibold mb-1">{cameraNameById.get(selected.cameraId ?? '') ?? selected.cameraId ?? '—'}</div>
-              {#if selected.label}
-                <div class="text-body text-opacity-65 mb-2">{selected.label}</div>
-              {/if}
+              <div class="fw-semibold mb-1">{selected.cameraName ?? cameraNameById.get(selected.camId ?? '') ?? selected.camId ?? '—'}</div>
               <div class="font-monospace text-body text-opacity-50">
-                x: {selected.x.toFixed(2)}% · y: {selected.y.toFixed(2)}%
+                x: {selected.xPx.toFixed(0)}px · y: {selected.yPx.toFixed(0)}px
               </div>
               {#if editMode}
                 <div class="d-grid gap-2 mt-3">
-                  <button type="button" class="btn btn-outline-theme btn-sm" onclick={() => openLabelEdit(selected!)}>
-                    <i class="bi bi-pencil me-1"></i> Edit label
-                  </button>
                   <button type="button" class="btn btn-outline-danger btn-sm" onclick={() => openDelete(selected!)}>
                     <i class="bi bi-trash me-1"></i> Remove marker
                   </button>
@@ -454,24 +439,6 @@
   {/snippet}
   {#snippet footer()}
     <button type="button" class="btn btn-outline-secondary btn-sm" onclick={cancelPicker} disabled={saving}>Cancel</button>
-  {/snippet}
-</Modal>
-
-<!-- Edit label -->
-<Modal bind:open={labelOpen} title="Marker label" size="sm" dismissible={!labelBusy}>
-  {#snippet body()}
-    <div>
-      <label class="form-label" for="placement-label">Label</label>
-      <input id="placement-label" class="form-control form-control-sm" bind:value={labelValue} placeholder="e.g. Lobby entrance" />
-      <div class="form-text">Optional. Shown above the marker on the canvas.</div>
-    </div>
-  {/snippet}
-  {#snippet footer()}
-    <button type="button" class="btn btn-outline-secondary btn-sm" onclick={() => (labelOpen = false)} disabled={labelBusy}>Cancel</button>
-    <button type="button" class="btn btn-theme btn-sm" onclick={saveLabel} disabled={labelBusy}>
-      {#if labelBusy}<span class="spinner-border spinner-border-sm me-1"></span>{/if}
-      Save label
-    </button>
   {/snippet}
 </Modal>
 
