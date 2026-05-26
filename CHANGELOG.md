@@ -4,6 +4,16 @@ All notable changes to the **PHIBEK · winn** SvelteKit FE.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 this project follows semantic versioning.
 
+## [0.19.0] — 2026-05-26
+
+Cuts a version so the sidebar shows the new build out of the BACKEND row's
+neighbor (PLATFORM v0.18.0 → v0.19.0). Aggregates everything under
+"Unreleased" below into a tagged release.
+
+### Fixed (0.19.0)
+- `IntDashMap` reactivity: `map` is now `$state` so the `$effect` re-fires after the async leaflet init finishes. Previously, if events arrived before leaflet was ready, the effect bailed once (`map=null`) and never re-ran when `map` got set — markers stayed at 0 even when `event.detail.location` was populated.
+- `IntDashMap` LIVE chip now reads `{markerCount} / {receivedEventCount} หมุด` so it's obvious whether the events prop is reaching the component vs whether marker creation is failing downstream.
+
 ## [Unreleased]
 
 ### Added

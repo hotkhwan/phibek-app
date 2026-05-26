@@ -56,7 +56,10 @@
 
   let mapEl: HTMLDivElement | null = null
   let L: typeof import('leaflet') | null = null
-  let map: import('leaflet').Map | null = null
+  // $state so the $effect below re-fires after ensureInit() finishes the
+  // async leaflet import + creates the map; otherwise a race where events
+  // arrive before `map` is set leaves the markers un-seeded.
+  let map = $state<import('leaflet').Map | null>(null)
   let clusterGroup: import('leaflet').MarkerClusterGroup | null = null
   let currentTileLayer: import('leaflet').TileLayer | null = null
   let markerById = new Map<string, import('leaflet').Marker>()
@@ -64,6 +67,7 @@
   let insertionOrder: string[] = []
   let sawAnyMarker = $state(false)
   let markerCount = $state(0)
+  let receivedEventCount = $state(0)
   let liveStatusLabel = $derived($wsHubStatus === 'on' ? 'LIVE' : $wsHubStatus === 'reconnecting' ? 'Syncing' : $wsHubStatus === 'error' ? 'WSS error' : 'REST')
   let unsubscribeRealtime: (() => void) | null = null
   let tick: ReturnType<typeof setInterval> | null = null
@@ -266,6 +270,7 @@
   }
 
   $effect(() => {
+    receivedEventCount = events.length
     if (!map) return
     seedFromRest(events)
   })
@@ -304,11 +309,11 @@
 <div class="intdash-leaflet-shell">
   <div bind:this={mapEl} class="intdash-leaflet-map"></div>
 
-  <div class="intdash-map-chip intdash-map-live">
+  <div class="intdash-map-chip intdash-map-live" title={`${receivedEventCount} events received from page`}>
     <span class="status-dot" class:on={$wsHubStatus === 'on'} class:warn={$wsHubStatus === 'reconnecting'} class:error={$wsHubStatus === 'error'}></span>
     <span>{liveStatusLabel}</span>
     <span class="opacity-50">·</span>
-    <span>{markerCount} หมุด</span>
+    <span>{markerCount} / {receivedEventCount} หมุด</span>
   </div>
 
   <div class="intdash-map-chip intdash-map-legend">
