@@ -894,10 +894,13 @@
     --danger: #ff405a;
     --warning: #ff9f1c;
     --blue: #39a2ff;
+    display: flex;
+    flex-direction: column;
     flex: 1;
-    min-height: 100%;
-    overflow: auto;
-    padding: clamp(16px, 2vw, 28px);
+    min-height: 0;
+    overflow: hidden;
+    padding: clamp(10px, 1.3vw, 18px);
+    gap: 10px;
     color: var(--dash-text);
     background:
       radial-gradient(circle at 75% -10%, rgba(57, 162, 255, .12), transparent 32%),
@@ -943,14 +946,15 @@
   .dashboard-hero {
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 18px;
+    gap: 12px;
+    margin-bottom: 0;
+    flex: 0 0 auto;
   }
 
   .dashboard-hero h1 {
     margin: 0;
     color: var(--dash-text);
-    font-size: clamp(24px, 2.1vw, 34px);
+    font-size: clamp(16px, 1.4vw, 22px);
     font-weight: 800;
     letter-spacing: 0;
     line-height: 1.05;
@@ -962,9 +966,9 @@
   }
 
   .dashboard-hero p {
-    margin: 8px 0 0;
+    margin: 4px 0 0;
     color: var(--dash-muted);
-    font-size: 13px;
+    font-size: 12px;
     text-transform: none;
   }
 
@@ -976,17 +980,17 @@
 
   .control-button,
   .select-pill {
-    min-height: 42px;
+    min-height: 32px;
     border: 1px solid var(--panel-border-strong);
-    border-radius: 8px;
+    border-radius: 6px;
     background: rgba(8, 20, 30, .62);
     color: var(--dash-text);
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
-    padding: 0 14px;
-    font-size: 13px;
+    gap: 8px;
+    padding: 0 10px;
+    font-size: 12px;
     line-height: 1;
   }
 
@@ -1056,8 +1060,9 @@
 
   .status-strip {
     align-items: stretch;
-    gap: 12px;
-    margin-bottom: 14px;
+    gap: 10px;
+    margin-bottom: 0;
+    flex: 0 0 auto;
   }
 
   .status-tile,
@@ -1072,10 +1077,10 @@
   .status-tile {
     flex: 1;
     align-items: center;
-    gap: 18px;
-    min-width: 180px;
-    min-height: 88px;
-    padding: 16px 18px;
+    gap: 12px;
+    min-width: 160px;
+    min-height: 64px;
+    padding: 10px 14px;
     overflow: hidden;
   }
 
@@ -1127,22 +1132,38 @@
   .top-grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(300px, 420px);
-    gap: 14px;
-    margin-bottom: 14px;
+    gap: 10px;
+    margin-bottom: 0;
+    flex: 1 1 0;
+    min-height: 0;
   }
 
   .middle-grid {
     display: grid;
     grid-template-columns: minmax(280px, .9fr) minmax(420px, 1.35fr) minmax(300px, 1.1fr);
-    gap: 14px;
-    margin-bottom: 14px;
+    gap: 10px;
+    margin-bottom: 0;
+    flex: 1 1 0;
+    min-height: 0;
   }
 
   .bottom-grid {
     display: grid;
     grid-template-columns: minmax(520px, 1.55fr) minmax(290px, .85fr) minmax(300px, .9fr) minmax(300px, .9fr);
-    gap: 14px;
-    margin-bottom: 14px;
+    gap: 10px;
+    margin-bottom: 0;
+    flex: 1 1 0;
+    min-height: 0;
+  }
+
+  .top-grid > .panel,
+  .middle-grid > .panel,
+  .bottom-grid > .panel,
+  .callout-stack > .panel {
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
   }
 
   .panel {
@@ -1180,8 +1201,9 @@
 
   .campaign-chart {
     position: relative;
-    min-height: 332px;
-    padding: 24px 54px 58px 46px;
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 16px 50px 38px 42px;
   }
 
   .axis {
@@ -1206,7 +1228,9 @@
 
   .chart-field {
     position: relative;
-    height: 250px;
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
     overflow: hidden;
     border-bottom: 1px solid var(--grid-line);
   }
@@ -1625,12 +1649,14 @@
   }
 
   .activity-panel {
-    min-height: 224px;
+    min-height: 0;
   }
 
   .activity-table-wrap {
-    overflow-x: auto;
-    padding: 0 16px 16px;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    padding: 0 16px 12px;
   }
 
   .activity-table {
@@ -1834,11 +1860,17 @@
     align-items: center;
     justify-content: space-between;
     gap: 0;
-    min-height: 54px;
+    min-height: 40px;
     border: 1px solid var(--panel-border);
     border-radius: 8px;
     background: var(--panel-bg);
     overflow: hidden;
+    flex: 0 0 auto;
+  }
+
+  .health-bar div {
+    min-height: 40px;
+    padding: 0 14px;
   }
 
   .health-bar div {
@@ -1868,6 +1900,16 @@
   }
 
   @media (max-width: 1439.98px) {
+    .system-dashboard {
+      overflow: auto;
+    }
+
+    .top-grid,
+    .middle-grid,
+    .bottom-grid {
+      flex: 0 0 auto;
+    }
+
     .status-strip {
       flex-wrap: wrap;
     }
@@ -1884,6 +1926,16 @@
     .callout-stack,
     .activity-panel {
       grid-column: 1 / -1;
+    }
+
+    .campaign-chart {
+      min-height: 280px;
+    }
+
+    .activity-table-wrap {
+      flex: 0 0 auto;
+      overflow-x: auto;
+      overflow-y: visible;
     }
   }
 

@@ -15,6 +15,7 @@ this project follows semantic versioning.
 - intDash event timeline rendered as SVG stacked-area chart (5-min × 12 buckets, severity-colored) with HH:mm axis + legend.
 
 ### Changed
+- `dashboard` analytics surface fit-1-screen on lg+: flex-column shell, top/middle/bottom grids share remaining height, activity table scrolls internally; falls back to natural scroll at < 1440px.
 - Sidebar order: `intDash` now sits above `dashboard` to match the new default-landing priority; `landing` entry removed.
 - intDash bottom analytics tightened (timeline 4rem, donut 3.5rem) so map + events feed claim more vertical space.
 - intDash header replaced `DomainStarter` with an inline compact header; viewport-locked layout via `appContentClass` override.
