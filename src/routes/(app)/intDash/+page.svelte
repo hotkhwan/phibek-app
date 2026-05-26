@@ -179,7 +179,15 @@
   }
 
   function eventLocation(event: IngestEvent) {
-    const location = event.location ?? event.detail?.payload?.location
+    // Klynx contract: normalized events expose `detail.location.{lat,lng}`
+    // (gateway-api normalizes geo enrichment into the `detail` envelope).
+    // Older code-paths may carry the same shape on `event.location` or
+    // nested under `payload.location` — keep all three for forwards-compat.
+    const detailLocation = (event.detail as { location?: { lat?: unknown; lng?: unknown } } | undefined)?.location
+    const location =
+      event.location ??
+      detailLocation ??
+      event.detail?.payload?.location
     if (location && typeof location === 'object' && 'lat' in location && 'lng' in location) {
       const lat = Number((location as { lat?: unknown }).lat)
       const lng = Number((location as { lng?: unknown }).lng)

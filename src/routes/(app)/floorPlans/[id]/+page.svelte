@@ -73,6 +73,31 @@
     return { left: p.xPx, top: p.yPx }
   }
 
+  type MarkerStatus = { fill: string; fillDark: string; cone: string; coneStroke: string }
+  const ONLINE: MarkerStatus = {
+    fill: '#22c55e',
+    fillDark: '#15803d',
+    cone: 'rgba(34, 197, 94, 0.32)',
+    coneStroke: 'rgba(34, 197, 94, 0.85)'
+  }
+  const OFFLINE: MarkerStatus = {
+    fill: '#ef4444',
+    fillDark: '#991b1b',
+    cone: 'rgba(239, 68, 68, 0.28)',
+    coneStroke: 'rgba(239, 68, 68, 0.85)'
+  }
+  const UNAVAILABLE: MarkerStatus = {
+    fill: '#9ca3af',
+    fillDark: '#4b5563',
+    cone: 'rgba(156, 163, 175, 0.22)',
+    coneStroke: 'rgba(156, 163, 175, 0.85)'
+  }
+
+  function markerStatus(p: FloorPlanPlacement): MarkerStatus {
+    if (p.cameraAvailability === 'unavailable') return UNAVAILABLE
+    return p.cameraStatus ? ONLINE : OFFLINE
+  }
+
   async function load() {
     if (!id) return
     loading = true
@@ -302,6 +327,7 @@
                 <img src={plan.imageUrl} alt={plan.name} class="w-100 d-block" bind:this={imageEl} draggable="false" />
                 {#each placements as p (p.id)}
                   {@const pos = placementPct(p)}
+                  {@const status = markerStatus(p)}
                   <!-- svelte-ignore a11y_click_events_have_key_events -->
                   <div
                     class="placement-marker"
@@ -316,10 +342,25 @@
                     tabindex="0"
                     aria-label={`Camera marker ${p.cameraName ?? cameraNameById.get(p.camId ?? '') ?? p.camId ?? p.id}`}
                   >
-                    <i class="bi bi-camera-video"></i>
-                    {#if p.cameraName}
-                      <span class="placement-label">{p.cameraName}</span>
+                    <svg
+                      class="placement-marker-svg"
+                      viewBox="-28 -28 56 56"
+                      style="transform: rotate({90 - (p.rotationDeg ?? 0)}deg)"
+                    >
+                      <!-- FOV cone (~60° wide, extending forward) -->
+                      <path d="M 0 -10 L -18 -26 A 22 22 0 0 1 18 -26 Z" fill={status.cone} stroke={status.coneStroke} stroke-width="1" />
+                      <!-- Body: rounded rectangle (top view of camera housing) -->
+                      <rect x="-10" y="-4" width="20" height="14" rx="3" fill={status.fill} stroke="white" stroke-width="2" />
+                      <!-- Mount arm behind the body -->
+                      <rect x="-2" y="8" width="4" height="5" fill={status.fill} stroke="white" stroke-width="2" />
+                      <!-- Lens at front -->
+                      <circle cx="0" cy="-6" r="5" fill={status.fillDark} stroke="white" stroke-width="1.5" />
+                      <circle cx="0" cy="-6" r="2" fill="white" opacity="0.7" />
+                    </svg>
+                    {#if selectedPlacementId === p.id}
+                      <span class="placement-marker-ring"></span>
                     {/if}
+                    <span class="placement-marker-label">{p.cameraName ?? cameraNameById.get(p.camId ?? '') ?? p.camId ?? '—'}</span>
                   </div>
                 {/each}
                 {#if editMode}
@@ -475,38 +516,52 @@
   .placement-marker {
     position: absolute;
     transform: translate(-50%, -50%);
-    display: inline-flex;
-    align-items: center;
-    gap: .35rem;
-    padding: .25rem .55rem;
-    border-radius: 999px;
-    background: var(--bs-warning);
-    color: var(--bs-dark);
-    border: 2px solid #fff;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, .3);
+    width: 56px;
+    height: 56px;
     cursor: pointer;
-    font-size: .82rem;
-    line-height: 1;
-    transition: box-shadow .15s, transform .15s;
     z-index: 2;
+    touch-action: none;
   }
 
-  .placement-marker:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, .4);
+  .placement-marker-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    transition: transform .15s ease-out;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .35));
   }
 
-  .placement-marker.selected {
-    box-shadow: 0 0 0 3px rgba(var(--bs-primary-rgb), .6), 0 4px 12px rgba(0, 0, 0, .4);
-    z-index: 3;
+  .placement-marker-ring {
+    position: absolute;
+    inset: -4px;
+    border-radius: 999px;
+    box-shadow: 0 0 0 3px rgba(var(--bs-theme-rgb), .85), 0 0 0 5px rgba(0, 0, 0, .25);
+    pointer-events: none;
+  }
+
+  .placement-marker-label {
+    position: absolute;
+    left: 50%;
+    top: 100%;
+    transform: translateX(-50%);
+    margin-top: 2px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, .72);
+    color: #fff;
+    font-size: 10px;
+    line-height: 1.3;
+    white-space: nowrap;
+    pointer-events: none;
   }
 
   .placement-canvas.edit-mode .placement-marker {
     cursor: grab;
   }
 
-  .placement-label {
-    font-size: .72rem;
-    font-weight: 600;
+  .placement-canvas.edit-mode .placement-marker:active {
+    cursor: grabbing;
   }
 
   .edit-hint {

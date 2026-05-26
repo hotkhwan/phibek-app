@@ -19,7 +19,7 @@
     location?: { lat?: unknown; lng?: unknown }
     detail?: {
       location?: { lat?: unknown; lng?: unknown }
-      payload?: Record<string, unknown>
+      payload?: Record<string, unknown> & { location?: { lat?: unknown; lng?: unknown } }
     }
     payload?: Record<string, unknown>
   }

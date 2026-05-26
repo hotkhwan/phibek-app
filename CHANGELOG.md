@@ -21,6 +21,8 @@ this project follows semantic versioning.
 - intDash header replaced `DomainStarter` with an inline compact header; viewport-locked layout via `appContentClass` override.
 
 ### Fixed
+- intDash event map now reads `event.detail.location.{lat,lng}` (matches klynx AiEventMap.vue) — events with geo enrichment now render markers instead of being filtered out.
+- floorPlan marker rendered as a klynx-style SVG camera (body + lens + FOV cone) that rotates with `rotationDeg`; colors driven by `cameraStatus` + `cameraAvailability`; camera name shown as a label below.
 - floorPlans card `<a href="/floorPlans/{id}">` now wraps with `resolve()` so the base path is preserved (was producing 404 on `/phibek/...` deploys).
 - `IntDashMap` shell `min-height: 27.5rem` dropped — was forcing the map taller than its parent flex container.
 - intDash footer regression: page no longer flips `appFooter` off; padding-bottom reserves space so content doesn't sit under the fixed footer.
