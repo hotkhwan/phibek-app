@@ -13,6 +13,7 @@ neighbor (PLATFORM v0.18.0 → v0.19.0). Aggregates everything under
 ### Fixed (0.19.0)
 - `IntDashMap` reactivity: `map` is now `$state` so the `$effect` re-fires after the async leaflet init finishes. Previously, if events arrived before leaflet was ready, the effect bailed once (`map=null`) and never re-ran when `map` got set — markers stayed at 0 even when `event.detail.location` was populated.
 - `IntDashMap` LIVE chip now reads `{markerCount} / {receivedEventCount} หมุด` so it's obvious whether the events prop is reaching the component vs whether marker creation is failing downstream.
+- `IntDashMap` popup now shows the event picture. Leaflet popups are HTML strings, so a plain `<img src>` can't carry the Bearer header that `/api/v1/files/{bucket}/{object}` requires. Mirror klynx `hydrateMarkerPopupImage`: emit a placeholder `<div class="intdash-popup-img" data-bucket data-object>`, hook `map.on('popupopen')`, fetch the file with Bearer + `X-Active-Org`, swap to a blob URL, and overlay the orange `pictureCoordinates` boxes on load. Blob URLs cached per `bucket/object`; revoked on component destroy.
 
 ## [Unreleased]
 
