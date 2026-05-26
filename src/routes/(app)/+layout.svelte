@@ -64,8 +64,8 @@
 
   function firstAllowedFallback() {
     const input = accessInput()
-    const dashboard = evaluatePageAccess('/dashboard', input)
-    if (dashboard.allowed) return '/dashboard'
+    if (evaluatePageAccess('/intDash', input).allowed) return '/intDash'
+    if (evaluatePageAccess('/dashboard', input).allowed) return '/dashboard'
     return '/profile'
   }
 

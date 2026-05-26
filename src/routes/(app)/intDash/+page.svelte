@@ -2,13 +2,14 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte'
   import { setPageTitle } from '$lib/utils/title'
-  import DomainStarter from '$lib/components/shared/DomainStarter.svelte'
+  import { appOptions } from '$lib/stores/appOptions'
   import ProtectedImage from '$lib/components/shared/ProtectedImage.svelte'
   import IntDashMap from '$lib/components/intDash/IntDashMap.svelte'
   import {
     countCameras,
     countIngestEvents,
     fetchIngestAggregate,
+    getIngestEventDetail,
     listIngestEvents,
     type IngestEvent,
     type IngestPictureCoordinate
@@ -68,9 +69,40 @@
   const mapEvents = $derived(analyticsEvents.filter((event) => !!eventLocation(event)).slice(0, 200))
   const analytics = $derived(buildAnalytics(analyticsEvents))
   const lightboxEvent = $derived(lightboxIndex === null ? null : events[lightboxIndex] ?? null)
-  const timelineMax = $derived.by(() => Math.max(1, ...analytics.timeline.buckets.map((_bucket, index) =>
-    severityOrder.reduce((sum, severity) => sum + analytics.timeline.series[severity][index], 0)
-  )))
+  type TimelineLayer = { severity: Severity; polygon: string; line: string }
+  type TimelineModel = { layers: TimelineLayer[]; max: number; hasData: boolean }
+  const TIMELINE_VIEW_W = 240
+  const TIMELINE_VIEW_H = 80
+  const timelineModel = $derived.by<TimelineModel>(() => {
+    const n = analytics.timeline.buckets.length
+    if (!n) return { layers: [], max: 1, hasData: false }
+    const totals = new Array<number>(n).fill(0)
+    for (const sev of severityOrder) {
+      const series = analytics.timeline.series[sev]
+      for (let i = 0; i < n; i++) totals[i] += series[i] ?? 0
+    }
+    const max = Math.max(1, ...totals)
+    const hasData = totals.some((v) => v > 0)
+    const cumulative = new Array<number>(n).fill(0)
+    const layers: TimelineLayer[] = []
+    for (const severity of severityOrder) {
+      const series = analytics.timeline.series[severity]
+      if (severity !== 'high' && series.every((v) => v === 0)) continue
+      const topY: string[] = []
+      const bottomY: string[] = []
+      for (let i = 0; i < n; i++) {
+        const value = series[i] ?? 0
+        const x = n === 1 ? TIMELINE_VIEW_W / 2 : (i / (n - 1)) * TIMELINE_VIEW_W
+        const yTop = TIMELINE_VIEW_H * (1 - (cumulative[i] + value) / max)
+        const yBottom = TIMELINE_VIEW_H * (1 - cumulative[i] / max)
+        topY.push(`${x.toFixed(2)},${yTop.toFixed(2)}`)
+        bottomY.unshift(`${x.toFixed(2)},${yBottom.toFixed(2)}`)
+        cumulative[i] += value
+      }
+      layers.push({ severity, polygon: [...topY, ...bottomY].join(' '), line: topY.join(' ') })
+    }
+    return { layers, max, hasData }
+  })
 
   function startOfTodayISO() {
     const date = new Date()
@@ -114,11 +146,60 @@
         feedRes.error || analyticsRes.error
       if (firstError) errorMsg = firstError.message
       lastUpdatedAt = new Date()
+      void enrichEventsWithDetail()
     } catch (err) {
       errorMsg = err instanceof Error ? err.message : 'Unable to load AI event intelligence'
     } finally {
       loading = false
     }
+  }
+
+  // Match klynx useIntDashEvents.enrichFeedItem — `/events` returns EventRefView
+  // which may include a partial `detail` (binaryRefs for thumbnails) but no
+  // `detail.location` when klynx-api couldn't reach gw at list time. Fetch
+  // `/events/{eventId}` per event so map markers always have geo coords when
+  // the underlying camera has geo enrichment turned on.
+  const enrichedIds = new Set<string>()
+  const enrichInFlight = new Set<string>()
+
+  function hasValidLocation(e: IngestEvent): boolean {
+    const loc = (e.detail as { location?: { lat?: unknown; lng?: unknown } } | undefined)?.location
+    if (!loc) return false
+    const lat = Number(loc.lat)
+    const lng = Number(loc.lng)
+    return Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0
+  }
+
+  async function enrichEvent(eventId: string) {
+    if (enrichedIds.has(eventId) || enrichInFlight.has(eventId)) return
+    enrichInFlight.add(eventId)
+    try {
+      const { data } = await getIngestEventDetail(eventId)
+      const detail = data?.details
+      if (!detail) return
+      enrichedIds.add(eventId)
+      // Merge fresh detail into the existing one so we keep binaryRefs etc.
+      // from the list response while adding location / source / geo from
+      // the per-event endpoint.
+      const patch = (list: IngestEvent[]) => list.map((e) => {
+        if ((e.eventId ?? e.id) !== eventId) return e
+        const merged = { ...(e.detail ?? {}), ...(detail as object) } as IngestEvent['detail']
+        return { ...e, detail: merged }
+      })
+      events = patch(events)
+      analyticsEvents = patch(analyticsEvents)
+    } finally {
+      enrichInFlight.delete(eventId)
+    }
+  }
+
+  async function enrichEventsWithDetail() {
+    const ids = new Set<string>()
+    for (const e of [...analyticsEvents, ...events]) {
+      const id = e.eventId ?? e.id
+      if (id && !hasValidLocation(e)) ids.add(id)
+    }
+    await Promise.all([...ids].map((id) => enrichEvent(id)))
   }
 
   function normalizeSeverity(value: unknown): Severity {
@@ -148,7 +229,15 @@
   }
 
   function eventLocation(event: IngestEvent) {
-    const location = event.location ?? event.detail?.payload?.location
+    // Klynx contract: normalized events expose `detail.location.{lat,lng}`
+    // (gateway-api normalizes geo enrichment into the `detail` envelope).
+    // Older code-paths may carry the same shape on `event.location` or
+    // nested under `payload.location` — keep all three for forwards-compat.
+    const detailLocation = (event.detail as { location?: { lat?: unknown; lng?: unknown } } | undefined)?.location
+    const location =
+      event.location ??
+      detailLocation ??
+      event.detail?.payload?.location
     if (location && typeof location === 'object' && 'lat' in location && 'lng' in location) {
       const lat = Number((location as { lat?: unknown }).lat)
       const lng = Number((location as { lng?: unknown }).lng)
@@ -291,6 +380,7 @@
       seenRealtimeEvents.add(event.eventId)
       events = [event, ...events.filter((item) => (item.eventId ?? item.id) !== event.eventId)].slice(0, FEED_LIMIT)
       analyticsEvents = [event, ...analyticsEvents.filter((item) => (item.eventId ?? item.id) !== event.eventId)].slice(0, ANALYTICS_LIMIT)
+      void enrichEvent(event.eventId)
     }
     scheduleRefresh()
   }
@@ -347,28 +437,36 @@
     if (event.key === 'ArrowRight') moveLightbox(1)
   }
 
+  let previousContentClass = ''
+  let previousFooter = false
+
   onMount(() => {
     setPageTitle('AI Event Intelligence')
+    previousContentClass = $appOptions.appContentClass
+    previousFooter = $appOptions.appFooter
+    $appOptions.appContentClass = 'p-0 d-flex flex-column overflow-hidden intdash-monitor-content'
+    $appOptions.appFooter = true
     startRealtime()
     void load()
   })
 
   onDestroy(() => {
     stopRealtime()
+    $appOptions.appContentClass = previousContentClass
+    $appOptions.appFooter = previousFooter
   })
 </script>
 
-<DomainStarter
-  title="AI Event Intelligence"
-  subtitle="ภาพรวมเหตุการณ์จากกล้อง AI และ Edge AI"
-  icon="bi-activity"
-  legacyName="intDash"
->
-  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-    <div class="text-body text-opacity-50 small">
-      อัปเดตล่าสุด {lastUpdatedAt ? formatTime(lastUpdatedAt.toISOString()) : '—'}
+<div class="intdash-monitor">
+  <header class="intdash-head">
+    <div class="intdash-head-title">
+      <h1>
+        <i class="bi bi-activity"></i>
+        AI Event Intelligence
+      </h1>
+      <p>ภาพรวมเหตุการณ์จากกล้อง AI และ Edge AI · อัปเดตล่าสุด {lastUpdatedAt ? formatTime(lastUpdatedAt.toISOString()) : '—'}</p>
     </div>
-    <div class="d-flex align-items-center gap-2">
+    <div class="intdash-head-actions">
       <span class="badge bg-warning text-dark">Beta</span>
       <span class="badge {liveBadgeClass($wsHubStatus)}" title={$wsHubLastError ?? ''}>
         <i class="bi bi-broadcast me-1"></i>{liveBadgeLabel($wsHubStatus)}
@@ -377,16 +475,16 @@
         <i class="bi bi-arrow-clockwise me-1"></i>{loading ? 'Loading...' : 'Refresh'}
       </button>
     </div>
-  </div>
+  </header>
 
   {#if errorMsg}
-    <div class="alert alert-danger small mb-3">{errorMsg}</div>
+    <div class="alert alert-danger small mb-0 mx-3 mt-2 py-2">{errorMsg}</div>
   {/if}
   {#if realtimeDenied}
-    <div class="alert alert-warning small mb-3">{realtimeDenied}</div>
+    <div class="alert alert-warning small mb-0 mx-3 mt-2 py-2">{realtimeDenied}</div>
   {/if}
 
-  <section class="intdash-kpis mb-4">
+  <section class="intdash-kpis">
     <div class="card intdash-kpi">
       <i class="bi bi-activity"></i>
       <span>เหตุการณ์ทั้งหมด</span>
@@ -419,18 +517,20 @@
     </div>
   </section>
 
-  <section class="intdash-main mb-4">
+  <section class="intdash-main">
     <div class="card intdash-map-card">
-      <div class="card-body">
-        <div class="fw-bold mb-2">แผนที่เหตุการณ์แบบเรียลไทม์</div>
-        <IntDashMap events={mapEvents} {loading} />
+      <div class="card-body d-flex flex-column">
+        <div class="fw-bold mb-2 small">แผนที่เหตุการณ์แบบเรียลไทม์</div>
+        <div class="intdash-map-stage">
+          <IntDashMap events={mapEvents} {loading} />
+        </div>
       </div>
     </div>
 
     <div class="card intdash-feed-card">
-      <div class="card-body">
+      <div class="card-body d-flex flex-column">
         <div class="d-flex justify-content-between align-items-center mb-2">
-          <div class="fw-bold">เหตุการณ์ล่าสุด</div>
+          <div class="fw-bold small">เหตุการณ์ล่าสุด</div>
           <span class="badge bg-secondary-subtle text-body">{events.length} รายการ</span>
         </div>
         <div class="intdash-feed">
@@ -475,25 +575,28 @@
     <div class="card">
       <div class="card-body">
         <div class="fw-bold">เหตุการณ์ย้อนหลัง 60 นาที</div>
-        <div class="small text-body text-opacity-50 mb-3">แบ่งทุก 5 นาที ตามระดับความรุนแรง</div>
+        <div class="small text-body text-opacity-50 mb-2">แบ่งทุก 5 นาที ตามระดับความรุนแรง</div>
         <div class="intdash-timeline">
-          {#each analytics.timeline.buckets as bucket, index}
-            {@const total = severityOrder.reduce((sum, severity) => sum + analytics.timeline.series[severity][index], 0)}
-            <div class="intdash-timeline-col">
-              <div class="intdash-timeline-bar" title={`${formatTime(bucket)} · ${total}`}>
-                {#if total > 0}
-                  {#each severityOrder as severity}
-                    {@const value = analytics.timeline.series[severity][index]}
-                    {#if value > 0}
-                      <span style={`height:${Math.max(8, (value / timelineMax) * 132)}px;background:${severityColor(severity)}`}></span>
-                    {/if}
-                  {/each}
-                {:else}
-                  <i></i>
-                {/if}
-              </div>
-              <small>{formatTime(bucket).slice(0, 5)}</small>
-            </div>
+          <svg viewBox={`0 0 ${TIMELINE_VIEW_W} ${TIMELINE_VIEW_H}`} preserveAspectRatio="none" class="intdash-timeline-svg" aria-hidden="true">
+            <line x1="0" y1={TIMELINE_VIEW_H * 0.5} x2={TIMELINE_VIEW_W} y2={TIMELINE_VIEW_H * 0.5} class="intdash-timeline-grid" />
+            <line x1="0" y1={TIMELINE_VIEW_H} x2={TIMELINE_VIEW_W} y2={TIMELINE_VIEW_H} class="intdash-timeline-grid" />
+            {#each timelineModel.layers as layer (layer.severity)}
+              <polygon points={layer.polygon} fill={severityColor(layer.severity)} fill-opacity="0.22" />
+              <polyline points={layer.line} stroke={severityColor(layer.severity)} stroke-width="1.4" fill="none" stroke-linejoin="round" stroke-linecap="round" />
+            {/each}
+          </svg>
+          {#if !timelineModel.hasData}
+            <div class="intdash-timeline-empty">ยังไม่มีเหตุการณ์ในช่วง 60 นาที</div>
+          {/if}
+        </div>
+        <div class="intdash-timeline-axis">
+          {#each analytics.timeline.buckets as bucket, i}
+            {#if i % 2 === 0}<span>{formatTime(bucket).slice(0, 5)}</span>{/if}
+          {/each}
+        </div>
+        <div class="intdash-timeline-legend">
+          {#each severityOrder as severity}
+            <span><i style={`background:${severityColor(severity)}`}></i>{severityLabels[severity]}</span>
           {/each}
         </div>
       </div>
@@ -501,7 +604,7 @@
     <div class="card">
       <div class="card-body">
         <div class="fw-bold">อุปกรณ์ที่รายงานมากที่สุด</div>
-        <div class="small text-body text-opacity-50 mb-3">Top 5 ในข้อมูลล่าสุด</div>
+        <div class="small text-body text-opacity-50 mb-2">Top 5 ในข้อมูลล่าสุด</div>
         <div class="d-grid gap-2">
           {#each analytics.topDevices as item}
             <div class="intdash-bar-row">
@@ -518,7 +621,7 @@
     <div class="card">
       <div class="card-body">
         <div class="fw-bold">สถานะกล้อง</div>
-        <div class="small text-body text-opacity-50 mb-3">ออนไลน์ / ออฟไลน์ (ปัจจุบัน)</div>
+        <div class="small text-body text-opacity-50 mb-2">ออนไลน์ / ออฟไลน์ (ปัจจุบัน)</div>
         <div class="intdash-donut" style={cameraHealthDonutStyle()}></div>
         <div class="d-flex justify-content-center gap-3 small mt-3">
           <span><i class="intdash-dot bg-success"></i>ออนไลน์ {formatCount(analytics.cameraHealth.online)}</span>
@@ -529,7 +632,7 @@
     <div class="card">
       <div class="card-body">
         <div class="fw-bold">ประเภทเหตุการณ์</div>
-        <div class="small text-body text-opacity-50 mb-3">สัดส่วนจากข้อมูลล่าสุด</div>
+        <div class="small text-body text-opacity-50 mb-2">สัดส่วนจากข้อมูลล่าสุด</div>
         <div class="d-grid gap-2">
           {#each analytics.categories as item, index}
             <div class="intdash-category-row">
@@ -545,10 +648,7 @@
     </div>
   </section>
 
-  <div class="small text-body text-opacity-50 mt-4">
-    Status: B-2 / B-3a / B-3b / B-3c / B-4 shipped · อิงตาม klynx-api/docs/contracts/event-severity-forwarding.md
-  </div>
-</DomainStarter>
+</div>
 
 {#if lightboxEvent}
   <div
@@ -585,16 +685,62 @@
 {/if}
 
 <style>
+  :global(.intdash-monitor-content) {
+    background: transparent;
+  }
+
+  .intdash-monitor {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    gap: 0.45rem;
+    padding: 0.6rem 1rem calc(var(--phibek-footer-height, 44px) + 0.25rem);
+  }
+
+  .intdash-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex: 0 0 auto;
+  }
+
+  .intdash-head-title h1 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+  }
+
+  .intdash-head-title h1 i {
+    color: var(--bs-theme);
+    margin-right: 0.4rem;
+  }
+
+  .intdash-head-title p {
+    margin: 0.15rem 0 0;
+    font-size: 0.75rem;
+    color: rgba(var(--bs-body-color-rgb), 0.6);
+  }
+
+  .intdash-head-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
   .intdash-kpis,
   .intdash-analytics {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 1rem;
+    gap: 0.6rem;
+    flex: 0 0 auto;
   }
 
   .intdash-kpi {
-    padding: 1rem;
-    min-height: 7rem;
+    padding: 0.5rem 0.75rem;
+    min-height: 0;
   }
 
   .intdash-kpi i,
@@ -605,20 +751,62 @@
 
   .intdash-kpi strong {
     display: block;
-    font-size: 1.85rem;
+    font-size: 1.35rem;
     line-height: 1.1;
-    margin: 0.5rem 0 0.25rem;
+    margin: 0.2rem 0 0.1rem;
+  }
+
+  .intdash-kpi i {
+    font-size: 0.85rem;
+  }
+
+  .intdash-kpi span {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .intdash-kpi small {
+    font-size: 0.62rem;
+    display: block;
   }
 
   .intdash-main {
     display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(20rem, 1fr);
-    gap: 1rem;
+    grid-template-columns: minmax(0, 2fr) minmax(18rem, 1fr);
+    gap: 0.6rem;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .intdash-main > .card {
+    margin: 0;
+    min-height: 0;
+  }
+
+  .intdash-main .card-body {
+    min-height: 0;
+    padding: 0.6rem 0.75rem;
+  }
+
+  .intdash-map-stage {
+    flex: 1 1 auto;
+    min-height: 0;
+    position: relative;
+  }
+
+  .intdash-map-stage > :global(*) {
+    height: 100%;
   }
 
   .intdash-map,
   .intdash-feed {
-    height: 27.5rem;
+    height: 100%;
+  }
+
+  .intdash-feed {
+    flex: 1 1 auto;
+    min-height: 0;
   }
 
   .intdash-map {
@@ -752,54 +940,76 @@
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
+  .intdash-analytics .card-body {
+    padding: 0.6rem 0.75rem;
+  }
+
+  .intdash-analytics .fw-bold {
+    font-size: 0.78rem;
+  }
+
+  .intdash-analytics .small {
+    font-size: 0.65rem;
+  }
+
   .intdash-timeline {
-    height: 10rem;
-    display: grid;
-    grid-template-columns: repeat(12, minmax(0, 1fr));
-    align-items: end;
-    gap: 0.45rem;
-    border-bottom: 1px dashed rgba(255, 255, 255, 0.16);
-    padding-top: 0.35rem;
+    position: relative;
+    height: 4rem;
   }
 
-  .intdash-timeline-col {
-    display: grid;
-    grid-template-rows: minmax(0, 1fr) auto;
-    gap: 0.25rem;
-    height: 100%;
-    min-width: 0;
-  }
-
-  .intdash-timeline-bar {
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    gap: 1px;
-    min-height: 0;
-    padding-inline: 0.08rem;
-    border-inline: 1px solid rgba(255, 255, 255, 0.04);
-  }
-
-  .intdash-timeline-bar span {
-    width: 0.38rem;
-    min-height: 0.15rem;
-    border-radius: 999px 999px 0 0;
-  }
-
-  .intdash-timeline-bar i {
+  .intdash-timeline-svg {
     width: 100%;
-    height: 0.15rem;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.12);
+    height: 100%;
+    display: block;
+    overflow: visible;
   }
 
-  .intdash-timeline-col small {
-    overflow: hidden;
+  .intdash-timeline-grid {
+    stroke: rgba(var(--bs-body-color-rgb), 0.14);
+    stroke-dasharray: 3 4;
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .intdash-timeline-svg polyline,
+  .intdash-timeline-svg polygon {
+    vector-effect: non-scaling-stroke;
+  }
+
+  .intdash-timeline-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(var(--bs-body-color-rgb), 0.4);
+    font-size: 0.7rem;
+    pointer-events: none;
+  }
+
+  .intdash-timeline-axis {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.2rem;
     color: rgba(var(--bs-body-color-rgb), 0.42);
     font-size: 0.62rem;
-    text-align: center;
-    text-overflow: clip;
-    white-space: nowrap;
+  }
+
+  .intdash-timeline-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin-top: 0.35rem;
+    color: rgba(var(--bs-body-color-rgb), 0.55);
+    font-size: 0.62rem;
+  }
+
+  .intdash-timeline-legend i {
+    display: inline-block;
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 999px;
+    margin-right: 0.3rem;
   }
 
   .intdash-bar-row {
@@ -818,9 +1028,9 @@
   }
 
   .intdash-donut {
-    width: 7rem;
-    height: 7rem;
-    margin: 0.75rem auto 0;
+    width: 3.5rem;
+    height: 3.5rem;
+    margin: 0.35rem auto 0;
     border-radius: 999px;
     position: relative;
   }
@@ -828,7 +1038,7 @@
   .intdash-donut::after {
     content: '';
     position: absolute;
-    inset: 1.8rem;
+    inset: 0.85rem;
     border-radius: inherit;
     background: var(--bs-body-bg);
   }
@@ -912,10 +1122,28 @@
   }
 
   @media (max-width: 992px) {
+    :global(.intdash-monitor-content) {
+      overflow: auto !important;
+      flex: 1;
+    }
+    .intdash-monitor {
+      flex: 0 0 auto;
+      min-height: auto;
+    }
     .intdash-main,
     .intdash-kpis,
     .intdash-analytics {
       grid-template-columns: 1fr;
+    }
+    .intdash-main {
+      flex: 0 0 auto;
+      min-height: auto;
+    }
+    .intdash-map-stage {
+      min-height: 22rem;
+    }
+    .intdash-feed {
+      max-height: 22rem;
     }
   }
 </style>

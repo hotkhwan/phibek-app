@@ -7,6 +7,7 @@ import type { SidebarMenu } from '$lib/types/navigation'
 export const appSidebarMenus = writable<SidebarMenu[]>([
   { kind: 'header', id: 'nav', textKey: 'navNavigation' },
 
+  { kind: 'link', id: 'intDash', menuId: 'intDash', url: 'intDash', icon: 'bi bi-activity', textKey: 'navIntDash' },
   {
     kind: 'link',
     id: 'dashboard',
@@ -19,7 +20,6 @@ export const appSidebarMenus = writable<SidebarMenu[]>([
       { id: 'dashboardCameraUsage', menuId: 'dashboard', url: 'dashboard/camera-usage', textKey: 'navCameraUsage' }
     ]
   },
-  { kind: 'link', id: 'intDash', menuId: 'intDash', url: 'intDash', icon: 'bi bi-activity', textKey: 'navIntDash' },
   { kind: 'link', id: 'aiSearch', menuId: 'ksearch', url: 'aiSearch', icon: 'bi bi-search-heart', textKey: 'navAiSearch' },
   {
     kind: 'link',
@@ -59,11 +59,10 @@ export const appSidebarMenus = writable<SidebarMenu[]>([
   },
   { kind: 'link', id: 'floorPlans', menuId: 'floor-plans-menu', url: 'floorPlans', icon: 'bi bi-bounding-box', textKey: 'navFloorPlans' },
   { kind: 'link', id: 'watchlist', menuId: 'police', url: 'police', icon: 'bi bi-person-bounding-box', textKey: 'navPolice' },
-  { kind: 'link', id: 'live', url: 'live', icon: 'bi bi-broadcast', textKey: 'navLive' },
   { kind: 'link', id: 'map', menuId: 'map', url: 'map', icon: 'bi bi-globe-americas', textKey: 'navMap' },
   { kind: 'link', id: 'videoWall', menuId: 'videowall', url: 'videowall', icon: 'bi bi-grid-3x3-gap', textKey: 'navVideoWall' },
-  { kind: 'link', id: 'biDash', menuId: 'map', url: 'biDash', icon: 'bi bi-bar-chart-line', textKey: 'navBiDash' },
-  { kind: 'link', id: 'mqtt', url: 'mqtt', icon: 'bi bi-router', textKey: 'navMqttConsole' },
+  { kind: 'link', id: 'biDash', menuId: 'map', url: 'biDash', icon: 'bi bi-bar-chart-line', textKey: 'navBiDash', debug: true },
+  { kind: 'link', id: 'mqtt', url: 'mqtt', icon: 'bi bi-router', textKey: 'navMqttConsole', debug: true },
   {
     kind: 'link',
     id: 'systemDevices',
@@ -98,8 +97,6 @@ export const appSidebarMenus = writable<SidebarMenu[]>([
       { id: 'adminPlatformLicense', url: 'admin/platform-license', textKey: 'navAdminPlatformLicense' }
     ]
   },
-  { kind: 'link', id: 'landing', url: 'landing', icon: 'bi bi-rainbow', textKey: 'navLanding' },
-
   { kind: 'header', id: 'userPortal', textKey: 'navUserPortal' },
   { kind: 'link', id: 'profile', url: 'profile', icon: 'bi bi-person', textKey: 'navProfile' },
   { kind: 'link', id: 'settings', url: 'settings', icon: 'bi bi-gear', textKey: 'navSettings' },

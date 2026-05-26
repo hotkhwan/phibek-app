@@ -39,6 +39,7 @@
         <a href="#about" class="nav-link">ABOUT</a>
         <a href="#features" class="nav-link">FEATURES</a>
         <a href="#contact" class="nav-link">CONTACT</a>
+        <a href={resolve('/live')} class="nav-link">LIVE</a>
       </div>
       <div class="d-flex gap-2">
         <a href={resolve('/auth/login')} class="btn btn-secondary">SIGN IN</a>

@@ -2,10 +2,16 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte'
   import { browser } from '$app/environment'
+  import { env } from '$env/dynamic/public'
+  import { get } from 'svelte/store'
+  import { auth } from '$lib/stores/auth'
+  import { activeWorkspaceId } from '$lib/stores/activeWorkspace'
   import { WS_TOPICS } from '$lib/realtime/wsTopics'
   import { subscribeWsTopic, wsHubStatus } from '$lib/stores/wsHub'
   import type { WssIngestEventPayload } from '$lib/types/realtime'
 
+  type BinaryRefLike = { objectId?: string; bucket?: string; kind?: string; contentType?: string; role?: string }
+  type PictureCoordLike = { x1?: number; y1?: number; x2?: number; y2?: number }
   type EventLike = {
     id?: string
     eventId?: string
@@ -17,11 +23,16 @@
     occurredAt?: string
     severity?: string
     location?: { lat?: unknown; lng?: unknown }
+    binaryRefs?: BinaryRefLike[]
     detail?: {
       location?: { lat?: unknown; lng?: unknown }
-      payload?: Record<string, unknown>
+      binaryRefs?: BinaryRefLike[]
+      payload?: Record<string, unknown> & {
+        location?: { lat?: unknown; lng?: unknown }
+        pictureCoordinates?: PictureCoordLike[]
+      }
     }
-    payload?: Record<string, unknown>
+    payload?: Record<string, unknown> & { pictureCoordinates?: PictureCoordLike[] }
   }
 
   type Props = {
@@ -42,6 +53,9 @@
     deviceId?: string
     occurredAt: string
     occurredAtMs: number
+    imageBucket?: string
+    imageObject?: string
+    pictureCoords: PictureCoordLike[]
   }
 
   const MAX_MARKERS = 200
@@ -56,7 +70,10 @@
 
   let mapEl: HTMLDivElement | null = null
   let L: typeof import('leaflet') | null = null
-  let map: import('leaflet').Map | null = null
+  // $state so the $effect below re-fires after ensureInit() finishes the
+  // async leaflet import + creates the map; otherwise a race where events
+  // arrive before `map` is set leaves the markers un-seeded.
+  let map = $state<import('leaflet').Map | null>(null)
   let clusterGroup: import('leaflet').MarkerClusterGroup | null = null
   let currentTileLayer: import('leaflet').TileLayer | null = null
   let markerById = new Map<string, import('leaflet').Marker>()
@@ -64,6 +81,7 @@
   let insertionOrder: string[] = []
   let sawAnyMarker = $state(false)
   let markerCount = $state(0)
+  let receivedEventCount = $state(0)
   let liveStatusLabel = $derived($wsHubStatus === 'on' ? 'LIVE' : $wsHubStatus === 'reconnecting' ? 'Syncing' : $wsHubStatus === 'error' ? 'WSS error' : 'REST')
   let unsubscribeRealtime: (() => void) | null = null
   let tick: ReturnType<typeof setInterval> | null = null
@@ -102,6 +120,23 @@
     return event.payload?.[key] ?? event.detail?.payload?.[key]
   }
 
+  function pickImageRef(event: EventLike): BinaryRefLike | undefined {
+    const refs = event.detail?.binaryRefs ?? event.binaryRefs ?? []
+    return refs.find((r) => r?.kind === 'image' || r?.contentType?.startsWith('image/'))
+  }
+
+  function pickPictureCoords(event: EventLike): PictureCoordLike[] {
+    const coords = event.detail?.payload?.pictureCoordinates ?? event.payload?.pictureCoordinates
+    if (!Array.isArray(coords)) return []
+    return coords.filter(
+      (c): c is PictureCoordLike =>
+        !!c
+        && typeof c.x1 === 'number' && typeof c.y1 === 'number'
+        && typeof c.x2 === 'number' && typeof c.y2 === 'number'
+        && c.x2 > c.x1 && c.y2 > c.y1
+    )
+  }
+
   function markerFromEvent(event: EventLike): MapMarker | null {
     const direct = event.location
     const detail = event.detail?.location
@@ -111,6 +146,7 @@
       validCoord(payloadValue(event, 'lat') ?? payloadValue(event, 'latitude'), payloadValue(event, 'lng') ?? payloadValue(event, 'longitude'))
     if (!coord) return null
     const occurredAt = event.occurredAt ?? new Date().toISOString()
+    const imageRef = pickImageRef(event)
     return {
       id: event.eventId ?? event.id ?? `${coord.lat}:${coord.lng}:${occurredAt}`,
       lat: coord.lat,
@@ -121,7 +157,10 @@
       deviceName: event.deviceName,
       deviceId: event.deviceId,
       occurredAt,
-      occurredAtMs: parseTs(occurredAt)
+      occurredAtMs: parseTs(occurredAt),
+      imageBucket: imageRef?.bucket,
+      imageObject: imageRef?.objectId,
+      pictureCoords: pickPictureCoords(event)
     }
   }
 
@@ -141,12 +180,18 @@
     const severity = marker.severity || 'none'
     const color = severityHex(severity)
     const eventClass = marker.eventClass ? `<div style="font-size:11px;opacity:.7">${escapeHtml(marker.eventClass)}</div>` : ''
+    const imageBlock = marker.imageBucket && marker.imageObject
+      ? `<div class="intdash-popup-img-wrap" style="position:relative;width:240px;height:135px;margin-top:6px;border-radius:4px;overflow:hidden;background:rgba(0,0,0,0.35)">
+          <div class="intdash-popup-img" data-bucket="${escapeHtml(marker.imageBucket)}" data-object="${escapeHtml(marker.imageObject)}" data-coords="${escapeHtml(JSON.stringify(marker.pictureCoords))}" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:10px;color:rgba(255,255,255,0.55)">…</div>
+        </div>`
+      : ''
     return `<div style="padding:4px 2px;min-width:180px;font-family:inherit">
       <div style="font-weight:600;font-size:13px;line-height:1.3">${escapeHtml(marker.eventType || '(unspecified)')}</div>
       ${eventClass}
       <div style="font-size:11px;opacity:.72;margin-top:4px">${escapeHtml(marker.deviceName || marker.deviceId || '—')}</div>
       <div style="font-size:11px;margin-top:4px;color:${color}">● ${escapeHtml(severity)}</div>
       <div style="font-size:11px;opacity:.55;margin-top:4px">${escapeHtml(marker.occurredAt)}</div>
+      ${imageBlock}
     </div>`
   }
 
@@ -197,6 +242,70 @@
     fitToMarkers()
   }
 
+  // Leaflet's bindPopup takes an HTML string and doesn't run Svelte lifecycle,
+  // so the popup `<img>` can't carry the Bearer header that the
+  // `/api/v1/files/{bucket}/{object}` endpoint requires. Match klynx's
+  // hydrateMarkerPopupImage: fire an auth fetch on popup open, swap the
+  // placeholder for the resulting blob URL. Cache by `bucket/object`.
+  const apiBase = (env.PUBLIC_API_BASE_URL ?? '').replace(/\/+$/, '')
+  const popupBlobCache = new Map<string, string>()
+
+  async function fetchAuthBlobUrl(path: string): Promise<string> {
+    const url = path.startsWith('http') ? path : `${apiBase}${path.startsWith('/') ? '' : '/'}${path}`
+    const token = auth.get().user?.token
+    const activeOrg = get(activeWorkspaceId)
+    const headers: Record<string, string> = {}
+    if (token) headers.Authorization = `Bearer ${token}`
+    if (activeOrg) headers['X-Active-Org'] = activeOrg
+    const res = await fetch(url, { headers, credentials: 'include' })
+    if (!res.ok) throw new Error(`file fetch ${res.status}`)
+    return URL.createObjectURL(await res.blob())
+  }
+
+  async function hydratePopupImage(root: HTMLElement) {
+    const ph = root.querySelector('.intdash-popup-img') as HTMLElement | null
+    if (!ph || ph.dataset.hydrated === 'true') return
+    ph.dataset.hydrated = 'true'
+    const bucket = ph.dataset.bucket
+    const object = ph.dataset.object
+    if (!bucket || !object) return
+    const key = `${bucket}/${object}`
+    let url = popupBlobCache.get(key)
+    try {
+      if (!url) {
+        const objectPath = object.split('/').map(encodeURIComponent).join('/')
+        url = await fetchAuthBlobUrl(`/files/${encodeURIComponent(bucket)}/${objectPath}`)
+        popupBlobCache.set(key, url)
+      }
+      if (!ph.isConnected) return
+      let coords: PictureCoordLike[] = []
+      try {
+        coords = JSON.parse(ph.dataset.coords || '[]') as PictureCoordLike[]
+      } catch {
+        coords = []
+      }
+      ph.innerHTML = `<img src="${url}" alt="" style="width:100%;height:100%;object-fit:cover;display:block">`
+      if (coords.length) {
+        const overlay = document.createElement('div')
+        overlay.style.cssText = 'position:absolute;inset:0;pointer-events:none'
+        for (const c of coords) {
+          const box = document.createElement('div')
+          const left = ((c.x1 ?? 0) * 100).toFixed(2)
+          const top = ((c.y1 ?? 0) * 100).toFixed(2)
+          const width = (((c.x2 ?? 0) - (c.x1 ?? 0)) * 100).toFixed(2)
+          const height = (((c.y2 ?? 0) - (c.y1 ?? 0)) * 100).toFixed(2)
+          box.style.cssText = `position:absolute;left:${left}%;top:${top}%;width:${width}%;height:${height}%;border:2px solid #fb923c;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.4)`
+          overlay.appendChild(box)
+        }
+        ph.parentElement?.appendChild(overlay)
+      }
+    } catch (err) {
+      console.warn('[IntDashMap] popup image fetch failed:', err)
+      if (!ph.isConnected) return
+      ph.innerHTML = '<span style="font-size:10px;opacity:.55">โหลดรูปไม่สำเร็จ</span>'
+    }
+  }
+
   async function ensureInit() {
     if (!browser || map || !mapEl) return
     if (initPromise) return initPromise
@@ -241,6 +350,12 @@
       })
       map.addLayer(clusterGroup)
 
+      // Hydrate popup image (Bearer fetch → blob) whenever a popup opens.
+      map.on('popupopen', (e: import('leaflet').LeafletEvent) => {
+        const popupEl = (e as { popup?: { getElement?: () => HTMLElement | undefined } }).popup?.getElement?.()
+        if (popupEl) void hydratePopupImage(popupEl)
+      })
+
       requestAnimationFrame(() => map?.invalidateSize())
       setTimeout(() => map?.invalidateSize(), 300)
       seedFromRest(events)
@@ -266,6 +381,7 @@
   }
 
   $effect(() => {
+    receivedEventCount = events.length
     if (!map) return
     seedFromRest(events)
   })
@@ -298,17 +414,19 @@
     markerById.clear()
     markerMetaById.clear()
     insertionOrder = []
+    for (const blobUrl of popupBlobCache.values()) URL.revokeObjectURL(blobUrl)
+    popupBlobCache.clear()
   })
 </script>
 
 <div class="intdash-leaflet-shell">
   <div bind:this={mapEl} class="intdash-leaflet-map"></div>
 
-  <div class="intdash-map-chip intdash-map-live">
+  <div class="intdash-map-chip intdash-map-live" title={`${receivedEventCount} events received from page`}>
     <span class="status-dot" class:on={$wsHubStatus === 'on'} class:warn={$wsHubStatus === 'reconnecting'} class:error={$wsHubStatus === 'error'}></span>
     <span>{liveStatusLabel}</span>
     <span class="opacity-50">·</span>
-    <span>{markerCount} หมุด</span>
+    <span>{markerCount} / {receivedEventCount} หมุด</span>
   </div>
 
   <div class="intdash-map-chip intdash-map-legend">
@@ -327,7 +445,7 @@
   .intdash-leaflet-shell {
     position: relative;
     height: 100%;
-    min-height: 27.5rem;
+    min-height: 0;
     overflow: hidden;
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 0.35rem;

@@ -220,7 +220,7 @@ function stopRefreshTimer() {
   }
 }
 
-export async function login(redirectPath = '/dashboard') {
+export async function login(redirectPath = '/intDash') {
   if (!browser) return
   const returnTo = withRuntimeBase(redirectPath)
   setIntended(returnTo)
