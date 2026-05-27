@@ -69,8 +69,9 @@ export const appSidebarMenus = writable<SidebarMenu[]>([
     icon: 'bi bi-hdd-network',
     textKey: 'navSystemDevices',
     children: [
+      // Edge devices are reached via the Cameras/Edge tab strip inside the device
+      // list (systemDevices/cameras + /edge), not a standalone sidebar link.
       { id: 'systemDevicesCameras', menuId: 'systemDevicesCameras', url: 'systemDevices/cameras', textKey: 'navSystemDevicesCameras' },
-      { id: 'systemDevicesEdge', menuId: 'systemDevicesEdge', url: 'systemDevices/edge', textKey: 'navSystemDevicesEdge' },
       { id: 'systemDevicesGroups', menuId: 'systemDevicesGroups', url: 'systemDevices/groups', textKey: 'navSystemDevicesGroups' }
     ]
   },
