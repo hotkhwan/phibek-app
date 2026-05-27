@@ -3,6 +3,35 @@
 import { api, apiSafe } from '$lib/utils/fetch'
 
 type ApiEnvelope<T> = { status?: boolean; code?: string; message?: string; details: T }
+
+// ─── ROI (region-of-interest) ─────────────────────────────────────────────
+// Mirrors klynx app/types/camera.ts. RoiPoint coords are normalized 0–1.
+export type RoiPoint = { x: number; y: number }
+export type RoiShape = 'poly' | 'line'
+export type RoiDetail = 'in' | 'out' | 'in-out' | string
+
+// Editor-facing ROI item (matches klynx RoiItem). Not the wire shape — see
+// RoiWire for what is actually POSTed/PATCHed on the camera `roi` field.
+export type RoiItem = {
+  id: string
+  shape: RoiShape
+  points: RoiPoint[]
+  title: string
+  detail: RoiDetail
+}
+
+// Serialized wire shape produced by klynx serializeRoiItems() — an array of
+// 4-tuples, each a list of single-key objects:
+//   [ { shape }, { coords }, { title }, { "data-detail" } ]
+// `coords` is a flat "x,y,x,y,…" string with each axis scaled ×1000 (0–1000).
+// This is the real klynx-api contract for the camera `roi` field; klynx already
+// POSTs this exact shape from systemDevices/cameras/{add,edit}.
+export type RoiWireEntry =
+  | { shape: RoiShape }
+  | { coords: string }
+  | { title: string }
+  | { 'data-detail': RoiDetail }
+export type RoiWire = RoiWireEntry[][]
 type Pagination = {
   page: number
   perPage: number
@@ -41,6 +70,9 @@ export type Camera = {
   lastProbeAt?: string
   offlineDescription?: string
   location?: string
+  // Serialized ROI shapes (klynx wire format). Hydrated back into the editor
+  // on edit. Legacy cameras may carry a flat `[{x,y},…]` polygon instead.
+  roi?: RoiWire | Array<{ x: number; y: number }> | unknown
   dateTimeCreate?: string
   dateTimeUpdate?: string
   externalSource?: {
@@ -76,6 +108,9 @@ export type CameraInput = {
   mapVisibility?: 'public' | 'internal' | 'inherit' | 'forcePublic' | 'forcePrivate'
   description?: string
   offlineDescription?: string
+  // Serialized ROI (klynx wire format from serializeRoiItems). Omitted when no
+  // shapes are drawn.
+  roi?: RoiWire
 }
 
 export type EdgeDevice = {
@@ -108,6 +143,7 @@ export type SystemEdgeDevice = {
   id: string
   type?: 'svms' | 'ata' | 'iboc' | string
   name: string
+  username?: string
   url?: string
   tls?: boolean
   createdAt?: string
@@ -220,6 +256,23 @@ export async function deleteCamera(id: string): Promise<void> {
   await api(`/resources/camera/${encodeURIComponent(id)}`, { method: 'DELETE' })
 }
 
+// Provision (or refresh) a ZLMediaKit stream for a given stream key + source
+// URL. Mirrors klynx `POST /kapi/media/stream` body `{ stream, url }`; phibek
+// PUBLIC_API_BASE_URL already carries the `/kapi` prefix, so the path is
+// `/media/stream`. Used by the camera modal "Test stream" preview to pull a
+// frame before the camera is persisted. The playable WebRTC URL is built
+// client-side via streamUrl.buildWebRTCUrlByIdStrict(streamKey).
+export async function startMediaStream(body: { stream: string; url: string }) {
+  return apiSafe<ApiEnvelope<{ playUrl?: string; streamId?: string; ready?: boolean } | unknown>>(
+    '/media/stream',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body
+    }
+  )
+}
+
 export async function syncCameraMonitor() {
   return api<ApiEnvelope<CameraMonitorSyncResult>>('/resources/camera/syncMonitor', {
     method: 'POST'
@@ -269,6 +322,14 @@ export async function updateEdgeDevice(id: string, body: EdgeDeviceInput) {
 
 export async function deleteEdgeDevice(id: string): Promise<void> {
   await api(`/system/edge/${encodeURIComponent(id)}`, { method: 'DELETE' })
+}
+
+// klynx-api devsync — GET /devsync/{type}/{id}. svms + ata only.
+// iboc sync lives on a separate API base (/ibocapi/edge/sync) and is not wired here.
+export async function syncEdgeDevice(id: string, type: 'svms' | 'ata') {
+  return api<ApiEnvelope<unknown>>(`/devsync/${type}/${encodeURIComponent(id)}`, {
+    method: 'GET'
+  })
 }
 
 export async function listResourceGroups(params: ListParams = {}) {

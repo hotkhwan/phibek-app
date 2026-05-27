@@ -18,6 +18,9 @@ neighbor (PLATFORM v0.18.0 → v0.19.0). Aggregates everything under
 ## [Unreleased]
 
 ### Added
+- **systemDevices parity (cameras / edge / groups)** ported from klynx to cyber_admin v2.0 layout — breadcrumb, KPI summary cards, filter + search toolbar, multi-select table, CSV export, pagination, and in-page Add/Edit modals + delete confirm (replacing the `DataTableStarter` scaffolds). CRUD lives in the list page; the `add`/`edit`/`delete` sub-routes 307-redirect back.
+- Camera add/edit modal: leaflet **map pin picker** (click/drag to set lat/lng, reuses `MapPicker`, deferred 300 ms mount so leaflet doesn't measure 0×0 in the animating modal), a **"Test stream"** WebRTC preview, and an **SVG ROI editor** (polygon/line) persisted via the camera `roi` field using the klynx `serializeRoiItems` wire shape (`[{shape},{coords},{title},{"data-detail"}]`, coords ×1000). `roi` + `RoiWire`/`RoiItem` types and `startMediaStream` added to the devices API client.
+- Edge devices (SVMS/ATA/IBOC) management with per-row sync for svms/ata — `syncEdgeDevice` + `SystemEdgeDevice.username` added to the devices API client.
 - intDash and floorPlans fit-1-screen monitor mode (no page scroll on lg+, internal scroll for feed/grid).
 - Permission-aware default landing: `/intDash` when granted, else `/dashboard`, else `/profile` — applied across `firstAllowedFallback`, auth callback, login, session-start, and keycloak login default.
 - `PUBLIC_DEBUG_MENU_ENABLED` env flag with `debug?: boolean` sidebar entry shape; `mqtt` + `biDash` hidden unless enabled.
@@ -26,6 +29,7 @@ neighbor (PLATFORM v0.18.0 → v0.19.0). Aggregates everything under
 - intDash event timeline rendered as SVG stacked-area chart (5-min × 12 buckets, severity-colored) with HH:mm axis + legend.
 
 ### Changed
+- Edge devices are no longer a standalone sidebar link; reached via a Cameras/Edge tab strip inside the device list (`systemDevices/cameras` + `/edge`).
 - `dashboard` analytics surface fit-1-screen on lg+: flex-column shell, top/middle/bottom grids share remaining height, activity table scrolls internally; falls back to natural scroll at < 1440px.
 - Sidebar order: `intDash` now sits above `dashboard` to match the new default-landing priority; `landing` entry removed.
 - intDash bottom analytics tightened (timeline 4rem, donut 3.5rem) so map + events feed claim more vertical space.
